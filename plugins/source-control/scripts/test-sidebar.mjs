@@ -206,7 +206,7 @@ try {
     ),
     true,
   );
-  evaluate("window.confirm=()=>true");
+  evaluate("window.confirm=()=>{throw new Error('Push must not ask for confirmation')}");
   browser("find", "role", "button", "click", "--name", "Push outgoing commits", "--exact");
   browser("wait", "--fn", "window.fixtureActions.some(action=>action.kind==='push')");
   browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Commit staged changes\"]')");

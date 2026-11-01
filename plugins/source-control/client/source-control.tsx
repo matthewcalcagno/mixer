@@ -427,8 +427,10 @@ export function SourceControlPanel({
       case "fetch":
         action.mutate({ kind: "fetch" });
         break;
-      case "pull":
       case "push":
+        action.mutate({ kind: "push" });
+        break;
+      case "pull":
       case "sync":
         void confirm({ kind: value });
         break;
@@ -539,7 +541,7 @@ export function SourceControlPanel({
           onMessage={saveMessage}
           onCommit={commit}
           onPush={() => {
-            void confirm({ kind: "push" });
+            action.mutate({ kind: "push" });
           }}
         />
         {operationError && (
