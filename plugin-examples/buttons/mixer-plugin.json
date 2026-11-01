@@ -1,0 +1,4 @@
+{
+  "id": "button-examples",
+  "requirements": { "mixer": ">=0.8.0" }
+}

@@ -1,0 +1,166 @@
+import { useCallback, useMemo, type ReactNode } from "react";
+import { useWorkspaceTabDrag } from "@/components/workspace-tab-drag-context";
+import { WorkspacePanelHost } from "@/screens/workspace/workspace-panel-host";
+import { deriveWorkspacePaneState } from "@/screens/workspace/workspace-pane-state";
+import {
+  WorkspaceDesktopTabsRow,
+  type WorkspaceDesktopTabRowItem,
+  type WorkspaceDesktopTabsRowProps,
+} from "@/screens/workspace/workspace-desktop-tabs-row";
+import type { WorkspacePaneContentModel } from "@/screens/workspace/workspace-pane-content";
+import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
+import type { SplitPane } from "@/stores/workspace-layout-store";
+import type { WorkspaceTab } from "@/workspace-tabs/model";
+import { ExplorerDock, ExplorerDockTabs, ExplorerDockContent } from "./explorer-sidebar/dock";
+
+interface ExplorerSidebarDockProps extends Pick<
+  WorkspaceDesktopTabsRowProps,
+  | "setHoveredCloseTabKey"
+  | "onCopyResumeCommand"
+  | "onCopyAgentId"
+  | "onCopyTerminalId"
+  | "onCopyFilePath"
+  | "onReloadAgent"
+  | "onRenameTab"
+  | "onCreateNewTab"
+  | "onExitFocusMode"
+> {
+  hoveredCloseTabKey: string | null;
+  onCloseTabsToLeft: (tabId: string, tabs: WorkspaceTabDescriptor[]) => Promise<void> | void;
+  onCloseTabsToRight: (tabId: string, tabs: WorkspaceTabDescriptor[]) => Promise<void> | void;
+  onCloseOtherTabs: (tabId: string, tabs: WorkspaceTabDescriptor[]) => Promise<void> | void;
+  pane: SplitPane;
+  uiTabs: WorkspaceTab[];
+  normalizedServerId: string;
+  normalizedWorkspaceId: string;
+  isWorkspaceFocused: boolean;
+  closingTabIds: Set<string>;
+  onSelectTab: (paneId: string, tabId: string) => void;
+  onCloseTab: (tabId: string) => Promise<void> | void;
+  onReorderTabsInPane: (paneId: string, tabIds: string[]) => void;
+  buildPaneContentModel: (input: {
+    paneId: string;
+    tab: WorkspaceTabDescriptor;
+  }) => WorkspacePaneContentModel;
+  headerAction?: ReactNode;
+}
+
+/** A dock shell over the shared panel host. It owns no workspace-pane capabilities. */
+export function ExplorerSidebarDock({
+  pane,
+  uiTabs,
+  normalizedServerId,
+  normalizedWorkspaceId,
+  isWorkspaceFocused,
+  closingTabIds,
+  onSelectTab,
+  onCloseTab,
+  onCreateNewTab,
+  hoveredCloseTabKey,
+  setHoveredCloseTabKey,
+  onCopyResumeCommand,
+  onCopyAgentId,
+  onCopyTerminalId,
+  onCopyFilePath,
+  onReloadAgent,
+  onRenameTab,
+  onCloseTabsToLeft,
+  onCloseTabsToRight,
+  onCloseOtherTabs,
+  onExitFocusMode,
+  onReorderTabsInPane,
+  buildPaneContentModel,
+  headerAction,
+}: ExplorerSidebarDockProps) {
+  const { activeDragTabId, tabDropPreview, externalDndContext } = useWorkspaceTabDrag();
+  const paneState = useMemo(() => deriveWorkspacePaneState({ pane, tabs: uiTabs }), [pane, uiTabs]);
+  const tabs = useMemo(() => paneState.tabs.map((tab) => tab.descriptor), [paneState.tabs]);
+  const activeTabId = paneState.activeTabId;
+  const tabItems = useMemo<WorkspaceDesktopTabRowItem[]>(
+    () =>
+      tabs.map((tab) => ({
+        tab,
+        isActive: tab.tabId === activeTabId,
+        isCloseHovered: hoveredCloseTabKey === tab.key,
+        isClosingTab: closingTabIds.has(tab.tabId),
+      })),
+    [activeTabId, closingTabIds, hoveredCloseTabKey, tabs],
+  );
+  const handleSelectTab = useCallback(
+    (tabId: string) => onSelectTab(pane.id, tabId),
+    [onSelectTab, pane.id],
+  );
+  const handleReorderTabs = useCallback(
+    (nextTabs: WorkspaceTabDescriptor[]) => {
+      onReorderTabsInPane(
+        pane.id,
+        nextTabs.map((tab) => tab.tabId),
+      );
+    },
+    [onReorderTabsInPane, pane.id],
+  );
+
+  const handleCloseTabsToLeft = useCallback(
+    (tabId: string) => onCloseTabsToLeft(tabId, tabs),
+    [onCloseTabsToLeft, tabs],
+  );
+  const handleCloseTabsToRight = useCallback(
+    (tabId: string) => onCloseTabsToRight(tabId, tabs),
+    [onCloseTabsToRight, tabs],
+  );
+  const handleCloseOtherTabs = useCallback(
+    (tabId: string) => onCloseOtherTabs(tabId, tabs),
+    [onCloseOtherTabs, tabs],
+  );
+
+  const rail = (
+    <WorkspaceDesktopTabsRow
+      host="explorer"
+      launchPurpose="supporting"
+      isFocused={isWorkspaceFocused}
+      ownsKeyboardShortcuts={false}
+      setHoveredCloseTabKey={setHoveredCloseTabKey}
+      onCopyResumeCommand={onCopyResumeCommand}
+      onCopyAgentId={onCopyAgentId}
+      onCopyTerminalId={onCopyTerminalId}
+      onCopyFilePath={onCopyFilePath}
+      onReloadAgent={onReloadAgent}
+      onRenameTab={onRenameTab}
+      onCloseTabsToLeft={handleCloseTabsToLeft}
+      onCloseTabsToRight={handleCloseTabsToRight}
+      onCloseOtherTabs={handleCloseOtherTabs}
+      focusModeEnabled={false}
+      onExitFocusMode={onExitFocusMode}
+      externalDndContext={externalDndContext}
+      paneId={pane.id}
+      tabs={tabItems}
+      normalizedServerId={normalizedServerId}
+      normalizedWorkspaceId={normalizedWorkspaceId}
+      activeDragTabId={activeDragTabId}
+      tabDropPreviewIndex={
+        tabDropPreview?.paneId === pane.id ? tabDropPreview.indicatorIndex : null
+      }
+      onNavigateTab={handleSelectTab}
+      onCloseTab={onCloseTab}
+      onCreateNewTab={onCreateNewTab}
+      onReorderTabs={handleReorderTabs}
+    />
+  );
+  return (
+    <ExplorerDock>
+      <ExplorerDockTabs headerAction={headerAction}>{rail}</ExplorerDockTabs>
+      <ExplorerDockContent>
+        <WorkspacePanelHost
+          paneId={pane.id}
+          tabs={tabs}
+          activeTabId={activeTabId}
+          normalizedServerId={normalizedServerId}
+          normalizedWorkspaceId={normalizedWorkspaceId}
+          isWorkspaceFocused={isWorkspaceFocused}
+          isPaneFocused
+          buildPaneContentModel={buildPaneContentModel}
+        />
+      </ExplorerDockContent>
+    </ExplorerDock>
+  );
+}

@@ -1,0 +1,91 @@
+// Daemon configuration inputs. General provider credentials and executable/runtime
+// controls remain available to managed launches and their agent processes.
+export const DAEMON_SETTING_ENV_KEYS = [
+  "MCP_DEBUG",
+  "OPENAI_STT_BASE_URL",
+  "OPENAI_TTS_BASE_URL",
+  "MIXER_ALLOWED_HOSTS",
+  "MIXER_APP_BASE_URL",
+  "MIXER_CORS_ORIGINS",
+  "MIXER_DICTATION_ENABLED",
+  "MIXER_DICTATION_LANGUAGE",
+  "MIXER_DICTATION_LOCAL_STT_MODEL",
+  "MIXER_DICTATION_STT_PROVIDER",
+  "MIXER_GIT_CONCURRENCY",
+  "MIXER_GIT_MAX_PROCESSES_PER_SECOND",
+  "MIXER_GIT_MAX_PROCESS_CONCURRENCY",
+  "MIXER_HOSTNAMES",
+  "MIXER_LISTEN",
+  "MIXER_LOCAL_MODELS_DIR",
+  "MIXER_LOG",
+  "MIXER_LOG_CONSOLE_FORMAT",
+  "MIXER_LOG_CONSOLE_LEVEL",
+  "MIXER_LOG_FILE_LEVEL",
+  "MIXER_LOG_FILE_PATH",
+  "MIXER_LOG_FILE_ROTATE_COUNT",
+  "MIXER_LOG_FILE_ROTATE_SIZE",
+  "MIXER_LOG_FORMAT",
+  "MIXER_LOG_LEVEL",
+  "MIXER_LOG_ROTATE_COUNT",
+  "MIXER_LOG_ROTATE_SIZE",
+  "MIXER_PASSWORD",
+  "MIXER_PLUGIN_REGISTRY",
+  "MIXER_RELAY_ENABLED",
+  "MIXER_RELAY_ENDPOINT",
+  "MIXER_RELAY_PUBLIC_ENDPOINT",
+  "MIXER_RELAY_PUBLIC_USE_TLS",
+  "MIXER_RELAY_USE_TLS",
+  "MIXER_SERVICE_PROXY_ENABLED",
+  "MIXER_SERVICE_PROXY_LISTEN",
+  "MIXER_SERVICE_PROXY_PUBLIC_BASE_URL",
+  "MIXER_TRUSTED_PROXIES",
+  "MIXER_VOICE_LANGUAGE",
+  "MIXER_VOICE_LLM_PROVIDER",
+  "MIXER_VOICE_LOCAL_STT_MODEL",
+  "MIXER_VOICE_LOCAL_TTS_MODEL",
+  "MIXER_VOICE_LOCAL_TTS_SPEAKER_ID",
+  "MIXER_VOICE_LOCAL_TTS_SPEED",
+  "MIXER_VOICE_MODE_ENABLED",
+  "MIXER_VOICE_STT_PROVIDER",
+  "MIXER_VOICE_TTS_PROVIDER",
+  "MIXER_VOICE_TURN_DETECTION_PROVIDER",
+  "MIXER_WEB_UI_DIST_DIR",
+  "MIXER_WEB_UI_ENABLED",
+  "PORT",
+  "STT_CONFIDENCE_THRESHOLD",
+  "STT_MODEL",
+  "TTS_MODEL",
+  "TTS_VOICE",
+] as const;
+
+const CONFIG_CONTEXT_ENV_KEYS = [
+  "MIXER_NODE_ENV",
+  "MIXER_DESKTOP_MANAGED",
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "OPENAI_STT_API_KEY",
+  "OPENAI_TTS_API_KEY",
+] as const;
+
+export function configurationEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    [...DAEMON_SETTING_ENV_KEYS, ...CONFIG_CONTEXT_ENV_KEYS].map((key) => [key, env[key]]),
+  );
+}
+
+export function daemonLaunchEnvironment(input: {
+  env: NodeJS.ProcessEnv;
+  home: string;
+  mode: "managed" | "deployment";
+  desktopManaged?: boolean;
+}): NodeJS.ProcessEnv {
+  const env = { ...input.env };
+  if (input.mode === "managed") {
+    for (const key of DAEMON_SETTING_ENV_KEYS) delete env[key];
+  }
+  delete env.MIXER_HOST;
+  delete env.MIXER_DESKTOP_MANAGED;
+  env.MIXER_HOME = input.home;
+  if (input.desktopManaged) env.MIXER_DESKTOP_MANAGED = "1";
+  return env;
+}

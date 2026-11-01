@@ -1,0 +1,5 @@
+{
+  "id": "search",
+  "name": "Search",
+  "requirements": { "mixer": ">=0.1.0" }
+}

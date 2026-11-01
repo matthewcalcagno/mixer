@@ -1,0 +1,6 @@
+{
+  "id": "inline-thinking",
+  "requirements": {
+    "mixer": ">=0.13.0"
+  }
+}

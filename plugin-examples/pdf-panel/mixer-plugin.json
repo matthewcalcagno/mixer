@@ -1,0 +1,6 @@
+{
+  "id": "pdf-panel",
+  "requirements": {
+    "mixer": ">=0.13.0"
+  }
+}

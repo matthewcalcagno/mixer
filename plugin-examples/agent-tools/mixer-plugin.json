@@ -1,0 +1,4 @@
+{
+  "id": "agent-tools",
+  "requirements": { "mixer": ">=0.1.0" }
+}

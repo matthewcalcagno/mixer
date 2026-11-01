@@ -1,0 +1,214 @@
+import { fileURLToPath } from "url";
+import { appendFileSync, existsSync, mkdirSync } from "node:fs";
+import path from "node:path";
+import {
+  acquirePidLock,
+  PidLockError,
+  releasePidLock,
+  startPidLockHeartbeat,
+  updatePidLock,
+} from "../src/server/pid-lock.js";
+import { resolveMixerHome } from "../src/server/mixer-home.js";
+import { daemonLogPath } from "../src/server/daemon-instance.js";
+import { PRIVATE_FILE_MODE } from "../src/server/private-files.js";
+import { loadPersistedConfig } from "../src/server/persisted-config.js";
+import { reapTerminalWorkers } from "../src/terminal/terminal-worker-reaper.js";
+import { runSupervisor } from "./supervisor.js";
+import { resolveSupervisorLogFile } from "./supervisor-log-config.js";
+
+process.title = "Mixer Supervisor";
+
+interface DaemonRunnerConfig {
+  devMode: boolean;
+  workerArgs: string[];
+}
+
+function parseConfig(argv: string[]): DaemonRunnerConfig {
+  let devMode = false;
+  const workerArgs: string[] = [];
+
+  for (const arg of argv) {
+    if (arg === "--dev") {
+      devMode = true;
+      continue;
+    }
+    if (arg === "--reclaim-stale-pid-lock") {
+      throw new Error(
+        "--reclaim-stale-pid-lock was removed: stop the existing supervisor before starting another.",
+      );
+    }
+    workerArgs.push(arg);
+  }
+
+  return { devMode, workerArgs };
+}
+
+function resolveWorkerEntry(): string {
+  const candidates = [
+    fileURLToPath(new URL("../server/server/daemon-worker.js", import.meta.url)),
+    fileURLToPath(new URL("../dist/server/server/daemon-worker.js", import.meta.url)),
+    fileURLToPath(new URL("../src/server/daemon-worker.ts", import.meta.url)),
+    fileURLToPath(new URL("../../src/server/daemon-worker.ts", import.meta.url)),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0];
+}
+
+function resolveDevWorkerEntry(): string {
+  const candidate = fileURLToPath(new URL("../src/server/daemon-worker.ts", import.meta.url));
+  if (!existsSync(candidate)) {
+    throw new Error(`Dev worker entry not found: ${candidate}`);
+  }
+  return candidate;
+}
+
+function resolveWorkerExecArgv(workerEntry: string, devMode: boolean): string[] {
+  const execArgv = workerEntry.endsWith(".ts") ? ["--import", "tsx"] : [];
+  if (!devMode) {
+    return execArgv;
+  }
+  const devArgs = [
+    "--heapsnapshot-near-heap-limit=3",
+    "--max-old-space-size=3072",
+    "--report-on-fatalerror",
+    "--report-directory=/tmp/mixer-reports",
+  ];
+  const inspectArg = process.env.MIXER_NODE_INSPECT ?? "--inspect";
+  if (inspectArg !== "0" && inspectArg !== "false" && inspectArg !== "off") {
+    devArgs.push(inspectArg);
+  }
+  return [...devArgs, ...execArgv];
+}
+
+function resolvePackagedNodeEntrypointRunnerPath(currentScriptPath: string): string | null {
+  const packageMarker = `${path.sep}node_modules${path.sep}@mixer${path.sep}server${path.sep}`;
+  const markerIndex = currentScriptPath.lastIndexOf(packageMarker);
+  if (markerIndex === -1) {
+    return null;
+  }
+
+  const appRoot = currentScriptPath.slice(0, markerIndex);
+  const runnerPath = path.join(appRoot, "dist", "daemon", "node-entrypoint-runner.js");
+  return existsSync(runnerPath) ? runnerPath : null;
+}
+
+async function main(): Promise<void> {
+  const config = parseConfig(process.argv.slice(2));
+  const workerEntry = config.devMode ? resolveDevWorkerEntry() : resolveWorkerEntry();
+  const workerExecArgv = resolveWorkerExecArgv(workerEntry, config.devMode);
+  const workerEnv: NodeJS.ProcessEnv = { ...process.env };
+  const packagedNodeEntrypointRunner =
+    process.env.ELECTRON_RUN_AS_NODE === "1"
+      ? resolvePackagedNodeEntrypointRunnerPath(fileURLToPath(import.meta.url))
+      : null;
+
+  const mixerHome = resolveMixerHome(workerEnv);
+  const persistedConfig = loadPersistedConfig(mixerHome);
+  const supervisorLogFile = resolveSupervisorLogFile(mixerHome, persistedConfig, workerEnv);
+
+  try {
+    await acquirePidLock(mixerHome, null, {
+      ownerPid: process.pid,
+    });
+  } catch (error) {
+    if (error instanceof PidLockError) {
+      failStartup(error.message, error.message);
+    }
+    throw error;
+  }
+
+  let lockReleased = false;
+  let requestSupervisorShutdown: ((reason: string) => void) | null = null;
+  const stopLockHeartbeat = startPidLockHeartbeat(mixerHome, {
+    ownerPid: process.pid,
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`PID lock heartbeat failed: ${message}\n`);
+      if (error instanceof PidLockError) {
+        requestSupervisorShutdown?.("pid_lock_ownership_lost");
+      }
+    },
+  });
+  const releaseLock = async (): Promise<void> => {
+    if (lockReleased) {
+      return;
+    }
+    lockReleased = true;
+    stopLockHeartbeat();
+    await releasePidLock(mixerHome, {
+      ownerPid: process.pid,
+    });
+  };
+
+  const supervisor = runSupervisor({
+    name: "DaemonRunner",
+    startupMessage: "Starting daemon worker (IPC restart and crash restart enabled)",
+    resolveWorkerEntry: () => workerEntry,
+    workerArgs: config.workerArgs,
+    workerEnv,
+    workerExecArgv,
+    resolveWorkerSpawnSpec: packagedNodeEntrypointRunner
+      ? (resolvedWorkerEntry) => ({
+          command: process.execPath,
+          args: [
+            packagedNodeEntrypointRunner,
+            "node-script",
+            resolvedWorkerEntry,
+            ...config.workerArgs,
+          ],
+          env: {
+            ...workerEnv,
+            ELECTRON_RUN_AS_NODE: "1",
+          },
+        })
+      : undefined,
+    restartOnCrash: true,
+    logFile: supervisorLogFile,
+    onWorkerReady: async ({ listen, serverId }) => {
+      await updatePidLock(mixerHome, { listen, serverId }, { ownerPid: process.pid });
+    },
+    onWorkerExit: () =>
+      updatePidLock(mixerHome, { listen: null, serverId: null }, { ownerPid: process.pid }),
+    onSupervisorExit: releaseLock,
+    cleanupTerminals: async (log) => {
+      const result = await reapTerminalWorkers({ mixerHome, log });
+      log("Terminal worker cleanup result", { ...result });
+    },
+  });
+  requestSupervisorShutdown = supervisor.requestShutdown;
+}
+
+// The supervisor opens its log only after config and the PID lock succeed. A background
+// launch discards stderr, so earlier failures also go to the log the launcher points at.
+function failStartup(detail: string, summary: string): never {
+  process.stderr.write(`${detail}\n`);
+  try {
+    const logPath = daemonLogPath(resolveMixerHome(process.env));
+    mkdirSync(path.dirname(logPath), { recursive: true });
+    appendFileSync(
+      logPath,
+      `${JSON.stringify({
+        level: "fatal",
+        time: new Date().toISOString(),
+        pid: process.pid,
+        name: "DaemonRunner",
+        msg: summary,
+      })}\n`,
+      { mode: PRIVATE_FILE_MODE },
+    );
+  } catch {
+    // stderr already carries the failure.
+  }
+  process.exit(1);
+}
+
+void main().catch((error) => {
+  if (error instanceof Error) failStartup(error.stack ?? error.message, error.message);
+  failStartup(String(error), String(error));
+});

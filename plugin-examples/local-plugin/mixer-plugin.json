@@ -1,0 +1,6 @@
+{
+  "id": "local-example",
+  "requirements": {
+    "mixer": ">=0.8.0"
+  }
+}

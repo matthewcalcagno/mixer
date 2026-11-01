@@ -1,0 +1,6 @@
+{
+  "id": "lifecycle-actions",
+  "requirements": {
+    "mixer": ">=0.1.0"
+  }
+}

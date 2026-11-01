@@ -1,0 +1,22 @@
+{
+  "worktree": {
+    "setup": ["npm ci", "node ./scripts/seed-worktree-dev-state.mjs", "npm run build:server"]
+  },
+  "scripts": {
+    "daemon": {
+      "type": "service",
+      "command": "MIXER_DEV_MANAGED_HOME=1 MIXER_DEV_ROOT=\"${MIXER_WORKTREE_PATH:-$PWD}\" MIXER_HOME=\"${MIXER_WORKTREE_PATH:-$PWD}/.dev/mixer-home\" MIXER_SKIP_DEV_SERVER_BUILD=1 MIXER_LISTEN=0.0.0.0:${MIXER_PORT:-6768} ./scripts/dev-daemon.sh"
+    },
+    "app": {
+      "type": "service",
+      "command": "MIXER_DEV_MANAGED_HOME=1 MIXER_DEV_ROOT=\"${MIXER_WORKTREE_PATH:-$PWD}\" MIXER_HOME=\"${MIXER_WORKTREE_PATH:-$PWD}/.dev/mixer-home\" MIXER_LISTEN=0.0.0.0:${MIXER_SERVICE_DAEMON_PORT:-6768} MIXER_DEV_DAEMON_ENDPOINT=localhost:${MIXER_SERVICE_DAEMON_PORT:-6768} EXPO_PORT=${MIXER_PORT:-} ./scripts/dev-app.sh"
+    },
+    "desktop": {
+      "type": "service",
+      "command": "MIXER_DEV_MANAGED_HOME=1 MIXER_DEV_ROOT=\"${MIXER_WORKTREE_PATH:-$PWD}\" MIXER_HOME=\"${MIXER_WORKTREE_PATH:-$PWD}/.dev/mixer-home\" MIXER_LISTEN=0.0.0.0:${MIXER_SERVICE_DAEMON_PORT:-6768} MIXER_DEV_DAEMON_ENDPOINT=localhost:${MIXER_SERVICE_DAEMON_PORT:-6768} EXPO_PORT=${MIXER_PORT:-} exec ./packages/desktop/scripts/dev.sh"
+    },
+    "typecheck": {
+      "command": "npm run typecheck"
+    }
+  }
+}

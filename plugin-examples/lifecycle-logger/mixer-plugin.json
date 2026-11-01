@@ -1,0 +1,6 @@
+{
+  "id": "lifecycle-logger",
+  "requirements": {
+    "mixer": ">=0.1.0"
+  }
+}

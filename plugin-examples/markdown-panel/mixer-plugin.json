@@ -1,0 +1,6 @@
+{
+  "id": "markdown-panel",
+  "requirements": {
+    "mixer": ">=0.13.0"
+  }
+}

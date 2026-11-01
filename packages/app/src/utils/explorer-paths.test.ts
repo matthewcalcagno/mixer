@@ -1,0 +1,49 @@
+import { describe, expect, it } from "vitest";
+import { buildAbsoluteExplorerPath } from "./explorer-paths";
+
+describe("buildAbsoluteExplorerPath", () => {
+  it("builds a POSIX absolute path from a relative explorer path", () => {
+    expect(
+      buildAbsoluteExplorerPath({
+        workspaceRoot: "/workspaces/mixer",
+        entryPath: "packages/app/src/components/file-explorer-pane.tsx",
+      }),
+    ).toBe("/workspaces/mixer/packages/app/src/components/file-explorer-pane.tsx");
+  });
+
+  it("returns workspace root when entry path points to explorer root", () => {
+    expect(
+      buildAbsoluteExplorerPath({
+        workspaceRoot: "/workspaces/mixer",
+        entryPath: ".",
+      }),
+    ).toBe("/workspaces/mixer");
+  });
+
+  it("trims trailing separators from workspace root before joining", () => {
+    expect(
+      buildAbsoluteExplorerPath({
+        workspaceRoot: "/workspaces/mixer/",
+        entryPath: "README.md",
+      }),
+    ).toBe("/workspaces/mixer/README.md");
+  });
+
+  it("builds a Windows absolute path with backslash separators", () => {
+    expect(
+      buildAbsoluteExplorerPath({
+        workspaceRoot: "C:\\repo\\mixer",
+        entryPath: "packages/app/src/components/file-explorer-pane.tsx",
+      }),
+    ).toBe("C:\\repo\\mixer\\packages\\app\\src\\components\\file-explorer-pane.tsx");
+  });
+
+  it("passes through an already-absolute entry path", () => {
+    expect(
+      buildAbsoluteExplorerPath({
+        workspaceRoot: "/workspaces/mixer",
+        entryPath: "/tmp/another/location.txt",
+      }),
+    ).toBe("/tmp/another/location.txt");
+  });
+});

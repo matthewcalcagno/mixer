@@ -1,0 +1,255 @@
+# Menus
+
+One engine, in `packages/app/src/components/ui/menu/`. `dropdown-menu.tsx` and `context-menu.tsx`
+are wrappers over it and differ only in what opens them: a press or a right click.
+Import the `DropdownMenu*` or `ContextMenu*` names as before; reach for `@/components/ui/menu`
+directly only when you are building a third trigger shape.
+
+Do not add a third menu implementation. The two that existed were byte-identical from
+`computePosition` down, and the copies drifted: only one of them ever grew a sheet.
+
+## Desktop action menus
+
+Electron action menus use the native OS menu by default, for both context menus and click-open
+dropdowns. `native-menu.ts` collects the existing items, labels, separators, checked states, and
+callbacks. `native-menu-surface.tsx` captures that tree before opening the desktop menu. No screen
+needs a separate native implementation.
+
+Only validated labels, IDs, nested submenus, and shortcut hints cross desktop IPC. Callbacks stay
+in the renderer and keep the target they had when the OS menu opened. The main process bounds size
+and depth before recursive parsing; renderer data cannot inject Electron roles or executable code.
+Displayed accelerators do not register another copy of the app's keyboard bindings.
+
+Menus with typed input or custom controls become normal app dialogs. Their scope is captured at
+opening too. Searchable comboboxes, tooltips, and informational hover cards remain app UI; they are
+not OS action menus.
+
+## Browser preview presentations
+
+Browser previews choose their non-native presentation from the window width.
+
+| Screen                         | Surface                         | Submenus                                           |
+| ------------------------------ | ------------------------------- | -------------------------------------------------- |
+| Wide                           | Popover anchored to the trigger | Flyout overlapping the row, opened by hover intent |
+| Compact, `compactMode="sheet"` | Bottom sheet                    | The page is replaced in place, with a back header  |
+| Compact, default               | Popover                         | Same as wide                                       |
+
+`compactMode` defaults to `"popover"`, so adopting the sheet is per-menu. That is deliberate:
+flipping every menu in the app to sheets at once is not a change anyone can review. Opt a menu in
+when you have checked it in a narrow window.
+
+`ContextMenu` defaults to `compactMode="sheet"` in browser previews. Electron uses the OS menu
+at every window width.
+
+## Desktop context menus
+
+`ContextMenu` from the plugin UI kit, workspace tab menus, and sidebar workspace right-click menus
+use Electron's native `Menu`. Sidebar project, workspace, and kebab menus use the same shared
+native presentation. Labels use a checkbox submenu; creating a label opens a form dialog.
+Tab menus intercept the opening gesture before the shared custom trigger.
+Open with choices use a native submenu, including the selected panel and Always use checkbox.
+Browser previews use the shared host menu engine above. Do not draw a
+plugin-local menu or use an invisible HTML select for resource context actions.
+Actions cross desktop IPC as validated labels and IDs, never Electron roles or
+executable callbacks. Capture the actions at opening so a background refresh cannot
+change which files a visible menu action targets. Changes to the native menu handler
+require a desktop app relaunch, not a daemon restart alone.
+
+## When the items differ per form factor
+
+A menu whose contents depend on what else is on screen gets one component per surface, not one
+component with `isMobile` branches inside it. The workspace header menu is the example
+(`packages/app/src/screens/workspace/workspace-header-menu.tsx`): compact has no tab strip, so it
+carries new-tab actions, while wide leaves those to the strip's `+` menu and lists workspace
+actions only. Items both surfaces share live in one component that each menu renders, from the same
+callbacks, so the two can't drift.
+
+## Selection and failures
+
+Native popups close before the selected action runs. Return the action promise or report failures
+through persistent UI. An error stored only inside the closed menu will not be visible. Form dialogs
+can keep their inline errors. Label assignment uses the native action error boundary; the in-dialog
+picker retains its existing inline model feedback.
+
+This is why a row inside a menu surface goes through `selectItem` rather than calling its handler
+from its own `Pressable`. `MenuItem` is not the only row shape on the engine — `ComposerTrackRow`
+is another, with its own icons and hover-revealed actions — but both hand the press to the engine
+and take `closeOnSelect` to say whether choosing them ends the surface. A row that owns its press
+outright leaves the surface open behind whatever it opened, and skips the iOS wait.
+
+A row whose result opens a sheet opens it as a page of the menu's own sheet, never as a second
+sheet over it: the row names a [fill page](#a-page-that-fills-the-sheet) with `opensPage`, the page
+replaces the list in place, Back returns to the list, and Close ends both. A row that opens a tab
+closes, because the tab replaces the pane the menu belongs to. The subagents track asks the layout
+store which sheet tab a row would show (`useSubagentSheetTab`), since the answer changes with the
+layout; a row with none opens its tab.
+
+## Pages
+
+A submenu is a page, declared as data on the surface and reached by a `MenuSubTrigger` whose `id`
+matches:
+
+```tsx
+<MenuSurface pages={pages} sheetTitle="Display">
+  <MenuSubTrigger id="grouping" value="Project">
+    Grouping
+  </MenuSubTrigger>
+</MenuSurface>
+```
+
+Pages are data rather than nested children because the popover renders them as _siblings_ of the
+root surface — a flyout nested inside the root's box would be clipped by its `overflow: hidden`.
+Declaring them separately is what lets one model drive both presentations.
+
+`menu-navigation.ts` holds that model, and it is pure: the open flyout chain and the mobile push
+stack are the same path, so the popover renders every entry in it and the sheet renders only the
+last. Nothing else differs between the two.
+
+Opening a submenu truncates the path to the depth of the trigger that opened it. Without that,
+sliding the pointer across a row of triggers would stack up every flyout it passed instead of
+swapping between them.
+
+## A page that takes input
+
+A menu page can hold a small form — `MenuTextField` is the field for it, drawn as a row's own
+fill so its text lands on the same rail as the labels above it. Two things have to be true for
+that page, and both are set on the page definition rather than discovered later:
+
+- **`hoverIntent: false`.** A branch you skim is opened and closed by the pointer; a form is not.
+  Without this the page opens on a pointer that was only passing through, and dismisses itself —
+  draft and all — the moment your hands move to the keyboard and the mouse drifts off the flyout.
+  While such a page is open, the whole surface stops closing on hover, because the parent flyout
+  leads back to the same dismissal.
+- **The compact presentation has to be a sheet.** `MenuTextField` resolves to
+  `BottomSheetTextInput` on compact native, which reads the sheet's context and has none in a
+  popover.
+
+The sheet keeps `keyboardBehavior="interactive"`. `extend` grows a sheet to its largest snap
+point, and with `enableDynamicSizing` that point is the content's own height — a short page does
+not grow, and the keyboard comes up over the field you are typing into.
+
+## A page that fills the sheet
+
+A page can carry its own content instead of rows: `{ id, fill: true, content }`. Only the sheet
+renders one. It takes the full-sheet snap point (`FULL_SHEET_SNAP_POINTS`) instead of sizing to
+content, and the sheet stops panning on content drags, because the page scrolls on its own and a
+drag would fight that scroll. The page's header drags the sheet instead, through `SheetDragArea`.
+
+The content renders on the far side of the sheet's portal, so it brings its own context bridge,
+built where the page is defined. Sheet tabs are the one user: `useSheetPanePage` turns a `SheetTab`
+into a fill page around the same `SheetPane` the workspace's own sheets render. See
+[explorer-sidebar.md](explorer-sidebar.md#sheets).
+
+Back pops one page. The header's Back and Android Back both call `goBack`, which answers `false` at
+the root so the sheet closes instead. A page whose definition disappears while it is open, such as
+a subagent archived from elsewhere, is pruned from the path, and the sheet falls back to the page
+that opened it.
+
+## Hover intent
+
+A flyout **overlaps its parent by 5pt** rather than sitting beside it. With a gap there is a strip
+of backdrop between the two that belongs to neither surface, and every pixel of it is a chance to
+dismiss the menu you are reaching for. Overlapping deletes the strip; don't reintroduce the gap
+and try to cover it with a longer timer.
+
+On top of that, a flyout opens after the pointer rests ~90ms, closes ~260ms after it leaves, and
+cancels its own pending close while the pointer is inside it. The grace still matters because the
+pointer crosses sibling rows on the way down into the flyout.
+
+Hover lives on a plain `View`, never on a `Pressable` — see [hover.md](hover.md), which owns that
+rule. Hover only fires on web, which is exactly where flyouts exist; everywhere else the page
+opens on press.
+
+## Item states
+
+`selected` and `active` are different questions and must not be merged.
+
+| Prop       | Means                      | Draws                     |
+| ---------- | -------------------------- | ------------------------- |
+| `selected` | This is the chosen value   | A check, and nothing else |
+| `active`   | This row's submenu is open | The fill, and no check    |
+
+`selected` also announces itself as `aria-checked`, so a multi-select page is audible as the list
+of on/off things it is.
+
+A selected row does **not** get a background. A check and a fill are two separate claims about the
+same state, and showing both makes a chosen row compete with the row the pointer is actually on.
+`showSelectedCheck` moves the check to a reserved leading column when a group needs to stay
+aligned whether ticked or not; otherwise it sits at the trailing edge and the leading slot is free
+for the option's icon.
+
+Give options icons; leave the root rows without them. The root is labels and their current values,
+and a column of icons there is decoration competing with the values you actually came to read.
+
+## Surface details
+
+- The hover fill is **inset from the surface's edges and rounded** — a chip inside the menu, not a
+  band across it. The inset is taken _out of_ the row, never added to it: padding gives up what
+  margin takes, so labels sit at the same 13pt they always did. Insetting by growing the row is how
+  the menu ends up taller than it started.
+- **A row is as tall as what is driving it** — 28pt for a pointer, 40pt below `md` for a thumb. The
+  split is on breakpoint, not on `presentation`: the compact popover that `compactMode` defaults to
+  is worked with a thumb just as a sheet is, and sizing off the sheet would leave it at the desktop
+  height. `md` is where `useIsCompactFormFactor` divides, so row height and the popover/sheet choice
+  turn over together.
+- The desktop height only holds because the label's `lineHeight` is pinned — 18 line + 8 padding +
+  2 border is exactly 28. Leave it to the platform and content outgrows `minHeight`, which then does
+  nothing. Compact is the other way round: `minHeight` leads and the label centres in it.
+- **A row owns its fill; `MenuPage` owns the spacing between rows.** The vertical inset above the
+  first row and below the last, and the gap between rows, are the page's — one knob each,
+  `MENU_ROW_GAP` being the one a redesign turns. A row that carried vertical margin would be
+  serving both at once, and since margins don't collapse it would land as one unit at the edges and
+  two between rows, so shrinking the gap would eat the inset with it. Horizontal inset does stay on
+  the row: there is one left edge and one right edge, so nothing is doubling up.
+- `MenuPage` is also what provides a page's depth, so the popover and the sheet cannot disagree
+  about what a page is. Every entry point goes through it — root, flyout, pushed sheet page.
+- The gap reaches a page's **direct children**. A group of rows wrapped in a `View` of its own drops
+  out of it; at the current gap of zero there is nothing to lose, but anything above zero wants that
+  wrapper to carry the page style too.
+- The separator is the one row-level thing that asks for vertical space of its own, and now that
+  rows carry none, that is still one number controlling one gap. It takes no horizontal margin and
+  the page has no horizontal padding, so the rule runs the full width of the surface.
+- Separators use `borderAccent`, the same colour the surface outlines itself with. `border` sits
+  between `surface1` and `surface2`, which put it within a hair of the hover fill and made
+  separators disappear against a hovered row.
+
+## When a decision earns a submenu
+
+Put a decision behind a submenu when its options are not the point — the current _value_ is. The
+root row then reads as the answer (`Grouping  Project ›`) and costs one line instead of one line
+per option. A menu whose every option is on screen at once does not survive its third decision.
+
+Independent toggles stay on their page as a checkmark list. A pick-one group can share that page
+below a `MenuSeparator`; make selecting the checked row clear it, so "none" doesn't need a row of
+its own.
+
+## Gotchas
+
+- **Released height.** Reanimated's web entering animation leaves an inline height snapshot on
+  the surface. `AnchoredSurface` clears it, and a `revision` prop re-clears it when content
+  identity changes — a pushed page taller than the one it replaced is clipped without that.
+- **Animate only once placed.** The same snapshot carries top/left, and Reanimated writes it back
+  750ms after mount. `AnchoredSurface` remounts the surface when its position resolves so the
+  entering animation never ends at the off-screen measuring position; on a slow machine that
+  write moved the open menu back off-screen.
+- **Sheets size to content.** `enableDynamicSizing`, not fixed snap points. A pushed page is
+  rarely the height of the page before it. A fill page is the one exception.
+- **The sheet's content is teleported out of the menu's subtree**, so `MenuSheetSurface` rebuilds
+  both menu contexts through the sheet's `contextBridge`. Providing them around the modal puts
+  them on the wrong side of the portal and every item inside throws. Gotcha 7 in
+  [floating-panels.md](floating-panels.md).
+- **One overlay per menu.** Submenus render inside their parent's layer and paint no second
+  backdrop, so there is exactly one `Modal` on native no matter how deep the menu goes.
+- **Sheet stacking and backdrop dismissal belong to `IsolatedBottomSheetModal`.** Menus only
+  request a backdrop opacity. See [floating-panels.md](floating-panels.md#gotcha-6--bottom-sheet-refs-are-not-lifecycle-truth).
+- **A menu closes when its panel leaves the screen.** `MenuSurface` closes the menu when its
+  retained panel goes inactive. Hiding the surface alone leaves the open state behind, and the
+  menu would reappear with the panel on the next tab switch.
+- **Retained panels own visibility.** The shared menu surface unmounts when its panel becomes
+  inactive. An async action can navigate before its menu closes; a hidden panel must not leave a
+  portal backdrop blocking the destination. On web the chat suspends one commit after it goes
+  inactive, and that inactive commit is where the surface unmounts.
+- Anchoring, flipping, and edge clamping live in `components/ui/anchor.ts`, shared with the hover
+  card, and are unit-tested. Fix positioning bugs there, not at a call site.
+- Everything else about floating surfaces on Android — Portal/Modal escape, lifecycle gates,
+  status-bar offset, the open flash — is in [floating-panels.md](floating-panels.md).

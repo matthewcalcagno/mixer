@@ -1,0 +1,1091 @@
+import { resolveSpeechConfig } from "./speech/speech-config-resolver.js";
+import {
+  chmodSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { describe, expect, test } from "vitest";
+
+import {
+  loadPersistedConfig,
+  loadPersistedConfigAsync,
+  PersistedConfigSchema,
+  readPersistedConfig,
+  savePersistedConfig,
+  savePersistedConfigAsync,
+} from "./persisted-config.js";
+import { PRIVATE_DIRECTORY_MODE, PRIVATE_FILE_MODE } from "./private-files.js";
+
+const MODE_MASK = 0o777;
+const PERMISSIVE_FILE_MODE = 0o644;
+
+function createTempHome(): string {
+  return mkdtempSync(path.join(tmpdir(), "mixer-config-"));
+}
+
+function modeOf(filePath: string): number {
+  return statSync(filePath).mode & MODE_MASK;
+}
+
+describe("PersistedConfigSchema daemon auth config", () => {
+  test("accepts optional daemon password hash", () => {
+    const hash = "$2b$12$OLxyuuP9uLK30Uzc4wQX0O6liuU/Q1t5P2b0Ebf36mULvpVK3DRZW";
+    const parsed = PersistedConfigSchema.parse({
+      daemon: {
+        auth: { password: hash },
+      },
+    });
+
+    expect(parsed.daemon?.auth?.password).toBe(hash);
+  });
+});
+
+describe("PersistedConfigSchema daemon append system prompt config", () => {
+  test("accepts optional append system prompt", () => {
+    const parsed = PersistedConfigSchema.parse({
+      daemon: {
+        appendSystemPrompt: "Prefer terse replies.",
+      },
+    });
+
+    expect(parsed.daemon?.appendSystemPrompt).toBe("Prefer terse replies.");
+  });
+});
+
+describe("PersistedConfigSchema daemon browser tools config", () => {
+  test("accepts optional browser tools opt-in", () => {
+    const parsed = PersistedConfigSchema.parse({
+      daemon: {
+        browserTools: { enabled: true },
+      },
+    });
+
+    expect(parsed.daemon?.browserTools?.enabled).toBe(true);
+  });
+});
+
+describe("PersistedConfigSchema daemon relay config", () => {
+  test("accepts optional relay TLS setting", () => {
+    const parsed = PersistedConfigSchema.parse({
+      daemon: {
+        relay: {
+          enabled: true,
+          endpoint: "relay.example.com:443",
+          publicEndpoint: "public.example.com:443",
+          useTls: true,
+        },
+      },
+    });
+
+    expect(parsed.daemon?.relay?.useTls).toBe(true);
+  });
+});
+
+describe("PersistedConfigSchema daemon trusted proxy config", () => {
+  test("accepts optional trusted proxy ranges", () => {
+    const parsed = PersistedConfigSchema.parse({
+      daemon: {
+        trustedProxies: ["loopback", "172.16.0.0/12"],
+      },
+    });
+
+    expect(parsed.daemon?.trustedProxies).toEqual(["loopback", "172.16.0.0/12"]);
+  });
+
+  test("accepts explicit trust-all proxy config", () => {
+    const parsed = PersistedConfigSchema.parse({
+      daemon: {
+        trustedProxies: true,
+      },
+    });
+
+    expect(parsed.daemon?.trustedProxies).toBe(true);
+  });
+});
+
+describe("PersistedConfigSchema daemon web UI feature config", () => {
+  test("accepts optional web UI enable flag and dist dir", () => {
+    const parsed = PersistedConfigSchema.parse({
+      features: {
+        webUi: {
+          enabled: true,
+          distDir: "web-ui-dist",
+        },
+      },
+    });
+
+    expect(parsed.features?.webUi).toEqual({
+      enabled: true,
+      distDir: "web-ui-dist",
+    });
+  });
+});
+
+describe("PersistedConfigSchema worktrees config", () => {
+  test("accepts optional worktree root", () => {
+    const parsed = PersistedConfigSchema.parse({
+      worktrees: {
+        root: "/mnt/fast/mixer-worktrees",
+      },
+    });
+
+    expect(parsed.worktrees?.root).toBe("/mnt/fast/mixer-worktrees");
+  });
+
+  test("accepts service port allocation", () => {
+    const parsed = PersistedConfigSchema.parse({
+      worktrees: {
+        servicePorts: { range: "3000-4000" },
+      },
+    });
+
+    expect(parsed.worktrees?.servicePorts).toEqual({ range: "3000-4000" });
+  });
+});
+
+describe("PersistedConfigSchema provider credentials", () => {
+  test("accepts separate inline STT and TTS credentials", () => {
+    const parsed = PersistedConfigSchema.parse({
+      features: {
+        voiceMode: {
+          stt: {
+            provider: "openai",
+            apiKey: " stt-secret ",
+            baseUrl: " https://stt.example.com/v1 ",
+          },
+          tts: {
+            provider: "openai",
+            apiKey: " tts-secret ",
+            baseUrl: " https://tts.example.com/v1 ",
+          },
+        },
+      },
+    });
+    expect(parsed.features?.voiceMode?.stt).toEqual({
+      provider: "openai",
+      apiKey: "stt-secret",
+      baseUrl: "https://stt.example.com/v1",
+    });
+    expect(parsed.features?.voiceMode?.tts).toEqual({
+      provider: "openai",
+      apiKey: "tts-secret",
+      baseUrl: "https://tts.example.com/v1",
+    });
+  });
+});
+
+describe("PersistedConfigSchema daemon append system prompt", () => {
+  test("accepts optional append system prompt", () => {
+    const parsed = PersistedConfigSchema.parse({
+      daemon: {
+        appendSystemPrompt: "Prefer terse replies.",
+      },
+    });
+
+    expect(parsed.daemon?.appendSystemPrompt).toBe("Prefer terse replies.");
+  });
+});
+
+describe("PersistedConfigSchema agent provider runtime settings", () => {
+  test("legacy append entries are skipped during migration", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            command: {
+              mode: "append",
+              args: ["--chrome"],
+            },
+            env: {
+              FOO: "bar",
+            },
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers).toEqual({});
+  });
+
+  test("accepts provider command replace argv", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          codex: {
+            command: {
+              mode: "replace",
+              argv: ["docker", "run", "--rm", "my-codex-wrapper"],
+            },
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.codex?.command).toEqual([
+      "docker",
+      "run",
+      "--rm",
+      "my-codex-wrapper",
+    ]);
+  });
+
+  test("rejects replace command without argv", () => {
+    const result = PersistedConfigSchema.safeParse({
+      agents: {
+        providers: {
+          opencode: {
+            command: {
+              mode: "replace",
+            },
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  test("accepts metadata generation provider fallbacks", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        metadataGeneration: {
+          providers: [
+            { provider: "claude", model: "haiku" },
+            { provider: "codex", model: "gpt-5.4-mini", thinkingOptionId: "low" },
+          ],
+        },
+      },
+    });
+
+    expect(parsed.agents?.metadataGeneration).toEqual({
+      providers: [
+        { provider: "claude", model: "haiku" },
+        { provider: "codex", model: "gpt-5.4-mini", thinkingOptionId: "low" },
+      ],
+    });
+  });
+
+  test("accepts a custom provider catalog refresh timeout", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: { catalogRefreshTimeoutMs: 180_000 },
+    });
+
+    expect(parsed.agents?.catalogRefreshTimeoutMs).toBe(180_000);
+  });
+
+  test("rejects provider catalog refresh timeouts that overflow Node timers", () => {
+    expect(() =>
+      PersistedConfigSchema.parse({ agents: { catalogRefreshTimeoutMs: 2_147_483_648 } }),
+    ).toThrow();
+  });
+});
+
+describe("provider overrides (new format)", () => {
+  test("override built-in provider with command and env", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            command: ["/opt/custom/claude"],
+            env: {
+              ANTHROPIC_API_KEY: "sk-test",
+            },
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.claude).toEqual({
+      command: ["/opt/custom/claude"],
+      env: {
+        ANTHROPIC_API_KEY: "sk-test",
+      },
+    });
+  });
+
+  test("new provider extending claude with label", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          zai: {
+            extends: "claude",
+            label: "ZAI",
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.zai).toEqual({
+      extends: "claude",
+      label: "ZAI",
+    });
+  });
+
+  test("new provider extending acp with command", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          "my-agent": {
+            extends: "acp",
+            label: "My Agent",
+            command: ["my-agent", "--acp"],
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.["my-agent"]).toEqual({
+      extends: "acp",
+      label: "My Agent",
+      command: ["my-agent", "--acp"],
+    });
+  });
+
+  test("enabled: false accepted", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            enabled: false,
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.claude?.enabled).toBe(false);
+  });
+
+  test("models array accepted", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          zai: {
+            extends: "claude",
+            label: "ZAI",
+            models: [
+              {
+                id: "zai-fast",
+                label: "ZAI Fast",
+                isDefault: true,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.zai?.models).toEqual([
+      {
+        id: "zai-fast",
+        label: "ZAI Fast",
+        isDefault: true,
+      },
+    ]);
+  });
+
+  test("additionalModels array accepted", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          zai: {
+            extends: "claude",
+            label: "ZAI",
+            additionalModels: [
+              {
+                id: "zai-fast",
+                label: "ZAI Fast",
+                isDefault: true,
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.zai?.additionalModels).toEqual([
+      {
+        id: "zai-fast",
+        label: "ZAI Fast",
+        isDefault: true,
+      },
+    ]);
+  });
+
+  test("order field accepted", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            order: 1,
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.claude?.order).toBe(1);
+  });
+
+  test("accepts a plugin override before plugin registration", () => {
+    const override = { enabled: false, command: ["/opt/agent"], env: { LOGIN: "yes" } };
+    const parsed = PersistedConfigSchema.parse({
+      agents: { providers: { "plugin-agent": override } },
+    });
+    expect(parsed.agents?.providers?.["plugin-agent"]).toEqual(override);
+  });
+
+  test.each(["plugin.agent", "plugin_agent"])(
+    "keeps %s outside the config provider ID alphabet",
+    (id) => {
+      expect(
+        PersistedConfigSchema.safeParse({ agents: { providers: { [id]: { enabled: false } } } })
+          .success,
+      ).toBe(false);
+    },
+  );
+
+  test("new provider without label → error", () => {
+    const result = PersistedConfigSchema.safeParse({
+      agents: {
+        providers: {
+          zai: {
+            extends: "claude",
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  test("extends: acp without command → error", () => {
+    const result = PersistedConfigSchema.safeParse({
+      agents: {
+        providers: {
+          "my-agent": {
+            extends: "acp",
+            label: "My Agent",
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  test("extends unknown provider → error", () => {
+    const result = PersistedConfigSchema.safeParse({
+      agents: {
+        providers: {
+          zai: {
+            extends: "unknown",
+            label: "ZAI",
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  test("invalid provider ID format → error", () => {
+    const result = PersistedConfigSchema.safeParse({
+      agents: {
+        providers: {
+          ZAI: {
+            extends: "claude",
+            label: "ZAI",
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  test("old format with mode: replace auto-migrates", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            command: {
+              mode: "replace",
+              argv: ["docker", "run", "--rm", "claude"],
+            },
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.claude).toEqual({
+      command: ["docker", "run", "--rm", "claude"],
+    });
+  });
+
+  test("old format with mode: default auto-migrates", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            command: {
+              mode: "default",
+            },
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.claude).toEqual({});
+  });
+
+  test("old format env preserved during migration", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            command: {
+              mode: "default",
+            },
+            env: {
+              FOO: "bar",
+            },
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers?.claude).toEqual({
+      env: {
+        FOO: "bar",
+      },
+    });
+  });
+
+  test("mixed old and new format entries both work", () => {
+    const parsed = PersistedConfigSchema.parse({
+      agents: {
+        providers: {
+          claude: {
+            command: {
+              mode: "replace",
+              argv: ["custom-claude"],
+            },
+          },
+          zai: {
+            extends: "claude",
+            label: "ZAI",
+            command: ["zai"],
+          },
+        },
+      },
+    });
+
+    expect(parsed.agents?.providers).toEqual({
+      claude: {
+        command: ["custom-claude"],
+      },
+      zai: {
+        extends: "claude",
+        label: "ZAI",
+        command: ["zai"],
+      },
+    });
+  });
+});
+
+describe("PersistedConfigSchema logging config", () => {
+  test("accepts destination-specific logging config", () => {
+    const parsed = PersistedConfigSchema.parse({
+      log: {
+        console: {
+          level: "info",
+          format: "pretty",
+        },
+        file: {
+          level: "trace",
+          path: "daemon.log",
+          rotate: {
+            maxSize: "10m",
+            maxFiles: 2,
+          },
+        },
+      },
+    });
+
+    expect(parsed.log?.console?.level).toBe("info");
+    expect(parsed.log?.file?.level).toBe("trace");
+    expect(parsed.log?.file?.rotate?.maxFiles).toBe(2);
+  });
+
+  test("accepts legacy logging config fields", () => {
+    const parsed = PersistedConfigSchema.parse({
+      log: {
+        level: "debug",
+        format: "json",
+      },
+    });
+
+    expect(parsed.log?.level).toBe("debug");
+    expect(parsed.log?.format).toBe("json");
+  });
+
+  test("rejects unknown logging config fields", () => {
+    const result = PersistedConfigSchema.safeParse({
+      log: {
+        console: {
+          level: "info",
+          color: "red",
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("PersistedConfigSchema voice mode config", () => {
+  test("accepts a dedicated turn detection provider", () => {
+    const parsed = PersistedConfigSchema.parse({
+      features: {
+        voiceMode: {
+          turnDetection: {
+            provider: "local",
+          },
+        },
+      },
+    });
+
+    expect(parsed.features?.voiceMode?.turnDetection?.provider).toBe("local");
+  });
+
+  test("accepts trimmed STT language fields", () => {
+    const parsed = PersistedConfigSchema.parse({
+      features: {
+        dictation: {
+          stt: {
+            provider: "openai",
+            language: " fr ",
+          },
+        },
+        voiceMode: {
+          stt: {
+            provider: "openai",
+            language: " de ",
+          },
+        },
+      },
+    });
+
+    expect(parsed.features?.dictation?.stt).toMatchObject({ language: "fr" });
+    expect(parsed.features?.voiceMode?.stt).toMatchObject({ language: "de" });
+  });
+
+  test("accepts a voice and model from a self-hosted OpenAI-compatible server", () => {
+    const parsed = PersistedConfigSchema.parse({
+      features: {
+        voiceMode: {
+          tts: { provider: "openai", model: "kokoro-v1:Q8_0", voice: "aiden" },
+        },
+      },
+    });
+
+    expect(parsed.features?.voiceMode?.tts?.model).toBe("kokoro-v1:Q8_0");
+    expect(parsed.features?.voiceMode?.tts).toMatchObject({ voice: "aiden" });
+  });
+});
+
+describe("loadPersistedConfig", () => {
+  test("materializes relay disabled for a new Mixer home", () => {
+    const home = createTempHome();
+    try {
+      const config = loadPersistedConfig(home);
+      expect(config.daemon?.relay?.enabled).toBe(false);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("accepts the documented config schema marker", () => {
+    const home = createTempHome();
+    const configPath = path.join(home, "config.json");
+    try {
+      writeFileSync(
+        configPath,
+        `${JSON.stringify(
+          {
+            $schema: "https://paseo.sh/schemas/paseo.config.v1.json",
+            version: 1,
+            daemon: {
+              listen: "127.0.0.1:6767",
+              hostnames: ["localhost", ".localhost"],
+              mcp: { enabled: true },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const config = loadPersistedConfig(home);
+
+      expect(config.daemon?.listen).toBe("127.0.0.1:6767");
+      expect(config.daemon?.hostnames).toEqual(["localhost", ".localhost"]);
+      expect(config.daemon?.mcp?.enabled).toBe(true);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("loads a config that still uses the removed providers.openai.voice block", () => {
+    const home = createTempHome();
+    const configPath = path.join(home, "config.json");
+    try {
+      writeFileSync(
+        configPath,
+        `${JSON.stringify(
+          {
+            version: 1,
+            providers: {
+              openai: {
+                apiKey: "global-key",
+                voice: { apiKey: "voice-key", baseUrl: "https://voice.example.com/v1" },
+              },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const config = loadPersistedConfig(home);
+
+      expect(config.providers).not.toHaveProperty("openai");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("config.json saved with a UTF-8 byte order mark", () => {
+  // Windows Notepad writes this shape: a BOM, then CRLF line endings.
+  const notepadConfig =
+    '﻿{\r\n  "version": 1,\r\n  "daemon": { "listen": "127.0.0.1:6767" }\r\n}\r\n';
+
+  test("loadPersistedConfig reads it", () => {
+    const home = createTempHome();
+    try {
+      writeFileSync(path.join(home, "config.json"), notepadConfig);
+
+      expect(loadPersistedConfig(home).daemon?.listen).toBe("127.0.0.1:6767");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("readPersistedConfig reads it", () => {
+    const home = createTempHome();
+    try {
+      writeFileSync(path.join(home, "config.json"), notepadConfig);
+
+      expect(readPersistedConfig(home).daemon?.listen).toBe("127.0.0.1:6767");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("readPersistedConfig with an unreadable config.json", () => {
+  test("names the file when it is not valid JSON", () => {
+    const home = createTempHome();
+    const configPath = path.join(home, "config.json");
+    try {
+      writeFileSync(configPath, '{"version":1,');
+
+      expect(() => readPersistedConfig(home)).toThrow(`[Config] Invalid JSON in ${configPath}: `);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("names the file and the field when it does not match the schema", () => {
+    const home = createTempHome();
+    const configPath = path.join(home, "config.json");
+    try {
+      writeFileSync(configPath, '{"daemon":{"listen":5}}');
+
+      expect(() => readPersistedConfig(home)).toThrow(
+        `[Config] Invalid config in ${configPath}:\n  - daemon.listen: `,
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
+describe.skipIf(process.platform === "win32").each([
+  { name: "startup", load: loadPersistedConfig, save: savePersistedConfig },
+  { name: "runtime", load: loadPersistedConfigAsync, save: savePersistedConfigAsync },
+])("persisted config file permissions ($name)", ({ load, save }) => {
+  test("initializes config.json with private permissions", async () => {
+    const home = createTempHome();
+    try {
+      await load(home);
+
+      expect(modeOf(path.join(home, "config.json"))).toBe(PRIVATE_FILE_MODE);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("repairs permissive config.json permissions when loading", async () => {
+    const home = createTempHome();
+    const configPath = path.join(home, "config.json");
+    try {
+      writeFileSync(configPath, "{}\n", { mode: PERMISSIVE_FILE_MODE });
+      chmodSync(configPath, PERMISSIVE_FILE_MODE);
+
+      await load(home);
+
+      expect(modeOf(configPath)).toBe(PRIVATE_FILE_MODE);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("repairs unreadable owner permissions before reading config.json", async () => {
+    const home = createTempHome();
+    const configPath = path.join(home, "config.json");
+    try {
+      writeFileSync(configPath, "{}\n");
+      chmodSync(configPath, 0);
+      expect(await load(home)).toEqual({});
+      expect(modeOf(configPath)).toBe(PRIVATE_FILE_MODE);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("saves config.json with private permissions", async () => {
+    const parent = createTempHome();
+    const home = path.join(parent, "home");
+    try {
+      await save(home, {
+        features: { dictation: { stt: { provider: "openai", apiKey: "secret" } } },
+      });
+
+      expect(modeOf(home)).toBe(PRIVATE_DIRECTORY_MODE);
+      expect(modeOf(path.join(home, "config.json"))).toBe(PRIVATE_FILE_MODE);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+});
+
+describe.skipIf(process.platform === "win32").each([
+  { name: "startup", save: savePersistedConfig },
+  { name: "runtime", save: savePersistedConfigAsync },
+])("config.json symlinked from another directory ($name)", ({ save }) => {
+  test("saving writes through the symlink and leaves it in place", async () => {
+    const parent = createTempHome();
+    const home = path.join(parent, "home");
+    const dotfiles = path.join(parent, "dotfiles");
+    const linkedConfigPath = path.join(dotfiles, "config.json");
+    const configPath = path.join(home, "config.json");
+    try {
+      mkdirSync(home);
+      mkdirSync(dotfiles, { mode: 0o755 });
+      chmodSync(dotfiles, 0o755);
+      writeFileSync(linkedConfigPath, '{ "version": 1 }\n');
+      symlinkSync(linkedConfigPath, configPath);
+
+      await save(home, { version: 1, daemon: { relay: { enabled: false } } });
+
+      expect(lstatSync(configPath).isSymbolicLink()).toBe(true);
+      expect(JSON.parse(readFileSync(linkedConfigPath, "utf8"))).toEqual({
+        version: 1,
+        daemon: { relay: { enabled: false } },
+      });
+      expect(modeOf(dotfiles)).toBe(0o755);
+      expect(modeOf(linkedConfigPath)).toBe(PRIVATE_FILE_MODE);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("speech provider config normalization", () => {
+  test.each([undefined, "local"])(
+    "preserves local STT language on load and save (provider: %s)",
+    (provider) => {
+      const home = createTempHome();
+      try {
+        writeFileSync(
+          path.join(home, "config.json"),
+          JSON.stringify({
+            features: { dictation: { stt: { provider, language: "fr" } } },
+          }),
+        );
+        const loaded = loadPersistedConfig(home);
+        expect(loaded.features?.dictation?.stt).toEqual({ provider: "local", language: "fr" });
+        expect(
+          resolveSpeechConfig({ mixerHome: home, env: {}, persisted: loaded }).speech.sttLanguages
+            .dictation,
+        ).toBe("fr");
+        savePersistedConfig(home, loaded);
+        expect(loadPersistedConfig(home).features?.dictation?.stt).toEqual({
+          provider: "local",
+          language: "fr",
+        });
+        expect(
+          JSON.parse(readFileSync(path.join(home, "config.json"), "utf8")).features.dictation.stt,
+        ).toEqual({ provider: "local", language: "fr" });
+      } finally {
+        rmSync(home, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test("loads and resolves legacy fields ignored by each site's provider", () => {
+    const home = mkdtempSync(path.join(tmpdir(), "speech-unused-options-"));
+    try {
+      const legacy = {
+        features: {
+          dictation: { stt: { provider: "local", language: "fr", confidenceThreshold: -1 } },
+          voiceMode: {
+            enabled: true,
+            tts: { provider: "local", voice: "alloy", speakerId: 3, speed: 1.2 },
+          },
+        },
+      };
+      writeFileSync(path.join(home, "config.json"), JSON.stringify(legacy));
+      const local = loadPersistedConfig(home);
+      expect(local.features?.dictation?.stt).toEqual({ provider: "local", language: "fr" });
+      expect(local.features?.voiceMode?.tts).toEqual({
+        provider: "local",
+        speakerId: 3,
+        speed: 1.2,
+      });
+      expect(
+        resolveSpeechConfig({ mixerHome: home, env: {}, persisted: local }).speech.local?.models,
+      ).toMatchObject({ voiceTtsSpeakerId: 3, voiceTtsSpeed: 1.2 });
+      writeFileSync(
+        path.join(home, "config.json"),
+        JSON.stringify({
+          features: {
+            voiceMode: {
+              enabled: true,
+              tts: { provider: "openai", apiKey: "key", voice: "alloy", speakerId: 3, speed: 1.2 },
+            },
+          },
+        }),
+      );
+      const openai = loadPersistedConfig(home);
+      expect(openai.features?.voiceMode?.tts).toEqual({
+        provider: "openai",
+        apiKey: "key",
+        voice: "alloy",
+      });
+      expect(
+        resolveSpeechConfig({ mixerHome: home, env: {}, persisted: openai }).openai?.tts,
+      ).toMatchObject({ apiKey: "key", voice: "alloy" });
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("warns with the path, never the discarded legacy key", () => {
+    const home = mkdtempSync(path.join(tmpdir(), "speech-warning-"));
+    try {
+      writeFileSync(
+        path.join(home, "config.json"),
+        JSON.stringify({
+          providers: { openai: { apiKey: "discarded-secret" } },
+          features: { voiceMode: { enabled: true, tts: { provider: "local" } } },
+        }),
+      );
+      const warnings: unknown[][] = [];
+      const logger = {
+        child: () => logger,
+        info: () => {},
+        warn: (...args: unknown[]) => {
+          warnings.push(args);
+        },
+      };
+      const config = loadPersistedConfig(home, logger);
+      expect(config.providers).not.toHaveProperty("openai");
+      expect(warnings).toHaveLength(1);
+      expect(JSON.stringify(warnings)).toContain("providers.openai.apiKey");
+      expect(JSON.stringify(warnings)).toContain("no use site in config.json selects OpenAI");
+      const resolved = resolveSpeechConfig({
+        mixerHome: home,
+        persisted: config,
+        env: { MIXER_VOICE_TTS_PROVIDER: "openai" },
+      });
+      expect(resolved.speech.providers.voiceTts.provider).toBe("openai");
+      expect(resolved.openai).toBeUndefined();
+      expect(JSON.stringify(warnings)).not.toContain("discarded-secret");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("folds legacy endpoint credentials into OpenAI sites on load and saves inline", () => {
+    const home = mkdtempSync(path.join(tmpdir(), "speech-normalize-"));
+    try {
+      writeFileSync(
+        path.join(home, "config.json"),
+        JSON.stringify({
+          providers: {
+            openai: {
+              apiKey: "global-key",
+              baseUrl: "https://global/v1",
+              stt: { apiKey: "stt-key" },
+            },
+          },
+          features: {
+            dictation: { stt: { model: "whisper-base", language: "en" } },
+            voiceMode: {
+              enabled: true,
+              stt: { provider: "OPENAI", baseUrl: "https://site/v1" },
+              tts: { provider: "openai" },
+            },
+          },
+        }),
+      );
+      const config = loadPersistedConfig(home);
+      expect(config.features?.dictation?.stt).toEqual({
+        provider: "local",
+        model: "whisper-base",
+        language: "en",
+      });
+      expect(config.features?.voiceMode?.stt).toEqual({
+        provider: "openai",
+        apiKey: "stt-key",
+        baseUrl: "https://site/v1",
+      });
+      expect(config.features?.voiceMode?.tts).toEqual({
+        provider: "openai",
+        apiKey: "global-key",
+        baseUrl: "https://global/v1",
+      });
+      expect(config.providers).not.toHaveProperty("openai");
+      const resolved = resolveSpeechConfig({ mixerHome: home, env: {}, persisted: config });
+      expect(resolved.openai?.stt?.apiKey).toBe("stt-key");
+      expect(resolved.speech.providers.voiceStt).toMatchObject({
+        provider: "openai",
+        enabled: true,
+      });
+      savePersistedConfig(home, config);
+      expect(JSON.parse(readFileSync(path.join(home, "config.json"), "utf8"))).toEqual(config);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});

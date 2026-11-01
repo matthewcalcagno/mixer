@@ -1,0 +1,4 @@
+{
+  "id": "worktree-placement",
+  "requirements": { "mixer": ">=0.1.0" }
+}

@@ -1,0 +1,105 @@
+npmRebuild: false
+appId: sh.mixer.desktop
+productName: Mixer
+executableName: Mixer
+protocols:
+  - name: Mixer agent link
+    schemes:
+      - mixer
+afterPack: ./scripts/after-pack.js
+afterSign: ./scripts/after-sign.js
+directories:
+  output: release
+files:
+  - dist/**/*
+  - "!**/*.map"
+  - "!node_modules/@mixer/*/src/**"
+  - "!node_modules/@mixer/**/*.test.*"
+  - "!node_modules/@mixer/**/*.spec.*"
+  - "!node_modules/@mixer/server/dist/server/web-ui/**"
+  - "!node_modules/@mixer/server/dist/server/builtin-plugins/**"
+  # Workspace packages are symlinked, so anything a dev generates inside them
+  # lands in the asar. CI never has these; a local .debug run adds gigabytes.
+  - "!node_modules/@mixer/*/.debug/**"
+  - "!node_modules/@mixer/*/.tasks/**"
+  - "!node_modules/@mixer/*/conversations/**"
+  - "!node_modules/@mixer/*/test-results/**"
+asarUnpack:
+  - node_modules/@vscode/ripgrep*/**/*
+  - dist/daemon/node-entrypoint-runner.js
+  - node_modules/@mixer/server/dist/server/terminal/shell-integration/**/*
+extraResources:
+  # Preserve physical compiler inputs, including .d.ts files omitted from packaged node_modules.
+  - from: ../server/dist/server/builtin-plugins
+    to: builtin-plugins
+  - from: ../app/dist
+    to: app-dist
+  - from: assets/editor-targets
+    to: editor-target-icons
+# Local builds must not publish to or update from the upstream project.
+publish: null
+mac:
+  artifactName: "Mixer-${version}-${arch}.${ext}"
+  minimumSystemVersion: "13.0.0"
+  category: public.app-category.developer-tools
+  icon: assets/icon.icns
+  hardenedRuntime: true
+  notarize: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  extraResources:
+    - from: bin/mixer
+      to: bin/mixer
+    - from: assets/icon.png
+      to: icon.png
+  target:
+    - dmg
+    - zip
+linux:
+  category: Development
+  icon: assets
+  artifactName: "Mixer-${version}-${arch}.${ext}"
+  maintainer: "Mohamed Boudra <hello@moboudra.com>"
+  vendor: "Mixer"
+  extraResources:
+    - from: bin/mixer
+      to: bin/mixer
+    - from: assets/icon.png
+      to: icon.png
+  target:
+    - AppImage
+    - deb
+    - rpm
+    - tar.gz
+deb:
+  afterInstall: scripts/linux-sandbox/after-install.tpl
+rpm:
+  afterInstall: scripts/linux-sandbox/after-install.tpl
+appImage:
+  # A nonempty argument list replaces builder's hardcoded --no-sandbox default.
+  executableArgs: ["--class=Mixer"]
+  # Keep the AppImage filename stable across versions (no ${version}) so
+  # electron-updater overwrites the file in place instead of renaming it to a new
+  # versioned path. A rename orphans the old binary, breaks desktop shortcuts, and
+  # dangles the ~/.local/bin/mixer CLI symlink, which points at $APPIMAGE. The
+  # version stays discoverable via the release tag and the in-app version.
+  artifactName: "Mixer-${arch}.${ext}"
+win:
+  artifactName: "Mixer-Setup-${version}-${arch}.${ext}"
+  icon: assets/icon.ico
+  extraResources:
+    - from: bin/mixer.cmd
+      to: bin/mixer.cmd
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
