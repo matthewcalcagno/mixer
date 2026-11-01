@@ -52,7 +52,38 @@ An explicit source ref overrides that default. Surface sanity-check findings and
 wait for approval of the concrete release contents before publishing. A release
 skill invocation starts preparation; it does not authorize publication.
 
-## Publish a desktop release
+## Release by merging develop into main
+
+Merge a PR from this repository's `develop` branch into `main` to publish a stable
+macOS release automatically. CI already checks PRs against every base branch;
+push checks run on both `develop` and `main`. Keep `main` as the production branch.
+You can select `develop` as the default branch in repository settings.
+
+In GitHub settings, protect `main` by requiring a PR and passing CI checks.
+Do not require another person's approval for a solo repository. Branch settings
+are separate from these workflow files and must be configured in GitHub.
+
+The default bump is patch. Add one PR label, `release:minor` or `release:major`,
+for a larger bump (`release:patch` is also accepted). Conflicting labels fail
+preparation. Create those labels in GitHub before selecting them. Review release
+contents and changelog before merging: the merge starts publication automatically.
+Closed, unmerged PRs, fork PRs, and merges from other branch names do not release.
+
+The merge workflow creates a version commit based on the exact merged commit and
+pushes only its `desktop-v...` tag, leaving protected `main` unchanged. Versions
+advance from the highest stable desktop tag or checkout version, so `develop`
+does not need to carry each automated bump. This tagged commit is the release
+source; every workspace and the lockfile carry its release version. Merge releases
+are serialized; wait for the active release before merging another release PR.
+
+The workflow calls Desktop Release directly with the repository signing secrets.
+It does not rely on a bot-pushed tag starting another workflow and needs no PAT.
+A rerun reuses the merge's original release tag rather than allocating a new
+version. To retry a failed build, rerun all jobs for that merge workflow. A direct
+push to `main` does not release; the manual tag path remains available below.
+Do not run a manual release concurrently with an automatic one.
+
+## Publish a desktop release manually
 
 After the source and changelog are approved and committed, run one command:
 
