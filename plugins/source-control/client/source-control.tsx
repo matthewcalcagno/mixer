@@ -1,3 +1,4 @@
+import type { PluginTheme } from "@mixer/plugin";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { Icon, PaneHeader, PaneHeaderAction, ScrollView } from "@mixer/plugin/client/ui";
@@ -68,7 +69,8 @@ export function SourceControlPanel({
     const result = preferences.safeParse(tab?.state ?? {});
     return result.success ? result.data : preferences.parse({});
   });
-  const [message, setMessage] = useState(saved.message);
+  const draftMessage = useRef(saved.message);
+  const [messageResetVersion, setMessageResetVersion] = useState(0);
   const [view, setView] = useState(saved.view);
   const [sort, setSort] = useState(saved.sort);
   const [filter, setFilter] = useState("");
@@ -76,22 +78,21 @@ export function SourceControlPanel({
   const persist = useRef(tab?.setState);
   persist.current = tab?.setState;
   useEffect(() => {
-    persist.current?.({ message, view, sort });
-  }, [message, view, sort]);
-  const [messageHeight, setMessageHeight] = useState(28);
-  const messageInput = useRef<TextInput>(null);
-  const resizeMessage = useCallback(() => {
-    const height = resizeCommitInput(messageInput.current);
-    if (height !== null) setMessageHeight(height);
-  }, []);
-  useLayoutEffect(resizeMessage, [message, resizeMessage]);
+    persist.current?.({ message: draftMessage.current, view, sort });
+  }, [view, sort]);
+  const saveMessage = useCallback(
+    (value: string) => {
+      draftMessage.current = value;
+      persist.current?.({ message: value, view, sort });
+    },
+    [view, sort],
+  );
   const selected = useDiffSelection(workspaceId);
   const [collapsed, setCollapsed] = useState<Record<ResourceGroup, boolean>>({
     merge: false,
     staged: false,
     changes: false,
   });
-  const [inputFocused, setInputFocused] = useState(false);
   const [selection, setSelection] = useState(emptySelection);
   const [collapsedFolders, setCollapsedFolders] = useState<ReadonlySet<string>>(() => new Set());
   const [commitFlowPending, setCommitFlowPending] = useState(false);
@@ -134,7 +135,10 @@ export function SourceControlPanel({
       });
     },
     onSuccess: (_result, operation) => {
-      if (operation.kind === "commit" || operation.kind === "amend") setMessage("");
+      if (operation.kind === "commit" || operation.kind === "amend") {
+        saveMessage("");
+        setMessageResetVersion((version) => version + 1);
+      }
     },
     onError: (_error, _operation, context) => {
       if (context?.previous) queries.setQueryData(key, context.previous);
@@ -295,20 +299,16 @@ export function SourceControlPanel({
     else action.mutate({ kind: operation, paths });
   }
   const hasConflicts = groups.merge.length > 0;
-  const canCommit =
-    !!message.trim() && staged.length > 0 && !hasConflicts && !pending && !state.isPending;
-  const canAmend = !!message.trim() && !hasConflicts && !pending && !!state.data;
+  const canCommit = staged.length > 0 && !hasConflicts && !pending && !state.isPending;
+  const canAmend = !hasConflicts && !pending && !!state.data;
   const showPush =
     files.length === 0 && !!state.data?.hasRemote && (state.data.ahead > 0 || pushing);
-  const primaryEnabled = showPush
-    ? !pending && !state.isFetching && !state.data?.behind
-    : canCommit;
   const primaryLabel = showPush
     ? `Push${state.data?.ahead ? ` ${state.data.ahead}↑` : ""}`
     : "Commit";
   const operationError = state.error || commitFlowError || action.error;
-  async function commit(option: CommitOption) {
-    if (!(option === "amend" ? canAmend : canCommit) || !state.data) return;
+  async function commit(message: string, option: CommitOption) {
+    if (!message.trim() || !(option === "amend" ? canAmend : canCommit) || !state.data) return;
     const snapshot = state.data;
     const hasRemoteStep = option === "commit-push" || option === "commit-sync";
     if (hasRemoteStep && (!snapshot.hasRemote || !snapshot.upstream)) return;
@@ -523,137 +523,25 @@ export function SourceControlPanel({
         </View>
       )}
       <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
-        <View style={{ paddingHorizontal: 10, paddingTop: 2, paddingBottom: 6, gap: 10 }}>
-          {!!state.data?.ahead && !!state.data.behind && (
-            <Text style={{ color: c.statusWarning, fontSize: 11 }}>
-              Branches have diverged. Resolve with merge or rebase before pushing. Pull here is
-              fast-forward only.
-            </Text>
-          )}
-          <View>
-            <TextInput
-              ref={messageInput}
-              accessibilityLabel="Commit message"
-              testID="source-control-commit-message"
-              multiline
-              numberOfLines={1}
-              value={message}
-              onChangeText={setMessage}
-              onKeyPress={(event) => {
-                const native = event.nativeEvent;
-                const control = "ctrlKey" in native && native.ctrlKey === true;
-                const meta = "metaKey" in native && native.metaKey === true;
-                if (native.key === "Enter" && (control || meta)) {
-                  event.preventDefault();
-                  void commit("commit");
-                }
-              }}
-              onLayout={resizeMessage}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              onContentSizeChange={(event) => {
-                if (Platform.OS !== "web")
-                  setMessageHeight(
-                    Math.min(140, Math.max(28, event.nativeEvent.contentSize.height)),
-                  );
-              }}
-              style={{
-                ...text,
-                fontSize: 12,
-                lineHeight: 16,
-                height: messageHeight,
-                borderWidth: 0,
-                borderRadius: 4,
-                backgroundColor: c.surface2,
-                paddingHorizontal: 8,
-                paddingVertical: 6,
-                textAlignVertical: "top",
-                outlineStyle: "solid",
-                outlineColor: c.inputFocus,
-                outlineWidth: inputFocused ? 2 : 0,
-                outlineOffset: -2,
-              }}
-            />
-            {!message && (
-              <View
-                pointerEvents="none"
-                style={{ position: "absolute", top: 6, left: 8, right: 8 }}
-              >
-                <Text
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  style={{ color: c.foregroundMuted, fontSize: 12, lineHeight: 16 }}
-                  testID="source-control-commit-placeholder"
-                >
-                  Message (Ctrl/Cmd+Enter to commit)
-                </Text>
-              </View>
-            )}
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              minHeight: 26,
-              borderRadius: 4,
-              overflow: "hidden",
-              backgroundColor: primaryEnabled ? "#187a34" : c.surface2,
-            }}
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={showPush ? "Push outgoing commits" : "Commit staged changes"}
-              accessibilityState={{ disabled: !primaryEnabled, busy: primaryBusy }}
-              disabled={!primaryEnabled}
-              onPress={() => {
-                if (showPush) void confirm({ kind: "push" });
-                else void commit("commit");
-              }}
-              style={({ pressed }) => ({
-                flex: 1,
-                minHeight: 26,
-                backgroundColor: primaryEnabled ? "#187a34" : c.surface2,
-                opacity: pressed ? 0.85 : 1,
-                flexDirection: "row",
-                gap: 6,
-                alignItems: "center",
-                justifyContent: "center",
-                paddingHorizontal: 8,
-              })}
-            >
-              {primaryBusy ? (
-                <ActivityIndicator size="small" color={c.foregroundMuted} />
-              ) : (
-                <Icon
-                  name={showPush ? "ArrowUp" : "Check"}
-                  size={16}
-                  color={primaryEnabled ? "#ffffff" : c.foregroundMuted}
-                />
-              )}
-              <Text
-                numberOfLines={1}
-                style={{
-                  color: primaryEnabled ? "#ffffff" : c.foregroundMuted,
-                  fontSize: 13,
-                  fontWeight: "600",
-                }}
-              >
-                {primaryLabel}
-              </Text>
-            </Pressable>
-            {!showPush && (
-              <CommitDropdown
-                disabled={pending || !state.data}
-                canCommit={canCommit}
-                canAmend={canAmend}
-                remoteDisabled={!state.data?.hasRemote || !state.data.upstream}
-                color={canCommit ? "#ffffff" : c.foregroundMuted}
-                onSelect={(option) => {
-                  void commit(option);
-                }}
-              />
-            )}
-          </View>
-        </View>
+        <CommitForm
+          theme={theme}
+          initialMessage={saved.message}
+          resetVersion={messageResetVersion}
+          commitAllowed={canCommit}
+          amendAllowed={canAmend}
+          disabled={pending || !state.data}
+          remoteDisabled={!state.data?.hasRemote || !state.data.upstream}
+          diverged={!!state.data?.ahead && !!state.data.behind}
+          showPush={showPush}
+          pushEnabled={!pending && !state.isFetching && !state.data?.behind}
+          primaryBusy={primaryBusy}
+          primaryLabel={primaryLabel}
+          onMessage={saveMessage}
+          onCommit={commit}
+          onPush={() => {
+            void confirm({ kind: "push" });
+          }}
+        />
         {operationError && (
           <View
             style={{
@@ -817,6 +705,201 @@ export function SourceControlPanel({
           </View>
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+interface CommitFormProps {
+  theme: PluginTheme;
+  initialMessage: string;
+  resetVersion: number;
+  commitAllowed: boolean;
+  amendAllowed: boolean;
+  disabled: boolean;
+  remoteDisabled: boolean;
+  diverged: boolean;
+  showPush: boolean;
+  pushEnabled: boolean;
+  primaryBusy: boolean;
+  primaryLabel: string;
+  onMessage(message: string): void;
+  onCommit(message: string, option: CommitOption): Promise<void>;
+  onPush(): void;
+}
+
+// Keep keystrokes and input measurement out of the repository resource tree.
+function CommitForm({
+  theme,
+  initialMessage,
+  resetVersion,
+  commitAllowed,
+  amendAllowed,
+  disabled,
+  remoteDisabled,
+  diverged,
+  showPush,
+  pushEnabled,
+  primaryBusy,
+  primaryLabel,
+  onMessage,
+  onCommit,
+  onPush,
+}: CommitFormProps) {
+  const [message, setMessage] = useState(initialMessage);
+  const [messageHeight, setMessageHeight] = useState(28);
+  const [inputFocused, setInputFocused] = useState(false);
+  const messageInput = useRef<TextInput>(null);
+  const resizeMessage = useCallback(() => {
+    const height = resizeCommitInput(messageInput.current);
+    if (height !== null) setMessageHeight(height);
+  }, []);
+  useLayoutEffect(resizeMessage, [message, resizeMessage]);
+  useEffect(() => {
+    if (resetVersion > 0) setMessage("");
+  }, [resetVersion]);
+  useEffect(() => {
+    const timer = setTimeout(() => onMessage(message), 300);
+    return () => clearTimeout(timer);
+  }, [message, onMessage]);
+  const latestDraft = useRef({ message, onMessage });
+  latestDraft.current = { message, onMessage };
+  useEffect(
+    () => () => {
+      latestDraft.current.onMessage(latestDraft.current.message);
+    },
+    [],
+  );
+  const canCommit = !!message.trim() && commitAllowed;
+  const canAmend = !!message.trim() && amendAllowed;
+  const primaryEnabled = showPush ? pushEnabled : canCommit;
+  const c = theme.colors;
+  const text = { color: c.foreground, fontSize: 13 };
+  return (
+    <View style={{ paddingHorizontal: 10, paddingTop: 2, paddingBottom: 6, gap: 10 }}>
+      {diverged && (
+        <Text style={{ color: c.statusWarning, fontSize: 11 }}>
+          Branches have diverged. Resolve with merge or rebase before pushing. Pull here is
+          fast-forward only.
+        </Text>
+      )}
+      <View>
+        <TextInput
+          ref={messageInput}
+          accessibilityLabel="Commit message"
+          testID="source-control-commit-message"
+          multiline
+          numberOfLines={1}
+          value={message}
+          onChangeText={setMessage}
+          onKeyPress={(event) => {
+            const native = event.nativeEvent;
+            const control = "ctrlKey" in native && native.ctrlKey === true;
+            const meta = "metaKey" in native && native.metaKey === true;
+            if (native.key === "Enter" && (control || meta)) {
+              event.preventDefault();
+              void onCommit(message, "commit");
+            }
+          }}
+          onLayout={resizeMessage}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          onContentSizeChange={(event) => {
+            if (Platform.OS !== "web")
+              setMessageHeight(Math.min(140, Math.max(28, event.nativeEvent.contentSize.height)));
+          }}
+          style={{
+            ...text,
+            fontSize: 12,
+            lineHeight: 16,
+            height: messageHeight,
+            borderWidth: 0,
+            borderRadius: 4,
+            backgroundColor: c.surface2,
+            paddingHorizontal: 8,
+            paddingVertical: 6,
+            textAlignVertical: "top",
+            outlineStyle: "solid",
+            outlineColor: c.inputFocus,
+            outlineWidth: inputFocused ? 2 : 0,
+            outlineOffset: -2,
+          }}
+        />
+        {!message && (
+          <View pointerEvents="none" style={{ position: "absolute", top: 6, left: 8, right: 8 }}>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{ color: c.foregroundMuted, fontSize: 12, lineHeight: 16 }}
+              testID="source-control-commit-placeholder"
+            >
+              Message (Ctrl/Cmd+Enter to commit)
+            </Text>
+          </View>
+        )}
+      </View>
+      <View
+        style={{
+          flexDirection: "row",
+          minHeight: 26,
+          borderRadius: 4,
+          overflow: "hidden",
+          backgroundColor: primaryEnabled ? "#187a34" : c.surface2,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={showPush ? "Push outgoing commits" : "Commit staged changes"}
+          accessibilityState={{ disabled: !primaryEnabled, busy: primaryBusy }}
+          disabled={!primaryEnabled}
+          onPress={() => {
+            if (showPush) onPush();
+            else void onCommit(message, "commit");
+          }}
+          style={({ pressed }) => ({
+            flex: 1,
+            minHeight: 26,
+            backgroundColor: primaryEnabled ? "#187a34" : c.surface2,
+            opacity: pressed ? 0.85 : 1,
+            flexDirection: "row",
+            gap: 6,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 8,
+          })}
+        >
+          {primaryBusy ? (
+            <ActivityIndicator size="small" color={c.foregroundMuted} />
+          ) : (
+            <Icon
+              name={showPush ? "ArrowUp" : "Check"}
+              size={16}
+              color={primaryEnabled ? "#ffffff" : c.foregroundMuted}
+            />
+          )}
+          <Text
+            numberOfLines={1}
+            style={{
+              color: primaryEnabled ? "#ffffff" : c.foregroundMuted,
+              fontSize: 13,
+              fontWeight: "600",
+            }}
+          >
+            {primaryLabel}
+          </Text>
+        </Pressable>
+        {!showPush && (
+          <CommitDropdown
+            disabled={disabled}
+            canCommit={canCommit}
+            canAmend={canAmend}
+            remoteDisabled={remoteDisabled}
+            color={canCommit ? "#ffffff" : c.foregroundMuted}
+            onSelect={(option) => {
+              void onCommit(message, option);
+            }}
+          />
+        )}
+      </View>
     </View>
   );
 }

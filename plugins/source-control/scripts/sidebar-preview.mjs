@@ -23,7 +23,7 @@ export function useRpc(contract) { return async (input) => {
   }
   return {message:'Done'};
 }; }`;
-const uiShim = `import {createElement} from 'react'; export {ScrollView} from 'react-native'; export function useEditorSyntaxOptions() { return {bracketPairColorization:true}; } export function Icon({name,icon,color,size}) { return createElement('span', {'data-icon':name ?? 'file',style:{color,fontSize:size,lineHeight:1}}, '◇'); }
+const uiShim = `import {createElement} from 'react'; export {ScrollView} from 'react-native'; export function ContextMenu({children}) {return children;} export function useEditorSyntaxOptions() { return {bracketPairColorization:true}; } export function Icon({name,icon,color,size}) { window.fixtureIconRenders=(window.fixtureIconRenders ?? 0)+1; return createElement('span', {'data-icon':name ?? 'file',style:{color,fontSize:size,lineHeight:1}}, '◇'); }
 export function PaneHeader({title,children,testID,titleTestID}) { return createElement('div', {'data-testid':testID,style:{height:36,flexShrink:0,display:'flex',alignItems:'center',paddingRight:4}}, createElement('div',{'data-testid':titleTestID,style:{flex:1,minWidth:0,marginLeft:12,marginRight:8,fontSize:14,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},title),createElement('div',{style:{display:'flex',gap:1,flexShrink:0}},children)); }
 export function PaneHeaderAction({icon,label,onPress,disabled,testID}) {return createElement('button',{'aria-label':label,'data-testid':testID,disabled,onClick:onPress,style:{width:20,height:20,border:0,padding:0,background:'transparent'}},createElement(Icon,{name:icon,size:14,color:'#9da5ae'}));}`;
 const output = await bundle({
@@ -35,11 +35,20 @@ const output = await bundle({
   platform: "browser",
   jsx: "automatic",
   define: { global: "globalThis", "process.env.NODE_ENV": '"development"', __DEV__: "true" },
-  alias: { "react-native": "react-native-web" },
+
   plugins: [
     {
       name: "mixer-fixture",
       setup(build) {
+        build.onResolve({ filter: /^react-native$/ }, () => ({
+          path: "react-native",
+          namespace: "native-fixture",
+        }));
+        build.onLoad({ filter: /.*/, namespace: "native-fixture" }, () => ({
+          contents: "export * from 'react-native-web'; export const ActionSheetIOS = undefined;",
+          loader: "js",
+          resolveDir: process.cwd(),
+        }));
         build.onResolve({ filter: /^@mixer\/plugin\/client(?:\/ui)?$/ }, (args) => ({
           path: args.path,
           namespace: "fixture",

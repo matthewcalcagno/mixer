@@ -44,6 +44,20 @@ try {
     ),
     "2 uncommitted files",
   );
+  evaluate(
+    "window.setSourceControlFiles(Array.from({length:500},(_,i)=>({path:'src/file-'+i+'.ts',index:'M',worktree:' ',head:'M'})))",
+  );
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", '[aria-label="Open staged diff for src/file-499.ts"]');
+  browser("find", "label", "Commit message", "fill", "fix:");
+  const rendersBeforeTyping = evaluate("window.fixtureIconRenders");
+  browser("find", "label", "Commit message", "type", " keep typing with 500 staged files");
+  const typingIconRenders = evaluate("window.fixtureIconRenders") - rendersBeforeTyping;
+  assert.ok(
+    typingIconRenders < 100,
+    `Typing rerendered the resource list: ${typingIconRenders} icons`,
+  );
+  browser("find", "label", "Commit message", "fill", "");
   evaluate("window.resetCommitFixture()");
   browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
   browser(
