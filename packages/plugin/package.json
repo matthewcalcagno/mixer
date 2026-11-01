@@ -1,6 +1,6 @@
 {
   "name": "@mixer/plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Mixer plugin SDK package",
   "files": [
@@ -76,8 +76,8 @@
     "use-sync-external-store": "^1.6.0"
   },
   "devDependencies": {
-    "@mixer/client": "0.1.0",
-    "@mixer/protocol": "0.1.0",
+    "@mixer/client": "*",
+    "@mixer/protocol": "*",
     "@types/node": "^20.9.0",
     "@types/react": "~19.2.0",
     "react": "19.2.3",
@@ -87,8 +87,8 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@mixer/client": "0.1.0",
-    "@mixer/protocol": "0.1.0",
+    "@mixer/client": "*",
+    "@mixer/protocol": "*",
     "react": ">=19.1.0 <20",
     "react-native": ">=0.81.5",
     "zod": "^4.4.3"

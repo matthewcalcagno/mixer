@@ -1,6 +1,6 @@
 {
   "name": "@mixer/client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Mixer client SDK package",
   "files": [
@@ -45,8 +45,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@mixer/protocol": "0.1.0",
-    "@mixer/relay": "0.1.0",
+    "@mixer/protocol": "*",
+    "@mixer/relay": "*",
     "ws": "^8.20.0",
     "zod": "^4.4.3"
   },
