@@ -253,7 +253,7 @@ buildNpmPackage {
 
   meta = {
     description = "Mixer desktop app (Electron wrapper)";
-    homepage = "https://github.com/getpaseo/paseo";
+    homepage = "https://github.com/matthewcalcagno/mixer";
     license = lib.licenses.asl20;
     mainProgram = "mixer-desktop";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;

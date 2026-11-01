@@ -2,7 +2,7 @@
 
 The offline editor in `client/generated/editor-html.ts` bundles Microsoft Monaco Editor under MIT and DOMPurify under its Apache-2.0 option. License texts are included alongside the generated editor. Run `npm run build:editor` to rebuild from the pinned npm dependencies. No editor scripts or fonts are loaded from a CDN.
 
-`client/vendor/material-file-icons.ts`, `file-icon-svg.ts`, and `color.ts` are vendored from https://github.com/getpaseo/paseo under Apache-2.0. See MIXER-LICENSE. File SVGs originate in Material Icon Theme by Philipp Kief, distributed under MIT: https://github.com/material-extensions/vscode-material-icon-theme.
+`client/vendor/material-file-icons.ts`, `file-icon-svg.ts`, and `color.ts` are vendored from https://github.com/matthewcalcagno/mixer under Apache-2.0. See MIXER-LICENSE. File SVGs originate in Material Icon Theme by Philipp Kief, distributed under MIT: https://github.com/material-extensions/vscode-material-icon-theme.
 
 The import paths are adjusted to work without importing private Mixer application modules. Run `node scripts/sync-mixer-icons.mjs /path/to/mixer` to refresh the snapshot, including `material-file-icons.generated.json` and its upstream license. Add `--check` to verify that the assets, filename mappings, and color adjustment match the checkout without writing files.
 

@@ -1,4 +1,4 @@
-// Vendored from getpaseo/paseo. See THIRD_PARTY_NOTICES.md.
+// Vendored from matthewcalcagno/mixer. See THIRD_PARTY_NOTICES.md.
 import data from "./material-file-icons.generated.json" with { type: "json" };
 
 const icons: Record<string, string> = data.icons;

@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/getpaseo/paseo.git"
+    "url": "https://github.com/matthewcalcagno/mixer.git"
   },
   "main": "dist/main.js",
   "scripts": {
@@ -37,14 +37,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@electron/asar": "3.4.1",
+    "@electron/asar": "4.3.1",
     "@types/node": "24.6.0",
     "@types/ws": "^8.5.14",
-    "electron": "44.2.0",
-    "electron-builder": "26.8.1",
+    "electron": "44.10.1",
+    "electron-builder": "26.18.0",
     "typescript": "5.9.3",
     "unzip-crx-3": "^0.2.0",
-    "vitest": "^4.1.6",
+    "vitest": "^4.1.12",
     "wait-on": "8.0.5"
   },
   "desktopName": "Mixer.desktop"

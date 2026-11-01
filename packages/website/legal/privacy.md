@@ -88,7 +88,7 @@ Depending on applicable law, you may request access, correction, deletion, restr
 
 ## Security
 
-We use access controls, encrypted transport, and limited service permissions. No online service can guarantee absolute security. Read Mixer's [security model](https://github.com/getpaseo/paseo/blob/main/SECURITY.md) or report a vulnerability privately to [hello@moboudra.com](mailto:hello@moboudra.com).
+We use access controls, encrypted transport, and limited service permissions. No online service can guarantee absolute security. Read Mixer's [security model](https://github.com/matthewcalcagno/mixer/blob/main/SECURITY.md) or report a vulnerability privately to [hello@moboudra.com](mailto:hello@moboudra.com).
 
 ## Children
 

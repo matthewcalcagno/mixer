@@ -89,6 +89,35 @@ for (const startupPlatform of ["darwin", "linux"] as const) {
 
 const APP_SETTINGS_KEY = "@mixer:app-settings";
 
+test("desktop file find focuses the search input and keeps typing out of the buffer", async ({
+  page,
+  withWorkspace,
+}) => {
+  test.skip(process.env.MIXER_WEB_PLATFORM !== "electron", "Uses Monaco file search");
+  const workspace = await withWorkspace({ prefix: "editor-find-" });
+  const content = "export const first = 'needle';\nexport const second = 'needle';\n";
+  await writeFile(path.join(workspace.repoPath, "find.ts"), content);
+  await workspace.navigateTo();
+  await openWorkspaceFile(page, "find.ts");
+  const source = page
+    .getByTestId("file-source-editor")
+    .filter({ visible: true })
+    .first()
+    .frameLocator("iframe");
+  await source.locator(".view-lines").click();
+  await page.keyboard.press("Control+f");
+  const input = source.locator(".find-widget .find-part textarea");
+  await expect(input).toBeFocused();
+  await page.keyboard.type("needle");
+  await expect(input).toHaveValue("needle");
+  await expect(source.locator(".find-widget .matchesCount")).toContainText("of 2");
+  await page.keyboard.press("Escape");
+  await expect(input).toBeDisabled();
+  await page.keyboard.press("Control+f");
+  await expect(input).toBeFocused();
+  expect(await readFile(path.join(workspace.repoPath, "find.ts"), "utf8")).toBe(content);
+});
+
 function enrichEditorCommitFixture(message: string | Buffer): string | Buffer {
   if (typeof message !== "string") return message;
   const parsed = z

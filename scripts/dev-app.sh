@@ -12,7 +12,6 @@ configure_dev_mixer_home
 
 EXPO_PORT="${EXPO_PORT:-8081}"
 DAEMON_ENDPOINT="$(resolve_dev_daemon_endpoint)"
-DEV_BUILD_LABEL="$(git -C "$ROOT_DIR" branch --show-current 2>/dev/null || true)"
 
 echo "══════════════════════════════════════════════════════"
 echo "  Mixer App Dev"
@@ -24,6 +23,5 @@ echo "════════════════════════�
 
 exec cross-env \
   BROWSER="${BROWSER:-none}" \
-  EXPO_PUBLIC_MIXER_DEV_BUILD_LABEL="$DEV_BUILD_LABEL" \
   EXPO_PUBLIC_LOCAL_DAEMON="$DAEMON_ENDPOINT" \
   npm run start:expo --workspace=@mixer/app -- --port "$EXPO_PORT"

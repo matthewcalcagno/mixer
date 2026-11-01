@@ -147,7 +147,7 @@ buildNpmPackage rec {
 
   meta = {
     description = "Self-hosted daemon for Claude Code, Codex, and OpenCode";
-    homepage = "https://github.com/getpaseo/paseo";
+    homepage = "https://github.com/matthewcalcagno/mixer";
     license = lib.licenses.asl20;
     mainProgram = "mixer";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;

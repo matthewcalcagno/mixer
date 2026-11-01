@@ -80,7 +80,7 @@ mixer daemon restart
 
 Agent Provider，包括 Mixer 自带的一等 Provider 和你在 `agents.providers` 下添加的自定义条目，都在单独的页面中介绍。
 
-心智模型见 [Provider](/docs/providers)，Mixer 可以启动的全部 Agent 见[支持的 Provider](/docs/supported-providers)。要让 Claude 指向兼容 Anthropic 的端点（Z.AI、Alibaba/Qwen）、使用多个配置、自定义二进制文件、ACP Agent，以及了解 `additionalModels` 的合并行为，见[自定义 Provider](/docs/custom-providers)。完整的字段参考在 GitHub 上的 [docs/custom-providers.md](https://github.com/getpaseo/paseo/blob/main/docs/custom-providers.md)。
+心智模型见 [Provider](/docs/providers)，Mixer 可以启动的全部 Agent 见[支持的 Provider](/docs/supported-providers)。要让 Claude 指向兼容 Anthropic 的端点（Z.AI、Alibaba/Qwen）、使用多个配置、自定义二进制文件、ACP Agent，以及了解 `additionalModels` 的合并行为，见[自定义 Provider](/docs/custom-providers)。完整的字段参考在 GitHub 上的 [docs/custom-providers.md](https://github.com/matthewcalcagno/mixer/blob/main/docs/custom-providers.md)。
 
 ## 空闲运行时 {#idle-runtimes}
 

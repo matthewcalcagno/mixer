@@ -28,7 +28,7 @@ test("uses the untagged URL slug for draft release CLI operations", () => {
   assert.equal(
     getReleaseLookupTag({
       draft: true,
-      html_url: "https://github.com/getpaseo/paseo/releases/tag/untagged-draft",
+      html_url: "https://github.com/matthewcalcagno/mixer/releases/tag/untagged-draft",
       tag_name: "v0.1.60-beta.1",
     }),
     "untagged-draft",
@@ -42,7 +42,7 @@ test("does not treat GitHub authentication failures as missing releases", () => 
   });
   assert.throws(
     () =>
-      getGitHubRelease("mixer/mixer", "v0.1.60-beta.1", (command, args) => {
+      getGitHubRelease("matthewcalcagno/mixer", "v0.1.60-beta.1", (command, args) => {
         calls.push({ args, command });
         throw authError;
       }),
@@ -58,7 +58,10 @@ test("updates an existing release body through the release id API", () => {
     const execFileSync = (command, args, options) => {
       calls.push({ args, command, options });
 
-      if (args[0] === "api" && args[1] === "repos/mixer/mixer/releases/tags/v0.1.60-beta.1") {
+      if (
+        args[0] === "api" &&
+        args[1] === "repos/matthewcalcagno/mixer/releases/tags/v0.1.60-beta.1"
+      ) {
         return JSON.stringify({ id: 311163621, draft: false });
       }
 
@@ -73,7 +76,7 @@ test("updates an existing release body through the release id API", () => {
       throw new Error(`Unexpected gh call: ${command} ${args.join(" ")}`);
     };
 
-    syncReleaseNotes(["--repo", "mixer/mixer", "--tag", "v0.1.60-beta.1"], {
+    syncReleaseNotes(["--repo", "matthewcalcagno/mixer", "--tag", "v0.1.60-beta.1"], {
       execFileSync,
     });
 
@@ -88,7 +91,7 @@ test("updates an existing release body through the release id API", () => {
           call.args[0] === "api" &&
           call.args[1] === "-X" &&
           call.args[2] === "PATCH" &&
-          call.args[3] === "repos/mixer/mixer/releases/311163621",
+          call.args[3] === "repos/matthewcalcagno/mixer/releases/311163621",
       ),
       true,
       "existing releases should be patched by release id",
@@ -103,18 +106,21 @@ test("updates a draft release body without publishing it", () => {
     const execFileSync = (command, args, options) => {
       calls.push({ args, command, options });
 
-      if (args[0] === "api" && args[1] === "repos/mixer/mixer/releases/tags/v0.1.60-beta.1") {
+      if (
+        args[0] === "api" &&
+        args[1] === "repos/matthewcalcagno/mixer/releases/tags/v0.1.60-beta.1"
+      ) {
         throw notFoundError();
       }
 
-      if (args[0] === "api" && args[1] === "repos/mixer/mixer/releases?per_page=100") {
+      if (args[0] === "api" && args[1] === "repos/matthewcalcagno/mixer/releases?per_page=100") {
         return JSON.stringify([
           {
             id: 311163621,
             draft: true,
             name: "Mixer v0.1.60-beta.1",
             tag_name: "untagged-draft",
-            html_url: "https://github.com/getpaseo/paseo/releases/tag/untagged-draft",
+            html_url: "https://github.com/matthewcalcagno/mixer/releases/tag/untagged-draft",
           },
         ]);
       }
@@ -126,7 +132,7 @@ test("updates a draft release body without publishing it", () => {
       throw new Error(`Unexpected gh call: ${command} ${args.join(" ")}`);
     };
 
-    syncReleaseNotes(["--repo", "mixer/mixer", "--tag", "v0.1.60-beta.1"], {
+    syncReleaseNotes(["--repo", "matthewcalcagno/mixer", "--tag", "v0.1.60-beta.1"], {
       execFileSync,
     });
 
@@ -150,11 +156,14 @@ test("creates missing beta releases as drafts", () => {
     const execFileSync = (command, args, options) => {
       calls.push({ args, command, options });
 
-      if (args[0] === "api" && args[1] === "repos/mixer/mixer/releases/tags/v0.1.60-beta.1") {
+      if (
+        args[0] === "api" &&
+        args[1] === "repos/matthewcalcagno/mixer/releases/tags/v0.1.60-beta.1"
+      ) {
         throw notFoundError();
       }
 
-      if (args[0] === "api" && args[1] === "repos/mixer/mixer/releases?per_page=100") {
+      if (args[0] === "api" && args[1] === "repos/matthewcalcagno/mixer/releases?per_page=100") {
         return created
           ? JSON.stringify([
               {
@@ -179,9 +188,12 @@ test("creates missing beta releases as drafts", () => {
       throw new Error(`Unexpected gh call: ${command} ${args.join(" ")}`);
     };
 
-    syncReleaseNotes(["--repo", "mixer/mixer", "--tag", "v0.1.60-beta.1", "--create-if-missing"], {
-      execFileSync,
-    });
+    syncReleaseNotes(
+      ["--repo", "matthewcalcagno/mixer", "--tag", "v0.1.60-beta.1", "--create-if-missing"],
+      {
+        execFileSync,
+      },
+    );
 
     const createCall = calls.find(
       (call) => call.args[0] === "release" && call.args[1] === "create",
@@ -196,7 +208,7 @@ test("converts contributor profile links to mentions in synced release notes", (
   const changelogText = [
     "## 0.1.60-beta.1 - 2026-04-20",
     "",
-    "- Beta notes. ([#526](https://github.com/getpaseo/paseo/pull/526) by [@therainisme](https://github.com/therainisme))",
+    "- Beta notes. ([#526](https://github.com/matthewcalcagno/mixer/pull/526) by [@therainisme](https://github.com/therainisme))",
     "",
   ].join("\n");
 
@@ -204,7 +216,10 @@ test("converts contributor profile links to mentions in synced release notes", (
     let syncedNotes = "";
 
     const execFileSync = (command, args) => {
-      if (args[0] === "api" && args[1] === "repos/mixer/mixer/releases/tags/v0.1.60-beta.1") {
+      if (
+        args[0] === "api" &&
+        args[1] === "repos/matthewcalcagno/mixer/releases/tags/v0.1.60-beta.1"
+      ) {
         return JSON.stringify({ id: 311163621, draft: false });
       }
 
@@ -218,7 +233,7 @@ test("converts contributor profile links to mentions in synced release notes", (
       throw new Error(`Unexpected gh call: ${command} ${args.join(" ")}`);
     };
 
-    syncReleaseNotes(["--repo", "mixer/mixer", "--tag", "v0.1.60-beta.1"], {
+    syncReleaseNotes(["--repo", "matthewcalcagno/mixer", "--tag", "v0.1.60-beta.1"], {
       execFileSync,
     });
 

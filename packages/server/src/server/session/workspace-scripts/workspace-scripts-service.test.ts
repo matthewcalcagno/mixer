@@ -60,7 +60,7 @@ function fakeRuntimeStore() {
     isGit: true,
     repoRoot: "/tmp/repo",
     currentBranch: "feature/scripts",
-    remoteUrl: "https://github.com/getpaseo/paseo.git",
+    remoteUrl: "https://github.com/matthewcalcagno/mixer.git",
     hasRemote: true,
   };
 

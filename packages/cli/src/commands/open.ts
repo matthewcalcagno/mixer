@@ -76,7 +76,7 @@ function launchDesktop(args: string[]): void {
   const desktopApp = findDesktopApp();
   if (!desktopApp) {
     throw new Error(
-      "Mixer desktop app not found. Install it from https://github.com/getpaseo/paseo/releases",
+      "Mixer desktop app not found. Install it from https://github.com/matthewcalcagno/mixer/releases",
     );
   }
 

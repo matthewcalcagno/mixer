@@ -90,7 +90,7 @@ Mixer 控制账户、账单、安全和服务运营数据。当某个组织使�
 
 ## 安全
 
-我们采用访问控制、加密传输和有限的服务权限。任何在线服务都无法保证绝对安全。请阅读 Mixer 的[安全模型](https://github.com/getpaseo/paseo/blob/main/SECURITY.md)，或私下向 [hello@moboudra.com](mailto:hello@moboudra.com) 报告漏洞。
+我们采用访问控制、加密传输和有限的服务权限。任何在线服务都无法保证绝对安全。请阅读 Mixer 的[安全模型](https://github.com/matthewcalcagno/mixer/blob/main/SECURITY.md)，或私下向 [hello@moboudra.com](mailto:hello@moboudra.com) 报告漏洞。
 
 ## 儿童
 

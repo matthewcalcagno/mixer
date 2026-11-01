@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { UUID } from "builder-util-runtime";
+import { app } from "electron";
 import { describe, expect, it, vi } from "vitest";
 
 const { autoUpdaterMock } = vi.hoisted(() => {
@@ -28,7 +29,7 @@ const { autoUpdaterMock } = vi.hoisted(() => {
 vi.mock("electron", () => ({
   app: {
     getPath: vi.fn(),
-    isPackaged: true,
+    isPackaged: false,
   },
 }));
 
@@ -47,7 +48,7 @@ import {
 } from "./auto-updater";
 
 describe("checkForAppUpdate", () => {
-  it("does not contact an upstream release feed for a local Mixer build", async () => {
+  it("does not contact the release feed for an unpackaged Mixer build", async () => {
     const result = await checkForAppUpdate({
       currentVersion: "1.2.3",
       releaseChannel: "stable",
@@ -78,6 +79,27 @@ describe("checkForAppUpdate", () => {
     expect(result.hasUpdate).toBe(false);
     expect(result.errorMessage).toBeNull();
     expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled();
+  });
+
+  it("checks for updates in packaged builds", async () => {
+    app.isPackaged = true;
+    autoUpdaterMock.checkForUpdates.mockResolvedValueOnce({
+      isUpdateAvailable: false,
+      updateInfo: { version: "1.2.3" },
+    });
+    try {
+      const result = await checkForAppUpdate({
+        currentVersion: "1.2.3",
+        releaseChannel: "stable",
+        intent: "manual",
+      });
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1);
+      expect(result.errorMessage).toBeNull();
+      expect(result.hasUpdate).toBe(false);
+    } finally {
+      app.isPackaged = false;
+      autoUpdaterMock.checkForUpdates.mockClear();
+    }
   });
 
   it("logs the update handoff with current and selected target versions", () => {

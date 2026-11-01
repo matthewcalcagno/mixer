@@ -15,7 +15,7 @@ interface StartupSplashScreenProps {
   bootstrapState?: { splashError: string | null; retry: () => void };
 }
 function openGithubIssue() {
-  void openExternalUrl("https://github.com/getpaseo/paseo/issues/new");
+  void openExternalUrl("https://github.com/matthewcalcagno/mixer/issues/new");
 }
 function openDocs() {
   void openExternalUrl("https://paseo.sh/docs");

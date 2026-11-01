@@ -1,7 +1,6 @@
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { sidebarTypography } from "@/components/sidebar/typography";
 import { sidebarSpacing } from "@/components/sidebar/spacing";
-import { WORKSPACE_TREE_ICON_LABEL_GAP } from "@/components/tree-primitives";
 import {
   View,
   Text,
@@ -2602,7 +2601,7 @@ const styles = StyleSheet.create((theme) => ({
   projectRowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: WORKSPACE_TREE_ICON_LABEL_GAP,
+    gap: theme.spacing[2],
     flex: 1,
     minWidth: 0,
   },

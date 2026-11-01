@@ -1,4 +1,4 @@
-// Vendored from getpaseo/paseo. See THIRD_PARTY_NOTICES.md.
+// Vendored from matthewcalcagno/mixer. See THIRD_PARTY_NOTICES.md.
 import { getRawFileIconSvg, getRawFolderIconSvg } from "./material-file-icons.js";
 import { desaturateHexColor } from "./color.js";
 

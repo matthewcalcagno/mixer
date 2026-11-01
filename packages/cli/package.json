@@ -25,7 +25,7 @@
     "test:e2e:lifecycle": "npx tsx tests/e2e/agent-lifecycle.test.ts"
   },
   "dependencies": {
-    "@clack/prompts": "^1.0.0",
+    "@clack/prompts": "1.1.0",
     "@mixer/client": "0.1.0",
     "@mixer/protocol": "0.1.0",
     "@mixer/server": "0.1.0",
@@ -42,7 +42,7 @@
     "@types/ws": "^8.5.8",
     "tsx": "^4.6.0",
     "typescript": "^5.2.2",
-    "vitest": "^4.1.6",
+    "vitest": "^4.1.12",
     "zx": "^8.8.5"
   }
 }

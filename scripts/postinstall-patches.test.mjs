@@ -8,11 +8,15 @@ import { test } from "node:test";
 const script = path.resolve("scripts", "postinstall-patches.mjs");
 const bin = path.resolve("node_modules", ".bin");
 const packageName = "react-native-draggable-flatlist";
-const patchFile = `${packageName}+4.0.3.patch`;
 
 for (const platform of ["ios", "android"]) {
   test(`patched Markdown ships ${platform} props generated from its native specs`, () => {
-    const packageDir = path.resolve("packages/app/node_modules/react-native-enriched-markdown");
+    const workspacePackageDir = path.resolve(
+      "packages/app/node_modules/react-native-enriched-markdown",
+    );
+    const packageDir = existsSync(workspacePackageDir)
+      ? workspacePackageDir
+      : path.resolve("node_modules/react-native-enriched-markdown");
     const output = mkdtempSync(path.join(tmpdir(), `markdown-${platform}-codegen-`));
     try {
       // includesGeneratedCode makes native builds use the shipped headers instead of
@@ -47,22 +51,20 @@ for (const platform of ["ios", "android"]) {
   });
 }
 
-function createCheckout() {
+function createCheckout(name = packageName, version = "4.0.3") {
   const root = mkdtempSync(path.join(tmpdir(), "postinstall-patches-"));
   writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "checkout" }));
-  const packageDir = path.join(root, "node_modules", packageName);
+  const packageDir = path.join(root, "node_modules", name);
   mkdirSync(packageDir, { recursive: true });
-  writeFileSync(
-    path.join(packageDir, "package.json"),
-    JSON.stringify({ name: packageName, version: "4.0.3" }),
-  );
+  writeFileSync(path.join(packageDir, "package.json"), JSON.stringify({ name, version }));
   writeFileSync(path.join(packageDir, "index.js"), "export const value = 1;\n");
   mkdirSync(path.join(root, "patches"));
   return { root, packageDir };
 }
 
-function writePatch(root, from, to) {
-  const file = `node_modules/${packageName}/index.js`;
+function writePatch(root, from, to, name = packageName, version = "4.0.3") {
+  const file = `node_modules/${name}/index.js`;
+  const patchFile = `${name}+${version}.patch`;
   writeFileSync(
     path.join(root, "patches", patchFile),
     [
@@ -130,6 +132,23 @@ test("a missing patch-package fails the install and leaves the package in place"
     assert.equal(result.status, 1);
     assert.match(result.stderr, /failed to spawn/);
     assert.equal(existsSync(packageDir), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("workspace package patches apply when npm hoists the dependency", () => {
+  const name = "react-native-svg";
+  const version = "15.15.4";
+  const { root, packageDir } = createCheckout(name, version);
+  try {
+    writePatch(root, 1, 2, name, version);
+    const result = install(root);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(
+      readFileSync(path.join(packageDir, "index.js"), "utf8"),
+      "export const value = 2;\n",
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

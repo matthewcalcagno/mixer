@@ -224,8 +224,7 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
 
 const appUpdateService = createAppUpdateService({
   runtime: new ElectronAppUpdateRuntime(),
-  // Mixer is built locally and has no release feed. Never install upstream builds.
-  isUpdateEnabled: () => false,
+  isUpdateEnabled: () => app.isPackaged,
   now: () => Date.now(),
   bucket: async () => bucketFromStagingUserId(await getStagingUserId()),
   reportCheckError: (error) => {

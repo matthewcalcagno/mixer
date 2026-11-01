@@ -12,11 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/getpaseo/paseo/stargazers">
-    <img src="https://img.shields.io/github/stars/getpaseo/paseo?style=flat&logo=github" alt="GitHub stars">
+  <a href="https://github.com/matthewcalcagno/mixer/stargazers">
+    <img src="https://img.shields.io/github/stars/matthewcalcagno/mixer?style=flat&logo=github" alt="GitHub stars">
   </a>
-  <a href="https://github.com/getpaseo/paseo/releases">
-    <img src="https://img.shields.io/github/v/release/getpaseo/paseo?style=flat&logo=github" alt="GitHub release">
+  <a href="https://github.com/matthewcalcagno/mixer/releases">
+    <img src="https://img.shields.io/github/v/release/matthewcalcagno/mixer?style=flat&logo=github" alt="GitHub release">
   </a>
   <a href="https://x.com/moboudra">
     <img src="https://img.shields.io/badge/%40moboudra-555?logo=x" alt="X">
@@ -80,7 +80,7 @@ Mixer 会运行一个名为 daemon 的本地服务，用来管理你的 coding a
 
 ### 桌面 app（推荐）
 
-从 [paseo.sh/download](https://paseo.sh/zh-CN/download) 或 [GitHub releases 页面](https://github.com/getpaseo/paseo/releases)下载。打开 app 后 daemon 会自动启动，不需要再安装其他东西。
+从 [paseo.sh/download](https://paseo.sh/zh-CN/download) 或 [GitHub releases 页面](https://github.com/matthewcalcagno/mixer/releases)下载。打开 app 后 daemon 会自动启动，不需要再安装其他东西。
 
 如果要从手机连接，在 Settings 中扫描显示的二维码。
 
@@ -123,7 +123,7 @@ mixer --host workstation.local:6767 run "run the full test suite"
 Skills 会教你的 agent 使用 Mixer 来编排其他 agents。
 
 ```bash
-npx skills add mixer/mixer
+npx skills add matthewcalcagno/mixer
 ```
 
 然后在任意 agent 对话中使用：

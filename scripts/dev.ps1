@@ -50,7 +50,6 @@ $env:MIXER_CORS_ORIGINS = "*"
 # Configure the app to auto-connect to this daemon on localhost
 $env:APP_VARIANT = "development"
 $env:EXPO_PUBLIC_LOCAL_DAEMON = "localhost:6768"
-$env:EXPO_PUBLIC_MIXER_DEV_BUILD_LABEL = (git branch --show-current).Trim()
 $env:MIXER_LISTEN = "127.0.0.1:6768"
 $env:BROWSER = "none"
 

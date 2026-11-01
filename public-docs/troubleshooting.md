@@ -113,5 +113,5 @@ Run `mixer daemon restart` only when reload requests it. In the app, open **Sett
 
 - [Custom providers](/docs/custom-providers) — endpoints, profiles, binaries, ACP agents.
 - [Configuration](/docs/configuration) — `config.json`, environment variables, logging.
-- [How Mixer resolves your login shell](https://github.com/getpaseo/paseo/blob/main/packages/desktop/src/login-shell-env.ts) — the exact code that loads your shell environment.
-- [Report an issue](https://github.com/getpaseo/paseo/issues).
+- [How Mixer resolves your login shell](https://github.com/matthewcalcagno/mixer/blob/main/packages/desktop/src/login-shell-env.ts) — the exact code that loads your shell environment.
+- [Report an issue](https://github.com/matthewcalcagno/mixer/issues).

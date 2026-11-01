@@ -162,7 +162,7 @@ server.addHook("worktree.create.before", async ({ request }) => ({
 }));
 ```
 
-For source `/home/me/src/mixer` and branch `feature/x`, this creates `/home/me/src/mixer.feature-x`. See the complete [worktree-placement example](https://github.com/getpaseo/paseo/tree/main/plugin-examples/worktree-placement).
+For source `/home/me/src/mixer` and branch `feature/x`, this creates `/home/me/src/mixer.feature-x`. See the complete [worktree-placement example](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/worktree-placement).
 
 | Request field                             | Meaning                                                                                                                                           |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -451,7 +451,7 @@ target are unaffected.
 | Read the current snapshot                                     | Call `await mixer.agents.ref(id).refresh()`. This reads state without reopening the session.                                                                                                               |
 
 If an automatic reopen fails, the triggering prompt fails with that error. See the
-[complete agent-tools example](https://github.com/getpaseo/paseo/tree/main/plugin-examples/agent-tools).
+[complete agent-tools example](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/agent-tools).
 
 ## agent.close.after
 
@@ -489,7 +489,7 @@ A live turn completes, fails, or is canceled. Receives `{ agent, turnId, outcome
 
 ### Send a follow-up when a turn ends
 
-Copy [server/inspect.ts](https://github.com/getpaseo/paseo/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts)
+Copy [server/inspect.ts](https://github.com/matthewcalcagno/mixer/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts)
 into your plugin. The helper imports types from `@mixer/protocol/agent-types`; add
 `@mixer/protocol` at the version matching your daemon to your development dependencies
 and install them before loading the plugin. `latestOutputText` joins text chunks after the latest user message.
@@ -534,7 +534,7 @@ A permission or question becomes pending. Receives `{ agent, request }`; `reques
 
 ### Answer a permission request
 
-Using `shellCommand` from the same [helper file](https://github.com/getpaseo/paseo/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts):
+Using `shellCommand` from the same [helper file](https://github.com/matthewcalcagno/mixer/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts):
 
 ```ts
 import type { PluginServerContext } from "@mixer/plugin/server";
@@ -630,12 +630,12 @@ replaces that scope's prior value.
 
 ## Complete examples
 
-| Plugin                                                                                                 | Includes                                                                         |
-| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| [lifecycle-logger](https://github.com/getpaseo/paseo/tree/main/plugin-examples/lifecycle-logger)       | Agent, workspace, and worktree hooks; JSON logs with environment values redacted |
-| [lifecycle-actions](https://github.com/getpaseo/paseo/tree/main/plugin-examples/lifecycle-actions)     | Follow-ups, permissions, environment, provider switching, worktree selection     |
-| [agent-configuration](https://github.com/getpaseo/paseo/tree/main/plugin-examples/agent-configuration) | MCP injection and Codex sandbox/approval options                                 |
-| [agent-tools](https://github.com/getpaseo/paseo/tree/main/plugin-examples/agent-tools)                 | Label-targeted tools and file operations in the plugin process                   |
+| Plugin                                                                                                        | Includes                                                                         |
+| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [lifecycle-logger](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/lifecycle-logger)       | Agent, workspace, and worktree hooks; JSON logs with environment values redacted |
+| [lifecycle-actions](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/lifecycle-actions)     | Follow-ups, permissions, environment, provider switching, worktree selection     |
+| [agent-configuration](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/agent-configuration) | MCP injection and Codex sandbox/approval options                                 |
+| [agent-tools](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/agent-tools)                 | Label-targeted tools and file operations in the plugin process                   |
 
 Read logger output with `mixer plugin logs lifecycle-logger` or the host's `daemon.log`.
 

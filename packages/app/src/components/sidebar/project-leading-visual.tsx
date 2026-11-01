@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { CircleAlert } from "lucide-react-native";
 import { ProjectIconView } from "@/components/project-icon-view";
 import { getStatusBucketLabel } from "@/hooks/sidebar-status-view-model";
-import { densityIconBox, densityIconProps } from "@/styles/density";
+import { densityIconBox, densityIconSize } from "@/styles/density";
 import type { Theme } from "@/styles/theme";
 import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
 import {
@@ -40,7 +40,13 @@ const STATUS_BADGE_OFFSET = -4;
 // The filled alert occupies the full badge shell so needs-input remains more prominent than
 // the passive status dots.
 const DensityProjectIconView = withUnistyles(ProjectIconView);
-const projectIconProps = densityIconProps("md", () => ({}));
+const projectIconProps = (_theme: Theme, rt: { breakpoint?: string }) => ({
+  size: densityIconSize(rt, "md") + 2,
+});
+const projectIconBox = {
+  xs: densityIconBox("md").xs + 2,
+  md: densityIconBox("md").md + 2,
+};
 
 const ThemedActivityIndicator = withUnistyles(ActivityIndicator);
 const ThemedCircleAlert = withUnistyles(CircleAlert);
@@ -255,7 +261,7 @@ const styles = StyleSheet.create((theme) => {
     // only as tall as the icon puts it above the title and the kebab — which is why the
     // workspace status indicator is as tall as `LEADING_SLOT_HEIGHT`.
     projectLeadingVisualSlot: {
-      width: densityIconBox("md"),
+      width: projectIconBox,
       height: LEADING_SLOT_HEIGHT,
       flexShrink: 0,
       alignItems: "center",
@@ -264,8 +270,8 @@ const styles = StyleSheet.create((theme) => {
     // Anchors the corner badge to the icon rather than to the taller slot.
     projectIconBox: {
       position: "relative",
-      width: densityIconBox("md"),
-      height: densityIconBox("md"),
+      width: projectIconBox,
+      height: projectIconBox,
     },
     projectIconFallbackText: {
       fontSize: 9,

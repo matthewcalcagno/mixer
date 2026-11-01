@@ -29,7 +29,7 @@ Agents run on your own machines with your existing tools, configuration, and cre
 
 Mixer supports Claude Code, Codex, GitHub Copilot, OpenCode, Pi, Antigravity, Muse Code, and additional ACP-compatible agents. The CLI, TypeScript SDK, and MCP tools expose agent and workspace operations for automation. Plugins extend providers, workflows, and the app's interface.
 
-Distribution: native apps for Mac, Windows, Linux, iOS, and Android; web app; Homebrew; npm. Source: Apache-2.0 at https://github.com/getpaseo/paseo. Marketing site: https://paseo.sh.
+Distribution: native apps for Mac, Windows, Linux, iOS, and Android; web app; Homebrew; npm. Source: Apache-2.0 at https://github.com/matthewcalcagno/mixer. Marketing site: https://paseo.sh.
 `,
     docs: "Docs",
     alternatives: "Alternatives",
@@ -64,7 +64,7 @@ Distribution: native apps for Mac, Windows, Linux, iOS, and Android; web app; Ho
         description: "Terms for the official relay and hosted Hub.",
       },
       {
-        path: "https://github.com/getpaseo/paseo",
+        path: "https://github.com/matthewcalcagno/mixer",
         title: "GitHub",
         description: "Source code, issues, and releases.",
       },
@@ -83,7 +83,7 @@ Agent 运行在你自己的机器上，使用你现有的工具、配置和凭�
 
 Mixer 支持 Claude Code、Codex、GitHub Copilot、OpenCode、Pi、Antigravity、Muse Code，以及其他兼容 ACP 的 Agent。CLI、TypeScript SDK 和 MCP 工具为自动化开放了 Agent 和工作区操作。插件可以扩展 Provider、工作流和应用界面。
 
-分发方式：Mac、Windows、Linux、iOS 和 Android 原生应用；Web 应用；Homebrew；npm。源代码：Apache-2.0，位于 https://github.com/getpaseo/paseo。官网：https://paseo.sh。
+分发方式：Mac、Windows、Linux、iOS 和 Android 原生应用；Web 应用；Homebrew；npm。源代码：Apache-2.0，位于 https://github.com/matthewcalcagno/mixer。官网：https://paseo.sh。
 `,
     docs: "文档",
     alternatives: "替代方案",
@@ -110,7 +110,7 @@ Mixer 支持 Claude Code、Codex、GitHub Copilot、OpenCode、Pi、Antigravity�
       { path: "/privacy", title: "隐私", description: "隐私政策。" },
       { path: "/terms", title: "条款", description: "官方中继和托管 Hub 的条款。" },
       {
-        path: "https://github.com/getpaseo/paseo",
+        path: "https://github.com/matthewcalcagno/mixer",
         title: "GitHub",
         description: "源代码、issue 和发布版本。",
       },

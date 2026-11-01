@@ -21,13 +21,13 @@ Existing Paseo homes, credentials, and Electron profiles are not moved or delete
 The two products still use the same default ports, so do not start both daemons
 on the same endpoint. Changing the home does not change the listening port.
 
-Desktop auto-updates and publishing are disabled for this local build. Build and
-install a new app manually with `npm run build:desktop:local`. On macOS this uses
-ad-hoc signing without hardened runtime; hardened runtime requires a Developer ID
-signature for library validation. The normal build retains hardened-runtime settings
-for a future signed distribution. Upstream documentation, hosted service endpoints,
-repository links, and license attribution retain their original URLs and names;
-the rename does not provision Mixer services or transfer external accounts.
+Packaged builds check GitHub Releases in `matthewcalcagno/mixer` for updates;
+unpackaged development builds do not. See [release.md](release.md) for signing,
+notarization, publishing, and update verification. `npm run build:desktop:local`
+creates a manual development install with ad-hoc signing and no hardened runtime.
+Use the signed release workflow for production distribution.
+Upstream hosted service endpoints and license attribution retain their original
+URLs and names; the rename does not provision services or transfer accounts.
 Existing WebSocket discriminants and attachment MIME types retain their wire
 identities so the branding change does not break message parsing. Rebuild all
 packages and renderer assets before launching Mixer; do not hot-reload the rename
@@ -60,10 +60,6 @@ Desktop dev rebuilds the daemon stack before launch, including the copied built-
 plugin sources. Built-in plugin changes require restarting desktop dev, not only
 reloading the renderer window. An already-running daemon keeps its compiled plugin
 bundles until it stops.
-
-The web and desktop dev launchers pass the current Git branch to Metro as
-`EXPO_PUBLIC_MIXER_DEV_BUILD_LABEL`. The expanded desktop sidebar shows it in
-the titlebar row. Production builds leave the variable unset and show no label.
 
 `npm run dev` is only a shorthand for `npm run dev:server`. Keep `127.0.0.1:6767` for the packaged app and production-style `~/.mixer` state.
 
@@ -718,7 +714,9 @@ directory to Cloudflare Pages with `npm run deploy:web --workspace=@mixer/app`.
 
 PWA install metadata lives in `packages/app/public/manifest.json` and is linked
 from `packages/app/public/index.html`. Keep the install icons in `public/` so
-Cloudflare serves them from stable root URLs after `expo export`.
+Cloudflare serves them from stable root URLs after `expo export`. Keep transparent
+icons marked `any`; the separate opaque `maskable` icon needs safe padding because
+installers can crop it. Desktop icon transparency does not request an OS background.
 
 Do not add service-worker caching casually. Mixer is a live control surface for
 agents, and an aggressive service worker can strand installed users on stale web

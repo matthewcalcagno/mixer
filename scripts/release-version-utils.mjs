@@ -172,3 +172,27 @@ export function computeNextReleaseVersion(currentVersion, mode) {
 
   throw new Error(`Unsupported release mode "${mode}".`);
 }
+
+export const DESKTOP_RELEASE_TAG_PREFIX = "desktop-v";
+
+export function getDesktopReleaseTag(version) {
+  return `${DESKTOP_RELEASE_TAG_PREFIX}${parseReleaseVersion(version).version}`;
+}
+
+export function getDesktopReleasePlan(sourceTag, platform) {
+  const info = getReleaseInfoFromSourceTag(sourceTag);
+  if (sourceTag.startsWith("android-")) {
+    throw new Error(`Not a desktop release tag: ${sourceTag}`);
+  }
+  const supported = ["macos", "linux", "windows"];
+  if (platform && platform !== "all" && !supported.includes(platform)) {
+    throw new Error(`Unknown desktop release platform: ${platform}`);
+  }
+  const tagPlatform = sourceTag.match(/^desktop-(macos|linux|windows)-v/)?.[1];
+  const platforms = platform === "all" ? supported : [platform || tagPlatform || "macos"];
+  const suffixes = { macos: "-mac", linux: "-linux", windows: "" };
+  return {
+    platforms,
+    manifestNames: platforms.map((name) => `${info.releaseChannel}${suffixes[name]}.yml`),
+  };
+}

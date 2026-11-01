@@ -36,8 +36,10 @@ extraResources:
     to: app-dist
   - from: assets/editor-targets
     to: editor-target-icons
-# Local builds must not publish to or update from the upstream project.
-publish: null
+publish:
+  provider: github
+  owner: matthewcalcagno
+  repo: mixer
 mac:
   artifactName: "Mixer-${version}-${arch}.${ext}"
   minimumSystemVersion: "13.0.0"
@@ -88,6 +90,10 @@ win:
   artifactName: "Mixer-Setup-${version}-${arch}.${ext}"
   icon: assets/icon.ico
   extraResources:
+    - from: assets/icon.ico
+      to: icon.ico
+    - from: assets/icon.png
+      to: icon.png
     - from: bin/mixer.cmd
       to: bin/mixer.cmd
   target:

@@ -18,7 +18,7 @@ nav: 自定义 Provider
 
 Provider ID 必须是小写字母、数字和连字符（`/^[a-z][a-z0-9-]*$/`）。新的自定义 Provider 需要 `extends`（一个一等 Provider ID 或 `"acp"`）和 `label`。要覆盖内置的 Provider 插件，请使用它的 Provider ID 并省略 `extends`。对于 [Muse Code](/docs/muse-code)，在 `agents.providers.muse` 下设置命令或环境变量覆盖。
 
-下面的示例只是快速浏览。完整、最新的参考在 GitHub 上：[docs/custom-providers.md](https://github.com/getpaseo/paseo/blob/main/docs/custom-providers.md)。
+下面的示例只是快速浏览。完整、最新的参考在 GitHub 上：[docs/custom-providers.md](https://github.com/matthewcalcagno/mixer/blob/main/docs/custom-providers.md)。
 
 ## Provider 选项 {#provider-options}
 
@@ -206,4 +206,4 @@ Z.AI 通过兼容 Anthropic 的端点提供 GLM 模型。把 `ANTHROPIC_BASE_URL
 
 ## 完整参考 {#full-reference}
 
-完整的字段参考（`extends`、`label`、`command`、`env`、`options`、`models`、`additionalModels`、`disallowedTools`、`mixerTools`、`enabled`、`order`）、模型和思考选项的 schema，以及每种套餐更深入的示例，请参见 GitHub 上的 [docs/custom-providers.md](https://github.com/getpaseo/paseo/blob/main/docs/custom-providers.md)。`mixerTools` 的配置见[按 Provider 限制 Mixer 工具](/docs/mcp#limit-mixer-tools-by-provider)。
+完整的字段参考（`extends`、`label`、`command`、`env`、`options`、`models`、`additionalModels`、`disallowedTools`、`mixerTools`、`enabled`、`order`）、模型和思考选项的 schema，以及每种套餐更深入的示例，请参见 GitHub 上的 [docs/custom-providers.md](https://github.com/matthewcalcagno/mixer/blob/main/docs/custom-providers.md)。`mixerTools` 的配置见[按 Provider 限制 Mixer 工具](/docs/mcp#limit-mixer-tools-by-provider)。

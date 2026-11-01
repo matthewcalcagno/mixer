@@ -17,7 +17,7 @@ on:
       platform:
         description: "Optional desktop platform to build."
         required: false
-        default: "all"
+        default: "macos"
         type: choice
         options:
           - all
@@ -49,21 +49,76 @@ concurrency:
 
 env:
   SOURCE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
-  CHECKOUT_REF: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.checkout_ref || github.ref_name) || github.ref_name }}
+  CHECKOUT_REF: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.checkout_ref || github.event.inputs.tag) || github.ref_name }}
   SHOULD_PUBLISH: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'false' }}
   ROLLOUT_HOURS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.rollout_hours || '36' }}
   DESKTOP_PACKAGE_PATH: "packages/desktop"
 
 jobs:
+  prepare:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      platforms: ${{ steps.plan.outputs.platforms }}
+      manifests: ${{ steps.plan.outputs.manifests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+      - name: Plan and validate desktop release
+        id: plan
+        env:
+          SELECTED_PLATFORM: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform || '' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { getDesktopReleasePlan, getReleaseInfoFromSourceTag } from './scripts/release-version-utils.mjs';
+          const info = getReleaseInfoFromSourceTag(process.env.SOURCE_TAG);
+          const plan = getDesktopReleasePlan(process.env.SOURCE_TAG, process.env.SELECTED_PLATFORM);
+          const root = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          for (const file of ['package.json', ...root.workspaces.map((name) => `${name}/package.json`)]) {
+            const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (pkg.version !== info.version) throw new Error(`${file}: ${pkg.version} does not match release ${info.version}`);
+          }
+          const configuredRepo = new URL(root.repository.url).pathname.slice(1).replace(/\.git$/, '');
+          if (process.env.SHOULD_PUBLISH === 'true' && configuredRepo.toLowerCase() !== process.env.GITHUB_REPOSITORY.toLowerCase()) {
+            throw new Error(`Release repository must match package.json: ${configuredRepo}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `platforms=${JSON.stringify(plan.platforms)}\nmanifests=${JSON.stringify(plan.manifestNames)}\n`);
+          NODE
+
+  quality:
+    needs: prepare
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install JS dependencies
+        run: node scripts/npm-retry.mjs ci
+      - name: Check release source
+        run: npm run release:check
+      - name: Verify release metadata contracts
+        run: |
+          node --test scripts/release-version-utils.test.mjs
+          npx vitest run scripts/merge-mac-manifest.test.mjs scripts/validate-desktop-manifests.test.mjs --bail=1
+
   create-release:
-    if: ${{ (github.event_name == 'push' && !startsWith(github.ref_name, 'desktop-macos-v') && !startsWith(github.ref_name, 'desktop-linux-v') && !startsWith(github.ref_name, 'desktop-windows-v')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'all' && github.event.inputs.publish != 'false') }}
+    needs: [prepare, quality]
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'false' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: scripts
           ref: ${{ env.CHECKOUT_REF }}
 
       - name: Resolve release metadata
@@ -84,8 +139,9 @@ jobs:
             fi
             gh release create "$RELEASE_TAG" \
               --repo "${{ github.repository }}" \
+              --target "$(git rev-parse HEAD)" \
               --title "Mixer $RELEASE_TAG" \
-              --notes "" \
+              --generate-notes \
               --draft \
               $prerelease_flag || {
                 echo "Release creation raced with another workflow; continuing."
@@ -93,14 +149,20 @@ jobs:
               }
           fi
 
+      - name: Sync release notes from changelog
+        if: env.IS_SMOKE_TAG != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/sync-release-notes-from-changelog.mjs --tag "$RELEASE_TAG" --repo "${{ github.repository }}"
+
   publish-macos:
-    needs: [create-release]
-    if: ${{ always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') && ((github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos')) || (github.event_name == 'push' && (startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'desktop-v') || startsWith(github.ref_name, 'desktop-macos-v')))) }}
+    needs: [prepare, quality, create-release]
+    if: ${{ always() && needs.quality.result == 'success' && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') && contains(fromJSON(needs.prepare.outputs.platforms || '[]'), 'macos') }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             electron_arch: arm64
             node_heap_mb: 4096
           - runner: macos-15-intel
@@ -108,7 +170,6 @@ jobs:
             node_heap_mb: 8192
     permissions:
       contents: write
-      packages: read
     runs-on: ${{ matrix.runner }}
 
     steps:
@@ -127,29 +188,25 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: package-lock.json
-          registry-url: "https://npm.pkg.github.com"
-          scope: "@boudra"
 
       - name: Install JS dependencies
         run: node scripts/npm-retry.mjs ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set desktop package version from tag
+      - name: Validate macOS signing credentials
         shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-
-          const version = process.env.DESKTOP_VERSION;
-          if (!version) throw new Error('DESKTOP_VERSION env var is missing');
-
-          const packageJsonPath = path.join(process.env.DESKTOP_PACKAGE_PATH, 'package.json');
-          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-          packageJson.version = version;
-          fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
-          NODE
+          for secret_name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!secret_name}" ]]; then
+              echo "::error::Missing Actions secret: $secret_name"
+              exit 1
+            fi
+          done
 
       - name: Build desktop release
         shell: bash
@@ -197,7 +254,7 @@ jobs:
           STAPLER
           chmod +x "$stapler_bin/xcrun"
           export PATH="$stapler_bin:$PATH"
-          build_args=(-- --publish never --mac --${{ matrix.electron_arch }})
+          build_args=(-- --publish never --mac --${{ matrix.electron_arch }} -c.forceCodeSigning=true)
           build_args+=("-c.publish.releaseType=$RELEASE_TYPE")
           build_args+=("-c.publish.channel=$RELEASE_CHANNEL")
           npm run build:desktop "${build_args[@]}"
@@ -239,11 +296,10 @@ jobs:
           retention-days: 1
 
   publish-linux:
-    needs: [create-release]
-    if: ${{ always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') && ((github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux')) || (github.event_name == 'push' && (startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'desktop-v') || startsWith(github.ref_name, 'desktop-linux-v')))) }}
+    needs: [prepare, quality, create-release]
+    if: ${{ always() && needs.quality.result == 'success' && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') && contains(fromJSON(needs.prepare.outputs.platforms || '[]'), 'linux') }}
     permissions:
       contents: write
-      packages: read
     runs-on: ubuntu-22.04
 
     steps:
@@ -262,32 +318,9 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: package-lock.json
-          registry-url: "https://npm.pkg.github.com"
-          scope: "@boudra"
 
       - name: Install JS dependencies
         run: node scripts/npm-retry.mjs ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set desktop package version from tag
-        shell: bash
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-
-          const version = process.env.DESKTOP_VERSION;
-          if (!version) throw new Error('DESKTOP_VERSION env var is missing');
-
-          const packageJsonPath = path.join(process.env.DESKTOP_PACKAGE_PATH, 'package.json');
-          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-          packageJson.version = version;
-          fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
-          NODE
-
-      - name: Install Linux smoke display
-        run: sudo apt-get update && sudo apt-get install -y xvfb xauth rpm
 
       - name: Build desktop release
         shell: bash
@@ -340,11 +373,10 @@ jobs:
           retention-days: 1
 
   publish-windows:
-    needs: [create-release]
-    if: ${{ always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') && ((github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows')) || (github.event_name == 'push' && (startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'desktop-v') || startsWith(github.ref_name, 'desktop-windows-v')))) }}
+    needs: [prepare, quality, create-release]
+    if: ${{ always() && needs.quality.result == 'success' && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') && contains(fromJSON(needs.prepare.outputs.platforms || '[]'), 'windows') }}
     permissions:
       contents: write
-      packages: read
     runs-on: windows-latest
 
     steps:
@@ -363,29 +395,9 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: package-lock.json
-          registry-url: "https://npm.pkg.github.com"
-          scope: "@boudra"
 
       - name: Install JS dependencies
         run: node scripts/npm-retry.mjs ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set desktop package version from tag
-        shell: bash
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-
-          const version = process.env.DESKTOP_VERSION;
-          if (!version) throw new Error('DESKTOP_VERSION env var is missing');
-
-          const packageJsonPath = path.join(process.env.DESKTOP_PACKAGE_PATH, 'package.json');
-          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-          packageJson.version = version;
-          fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
-          NODE
 
       - name: Build desktop release
         shell: bash
@@ -438,8 +450,8 @@ jobs:
           retention-days: 1
 
   finalize-rollout:
-    needs: [publish-macos, publish-linux, publish-windows]
-    if: ${{ always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'false') }}
+    needs: [prepare, create-release, publish-macos, publish-linux, publish-windows]
+    if: ${{ always() && needs.prepare.result == 'success' && needs.create-release.result == 'success' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -466,13 +478,9 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: package-lock.json
-          registry-url: "https://npm.pkg.github.com"
-          scope: "@boudra"
 
       - name: Install JS dependencies
         run: node scripts/npm-retry.mjs ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download mac manifest artifacts
         if: env.IS_SMOKE_TAG != 'true' && needs.publish-macos.result == 'success'
@@ -499,18 +507,26 @@ jobs:
         if: env.IS_SMOKE_TAG != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_MANIFESTS: ${{ needs.prepare.outputs.manifests }}
+          MACOS_RESULT: ${{ needs.publish-macos.result }}
+          LINUX_RESULT: ${{ needs.publish-linux.result }}
+          WINDOWS_RESULT: ${{ needs.publish-windows.result }}
         shell: bash
         run: |
           set -euo pipefail
+          for platform_result in "$MACOS_RESULT" "$LINUX_RESULT" "$WINDOWS_RESULT"; do
+            if [[ ! "$platform_result" =~ ^(success|skipped)$ ]]; then
+              echo "::error::A desktop build failed; the release remains a draft"
+              exit 1
+            fi
+          done
+          mkdir -p release-manifests
           cd release-manifests
           manifests_dir="$PWD/final"
           mkdir -p "$manifests_dir"
 
-          expected_manifests=(
-            "${RELEASE_CHANNEL}-mac.yml"
-            "${RELEASE_CHANNEL}-linux.yml"
-            "${RELEASE_CHANNEL}.yml"
-          )
+          manifest_names="$(node -e 'console.log(JSON.parse(process.env.EXPECTED_MANIFESTS).join("\n"))')"
+          mapfile -t expected_manifests <<< "$manifest_names"
           release_lookup="$(node ../scripts/github-release.mjs --repo "${{ github.repository }}" --tag "$RELEASE_TAG" --cleanup-duplicates)"
           existing_assets="$(gh release view "$release_lookup" --repo "${{ github.repository }}" --json assets --jq '.assets[].name')"
           for manifest_name in "${expected_manifests[@]}"; do
@@ -555,23 +571,6 @@ jobs:
             echo "::error::No manifest artifacts were available to publish"
             exit 1
           fi
-          timestamp="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
-          node ../scripts/stamp-rollout.mjs --release-date "$timestamp" --rollout-hours "$ROLLOUT_HOURS" "${files[@]}"
-          node ../scripts/validate-desktop-manifests.mjs \
-            --release-date "$timestamp" \
-            --rollout-hours "$ROLLOUT_HOURS" \
-            "${files[@]}"
-          gh release upload "$release_lookup" "${files[@]}" --clobber --repo "${{ github.repository }}"
-
-          failed_builds=()
-          [[ "${{ needs.publish-macos.result }}" =~ ^(success|skipped)$ ]] || failed_builds+=(macOS)
-          [[ "${{ needs.publish-linux.result }}" =~ ^(success|skipped)$ ]] || failed_builds+=(Linux)
-          [[ "${{ needs.publish-windows.result }}" =~ ^(success|skipped)$ ]] || failed_builds+=(Windows)
-          if (( ${#failed_builds[@]} > 0 )); then
-            echo "::error::Desktop builds did not complete for ${failed_builds[*]}; the release remains a draft"
-            exit 1
-          fi
-
           missing_manifests=()
           for manifest_name in "${expected_manifests[@]}"; do
             [[ -f "$manifests_dir/$manifest_name" ]] || missing_manifests+=("$manifest_name")
@@ -580,6 +579,14 @@ jobs:
             echo "::error::Missing updater manifests: ${missing_manifests[*]}; the release remains a draft"
             exit 1
           fi
+
+          timestamp="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
+          node ../scripts/stamp-rollout.mjs --release-date "$timestamp" --rollout-hours "$ROLLOUT_HOURS" "${files[@]}"
+          node ../scripts/validate-desktop-manifests.mjs \
+            --release-date "$timestamp" \
+            --rollout-hours "$ROLLOUT_HOURS" \
+            "${files[@]}"
+          gh release upload "$release_lookup" "${files[@]}" --clobber --repo "${{ github.repository }}"
 
           publish_args=(release edit "$release_lookup" --tag "$RELEASE_TAG" --draft=false --repo "${{ github.repository }}")
           if [[ "$IS_PRERELEASE" == "true" ]]; then

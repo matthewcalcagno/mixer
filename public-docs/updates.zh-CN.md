@@ -62,7 +62,7 @@ v0.1.92-beta.3
 
 桌面端版本和 CLI 通常最先提供。App Store 和 Play Store 的版本需要经过审核，可能会滞后。
 
-应用商店目前没有测试版渠道，只提交稳定版构建。如果你想提前使用 Android 构建，请从 [GitHub releases 页面](https://github.com/getpaseo/paseo/releases)下载 APK。
+应用商店目前没有测试版渠道，只提交稳定版构建。如果你想提前使用 Android 构建，请从 [GitHub releases 页面](https://github.com/matthewcalcagno/mixer/releases)下载 APK。
 
 ## 出现问题怎么办 {#what-to-do-if-something-breaks}
 

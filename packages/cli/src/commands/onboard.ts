@@ -118,7 +118,7 @@ function printNextSteps(pairingUrl: string | null, mixerHome: string, richUi: bo
       ? "1. Open Mixer and scan the QR code above, or paste the pairing link."
       : "1. Open Mixer and connect to your daemon.",
     "2. Web app: https://app.paseo.sh",
-    "3. Desktop app: https://github.com/getpaseo/paseo/releases/latest",
+    "3. Desktop app: https://github.com/matthewcalcagno/mixer/releases/latest",
     "4. Docs: https://paseo.sh/docs",
     `5. Example: mixer run --home ${JSON.stringify(mixerHome)} --output-schema schema.json "extract fields"`,
   ];

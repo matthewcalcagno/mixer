@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 import { z } from "zod";
 import {
   CheckoutPrStatusResponseSchema,
@@ -22,7 +22,7 @@ describe("pull request timeline message schemas", () => {
       type: "pull_request_timeline_request",
       cwd: "/tmp/repo",
       prNumber: 42,
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
       requestId: "request-1",
     });
@@ -31,7 +31,7 @@ describe("pull request timeline message schemas", () => {
       type: "pull_request_timeline_request",
       cwd: "/tmp/repo",
       prNumber: 42,
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
       requestId: "request-1",
     });
@@ -42,7 +42,7 @@ describe("pull request timeline message schemas", () => {
       type: "pull_request_timeline_request",
       cwd: "/tmp/repo",
       prNumber: 42,
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
       requestId: "request-1",
     });
@@ -51,10 +51,33 @@ describe("pull request timeline message schemas", () => {
       type: "pull_request_timeline_request",
       cwd: "/tmp/repo",
       prNumber: 42,
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
       requestId: "request-1",
     });
+  });
+
+  test("supplies a correlated payload when an older message omits it", () => {
+    const parsed = PullRequestTimelineResponseSchema.parse({
+      type: "pull_request_timeline_response",
+    });
+
+    expectTypeOf(parsed.payload).toExtend<{ requestId: string }>();
+    expect(parsed).toEqual({
+      type: "pull_request_timeline_response",
+      payload: {
+        cwd: "",
+        prNumber: null,
+        items: [],
+        truncated: false,
+        error: null,
+        requestId: "",
+        githubFeaturesEnabled: true,
+      },
+    });
+    expect(SessionOutboundMessageSchema.parse({ type: "pull_request_timeline_response" })).toEqual(
+      parsed,
+    );
   });
 
   test("defaults optional response payload and malformed timeline item fields", () => {
@@ -108,7 +131,7 @@ describe("pull request timeline message schemas", () => {
             author: "octocat",
             body: "Future daemon item",
             createdAt: 1710000000000,
-            url: "https://github.com/getpaseo/paseo/pull/42#future-1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#future-1",
           },
         ],
       },
@@ -121,7 +144,7 @@ describe("pull request timeline message schemas", () => {
         author: "octocat",
         body: "Future daemon item",
         createdAt: 1710000000000,
-        url: "https://github.com/getpaseo/paseo/pull/42#future-1",
+        url: "https://github.com/matthewcalcagno/mixer/pull/42#future-1",
       },
     ]);
   });
@@ -139,7 +162,7 @@ describe("pull request timeline message schemas", () => {
             avatarUrl: "https://avatars.githubusercontent.com/u/1?v=4",
             body: "Looks good",
             createdAt: 1710000000000,
-            url: "https://github.com/getpaseo/paseo/pull/42#pullrequestreview-1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#pullrequestreview-1",
             reviewState: "approved",
           },
           {
@@ -150,7 +173,7 @@ describe("pull request timeline message schemas", () => {
             avatarUrl: "https://avatars.githubusercontent.com/u/2?v=4",
             body: "Inline note",
             createdAt: 1710000001000,
-            url: "https://github.com/getpaseo/paseo/pull/42#discussion_r1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#discussion_r1",
             location: {
               path: "packages/app/src/git/pull-request-panel/data.ts",
               line: 24,
@@ -173,7 +196,7 @@ describe("pull request timeline message schemas", () => {
         avatarUrl: "https://avatars.githubusercontent.com/u/1?v=4",
         body: "Looks good",
         createdAt: 1710000000000,
-        url: "https://github.com/getpaseo/paseo/pull/42#pullrequestreview-1",
+        url: "https://github.com/matthewcalcagno/mixer/pull/42#pullrequestreview-1",
         reviewState: "approved",
       },
       {
@@ -184,7 +207,7 @@ describe("pull request timeline message schemas", () => {
         avatarUrl: "https://avatars.githubusercontent.com/u/2?v=4",
         body: "Inline note",
         createdAt: 1710000001000,
-        url: "https://github.com/getpaseo/paseo/pull/42#discussion_r1",
+        url: "https://github.com/matthewcalcagno/mixer/pull/42#discussion_r1",
         location: {
           path: "packages/app/src/git/pull-request-panel/data.ts",
           line: 24,
@@ -210,7 +233,7 @@ describe("pull request timeline message schemas", () => {
             author: "octocat",
             body: "Looks good",
             createdAt: 1710000000000,
-            url: "https://github.com/getpaseo/paseo/pull/42#pullrequestreview-1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#pullrequestreview-1",
             reviewState: "approved",
           },
           {
@@ -219,7 +242,7 @@ describe("pull request timeline message schemas", () => {
             author: "hubot",
             body: "Left a note",
             createdAt: 1710000001000,
-            url: "https://github.com/getpaseo/paseo/pull/42#issuecomment-1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#issuecomment-1",
           },
         ],
         truncated: true,
@@ -279,7 +302,7 @@ describe("pull request timeline message schemas", () => {
             avatarUrl: "https://avatars.githubusercontent.com/u/1?v=4",
             body: "Inline note",
             createdAt: 1710000000000,
-            url: "https://github.com/getpaseo/paseo/pull/42#discussion_r1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#discussion_r1",
             location: {
               path: "src/file.ts",
               line: 12,
@@ -306,7 +329,7 @@ describe("pull request timeline message schemas", () => {
             author: "octocat",
             body: "Inline note",
             createdAt: 1710000000000,
-            url: "https://github.com/getpaseo/paseo/pull/42#discussion_r1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#discussion_r1",
           },
         ],
         truncated: false,
@@ -382,7 +405,7 @@ describe("checkout PR status compatibility", () => {
         cwd: "/tmp/repo",
         status: {
           number: 42,
-          url: "https://github.com/getpaseo/paseo/pull/42",
+          url: "https://github.com/matthewcalcagno/mixer/pull/42",
           title: "Wire real PR pane data",
           state: "OPEN",
           baseRefName: "main",
@@ -393,7 +416,7 @@ describe("checkout PR status compatibility", () => {
             {
               name: "server-tests",
               status: "success",
-              url: "https://github.com/getpaseo/paseo/actions/runs/123",
+              url: "https://github.com/matthewcalcagno/mixer/actions/runs/123",
               workflow: "Server CI",
               duration: "2m 14s",
             },
@@ -412,7 +435,7 @@ describe("checkout PR status compatibility", () => {
       payload: {
         cwd: "/tmp/repo",
         status: {
-          url: "https://github.com/getpaseo/paseo/pull/42",
+          url: "https://github.com/matthewcalcagno/mixer/pull/42",
           title: "Wire real PR pane data",
           state: "OPEN",
           baseRefName: "main",
@@ -422,7 +445,7 @@ describe("checkout PR status compatibility", () => {
             {
               name: "server-tests",
               status: "success",
-              url: "https://github.com/getpaseo/paseo/actions/runs/123",
+              url: "https://github.com/matthewcalcagno/mixer/actions/runs/123",
             },
           ],
           checksStatus: "success",

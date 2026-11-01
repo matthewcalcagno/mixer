@@ -89,8 +89,8 @@ describe("Add Project navigation", () => {
   it("restores the GitHub destination query and active parent when reopening a repository", () => {
     const repository = {
       id: "repo-1",
-      nameWithOwner: "mixer/mixer",
-      cloneUrl: "git@github.com:getpaseo/paseo.git",
+      nameWithOwner: "matthewcalcagno/mixer",
+      cloneUrl: "git@github.com:matthewcalcagno/mixer.git",
       description: null,
       visibility: "public",
       updatedAt: null,
@@ -149,16 +149,16 @@ describe("Add Project options", () => {
   });
 
   it("offers manual URL and protocol-specific owner/repo clone choices", () => {
-    expect(buildManualGithubRepositoryChoices("git@github.com:getpaseo/paseo.git")).toEqual([
+    expect(buildManualGithubRepositoryChoices("git@github.com:matthewcalcagno/mixer.git")).toEqual([
       expect.objectContaining({
-        id: "manual:git@github.com:getpaseo/paseo.git",
-        nameWithOwner: "mixer/mixer",
-        cloneUrl: "git@github.com:getpaseo/paseo.git",
+        id: "manual:git@github.com:matthewcalcagno/mixer.git",
+        nameWithOwner: "matthewcalcagno/mixer",
+        cloneUrl: "git@github.com:matthewcalcagno/mixer.git",
       }),
     ]);
-    expect(buildManualGithubRepositoryChoices("mixer/mixer")).toEqual([
-      expect.objectContaining({ cloneProtocol: "https", cloneUrl: "mixer/mixer" }),
-      expect.objectContaining({ cloneProtocol: "ssh", cloneUrl: "mixer/mixer" }),
+    expect(buildManualGithubRepositoryChoices("matthewcalcagno/mixer")).toEqual([
+      expect.objectContaining({ cloneProtocol: "https", cloneUrl: "matthewcalcagno/mixer" }),
+      expect.objectContaining({ cloneProtocol: "ssh", cloneUrl: "matthewcalcagno/mixer" }),
     ]);
     expect(buildManualGithubRepositoryChoices("mixer")).toEqual([]);
   });

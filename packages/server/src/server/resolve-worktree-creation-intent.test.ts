@@ -158,8 +158,8 @@ describe("resolveWorktreeCreationIntent", () => {
       baseRefName: "main",
       headRefName: "daemon-shutdown-diagnostics",
       headOwnerLogin: "mixer",
-      headRepositorySshUrl: "git@github.com:getpaseo/paseo.git",
-      headRepositoryUrl: "https://github.com/getpaseo/paseo",
+      headRepositorySshUrl: "git@github.com:matthewcalcagno/mixer.git",
+      headRepositoryUrl: "https://github.com/matthewcalcagno/mixer",
       isCrossRepository: false,
     });
 

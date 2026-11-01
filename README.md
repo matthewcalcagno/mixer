@@ -7,8 +7,9 @@
 This is a local Mixer fork of Paseo. Build the Electron app with
 `npm ci` followed by `npm run build:desktop:local`. The macOS ARM64 app is written
 to `packages/desktop/release/mac-arm64/Mixer.app`. Packages are private local
-workspaces and are not published to npm. Upstream links below refer to Paseo,
-not a published Mixer release. See [local identity and storage](docs/development.md#local-mixer-identity).
+workspaces and are not published to npm. Signed desktop releases and auto-updates
+use GitHub Releases; see [publishing setup](docs/release.md) and
+[local identity and storage](docs/development.md#local-mixer-identity).
 
 <p align="center">
   <a href="README.md">English</a> ·
@@ -18,11 +19,11 @@ not a published Mixer release. See [local identity and storage](docs/development
 </p>
 
 <p align="center">
-  <a href="https://github.com/getpaseo/paseo/stargazers">
-    <img src="https://img.shields.io/github/stars/getpaseo/paseo?style=flat&logo=github" alt="GitHub stars">
+  <a href="https://github.com/matthewcalcagno/mixer/stargazers">
+    <img src="https://img.shields.io/github/stars/matthewcalcagno/mixer?style=flat&logo=github" alt="GitHub stars">
   </a>
-  <a href="https://github.com/getpaseo/paseo/releases">
-    <img src="https://img.shields.io/github/v/release/getpaseo/paseo?style=flat&logo=github" alt="GitHub release">
+  <a href="https://github.com/matthewcalcagno/mixer/releases">
+    <img src="https://img.shields.io/github/v/release/matthewcalcagno/mixer?style=flat&logo=github" alt="GitHub release">
   </a>
   <a href="https://x.com/moboudra">
     <img src="https://img.shields.io/badge/%40moboudra-555?logo=x" alt="X">
@@ -97,9 +98,8 @@ You need at least one agent CLI installed and configured with your credentials:
 
 ### Desktop app (recommended)
 
-Build this checkout with `npm run build:desktop:local`, then open the generated
-`Mixer.app`. The daemon starts automatically. Upstream download links do not contain
-this fork.
+Download a signed build from [GitHub Releases](https://github.com/matthewcalcagno/mixer/releases) once a release has been published. The daemon starts automatically.
+For a local development install, run `npm run build:desktop:local` and open the generated `Mixer.app`.
 
 ### Server
 

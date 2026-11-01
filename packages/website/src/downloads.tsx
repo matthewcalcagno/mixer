@@ -2,7 +2,7 @@ import * as React from "react";
 import { type Locale, localizePath } from "~/i18n";
 import type { DesktopPlatform } from "~/platform";
 export function releaseBase(version: string) {
-  return `https://github.com/getpaseo/paseo/releases/download/v${version}`;
+  return `https://github.com/matthewcalcagno/mixer/releases/download/v${version}`;
 }
 export interface ReleaseAssetInfo {
   version: string;
@@ -24,7 +24,7 @@ export function downloadUrls(release: ReleaseAssetInfo) {
   };
 }
 const RELEASE_ASSETS_ORIGIN = "https://github.com";
-const RELEASE_ASSETS_PATH = "/mixer/mixer/releases/download/";
+const RELEASE_ASSETS_PATH = "/matthewcalcagno/mixer/releases/download/";
 /**
  * The release file a thanks-page link asks for, or null when it is not one of
  * ours. Parsing normalizes `..` segments, so a link cannot climb out of this

@@ -23,7 +23,7 @@ describe("starter trigger connections", () => {
       ),
     ).toEqual([
       {
-        id: "github:mixer/mixer",
+        id: "github:matthewcalcagno/mixer",
         label: "GitHub — mixer/mixer",
         provider: "github",
         filters: { connection: "github-mixer", repo: "mixer/mixer" },

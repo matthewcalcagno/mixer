@@ -46,7 +46,7 @@ describe("Hub init planning", () => {
 
 describe("Hub init scaffold", () => {
   it.each([
-    ["github", { connection: "github-mixer", repo: "mixer/mixer", user: "boudra" }],
+    ["github", { connection: "github-mixer", repo: "matthewcalcagno/mixer", user: "boudra" }],
     ["slack", { connection: "slack-mixer", user: "U123456" }],
     ["discord", { connection: "discord-mixer", user: "987654321" }],
   ] satisfies readonly [HubInitProvider, Record<string, string>][])(
@@ -111,10 +111,10 @@ describe("Hub init scaffold", () => {
 
 describe("GitHub origin detection", () => {
   it.each([
-    ["git@github.com:getpaseo/paseo.git", "getpaseo/paseo"],
-    ["ssh://git@github.com/mixer/mixer.git", "mixer/mixer"],
-    ["https://github.com/getpaseo/paseo.git", "getpaseo/paseo"],
-    ["https://gitlab.com/getpaseo/paseo.git", undefined],
+    ["git@github.com:matthewcalcagno/mixer.git", "matthewcalcagno/mixer"],
+    ["ssh://git@github.com/matthewcalcagno/mixer.git", "matthewcalcagno/mixer"],
+    ["https://github.com/matthewcalcagno/mixer.git", "matthewcalcagno/mixer"],
+    ["https://gitlab.com/matthewcalcagno/mixer.git", undefined],
   ])("resolves %s", (remote, expected) => {
     expect(githubRepositoryFromRemote(remote)).toBe(expected);
   });

@@ -1,0 +1,3 @@
+Edited with the built-in image_gen tool.
+
+Edit this exact app icon. Remove ALL gradients, highlights, bevels, shadows, texture and lighting from both the dark tile and the white octopus. Make the rounded-square tile one perfectly uniform solid charcoal color #121416 and the octopus one perfectly uniform solid white #FFFFFF. Preserve the existing octopus silhouette, proportions, placement, four curled arms, rounded head, tile corner radius, and canvas margins. Pure flat two-color professional icon; crisp smooth antialiased edges. Preserve genuine transparency outside the rounded-square tile. No drop shadow, no outline, no additional details or text. Square output.

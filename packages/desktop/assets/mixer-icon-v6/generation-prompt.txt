@@ -1,0 +1,3 @@
+Edited with built-in image_gen from mixer-icon-v5/icon.png.
+
+Change ONLY the two eyes in this exact octopus app icon. Replace each vertically elongated navy oval with a perfectly round solid navy circle. Each circle's diameter should equal the current oval's width, about 4% of canvas width. Keep the eye centers, spacing, navy color, and alignment exactly the same. Keep EVERYTHING ELSE unchanged: white octopus silhouette, head, six arms, dark opaque background, scale, positioning and margins. No highlights, outlines, colored rings, mouth, or other additions. Flat colors, no gradients or shadows.

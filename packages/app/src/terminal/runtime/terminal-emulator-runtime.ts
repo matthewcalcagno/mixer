@@ -5,6 +5,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
+// Keep addon-ligatures pinned: newer bundles embed Node diagnostics_channel in the renderer.
 import { LigaturesAddon } from "@xterm/addon-ligatures/lib/addon-ligatures.mjs";
 import { Terminal, type ITheme, type IMarker } from "@xterm/xterm";
 import type { TerminalState } from "@mixer/protocol/messages";

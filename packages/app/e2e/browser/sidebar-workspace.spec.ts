@@ -264,9 +264,10 @@ test("dragging a project into a collapsed folder reveals it and persists members
     const destination = await folderRow.boundingBox();
     if (!source || !destination) throw new Error("Missing project or folder geometry");
     const folderDropX = destination.x + destination.width - 8;
-    await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+    const grabOffsetX = 32;
+    await page.mouse.move(source.x + grabOffsetX, source.y + source.height / 2);
     await page.mouse.down();
-    await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2 + 12, {
+    await page.mouse.move(source.x + grabOffsetX, source.y + source.height / 2 + 12, {
       steps: 4,
     });
     await page.mouse.move(folderDropX, destination.y + destination.height / 2, { steps: 20 });
@@ -282,7 +283,7 @@ test("dragging a project into a collapsed folder reveals it and persists members
       page.getByTestId("sidebar-project-drag-preview").getByTestId("project-icon-only"),
     ).toHaveText(normalProjectIcon ?? "");
     if (!preview) throw new Error("Missing drag preview");
-    expect(Math.abs(preview.x + preview.width / 2 - folderDropX)).toBeLessThan(3);
+    expect(Math.abs(preview.x - (folderDropX - grabOffsetX))).toBeLessThan(3);
     expect(
       Math.abs(preview.y + preview.height / 2 - (destination.y + destination.height / 2)),
     ).toBeLessThan(3);
@@ -341,7 +342,7 @@ test("dragging a project into a collapsed folder reveals it and persists members
     ).toBe("grabbing");
     const rootPreview = await page.getByTestId("sidebar-project-drag-preview").boundingBox();
     if (!rootPreview) throw new Error("Missing root drag preview");
-    expect(Math.abs(rootPreview.x + rootPreview.width / 2 - rootX)).toBeLessThan(3);
+    expect(Math.abs(rootPreview.x - (rootX - nestedSource.width / 2))).toBeLessThan(3);
     expect(Math.abs(rootPreview.y + rootPreview.height / 2 - rootY)).toBeLessThan(3);
     await page.mouse.up();
     await expect(

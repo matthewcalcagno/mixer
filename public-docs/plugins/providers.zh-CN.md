@@ -19,9 +19,9 @@ Provider 插件把一个编程 Agent 接入 Mixer，而无需把它加入 Mixer 
 
 示例有：
 
-- [`provider-direct`](https://github.com/getpaseo/paseo/tree/main/plugin-examples/provider-direct)：会话、设置、提示词、持久化、子会话，以及一个由 Provider 拥有的时间线渲染器；
-- [`provider-acp-transformer`](https://github.com/getpaseo/paseo/tree/main/plugin-examples/provider-acp-transformer)：一个 ACP 命令模板，带有一个用 Zod 校验的厂商编辑转换器。加载之前，请把 `example-acp --stdio` 替换为一个已安装的 ACP Agent；
-- [`inline-thinking`](https://github.com/getpaseo/paseo/tree/main/plugin-examples/inline-thinking)：一个只包含渲染器、不实现 Provider 的插件。
+- [`provider-direct`](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/provider-direct)：会话、设置、提示词、持久化、子会话，以及一个由 Provider 拥有的时间线渲染器；
+- [`provider-acp-transformer`](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/provider-acp-transformer)：一个 ACP 命令模板，带有一个用 Zod 校验的厂商编辑转换器。加载之前，请把 `example-acp --stdio` 替换为一个已安装的 ACP Agent；
+- [`inline-thinking`](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/inline-thinking)：一个只包含渲染器、不实现 Provider 的插件。
 
 ## 注册直接实现的 Provider {#register-a-direct-provider}
 

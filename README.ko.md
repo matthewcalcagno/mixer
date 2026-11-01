@@ -12,11 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/getpaseo/paseo/stargazers">
-    <img src="https://img.shields.io/github/stars/getpaseo/paseo?style=flat&logo=github" alt="GitHub stars">
+  <a href="https://github.com/matthewcalcagno/mixer/stargazers">
+    <img src="https://img.shields.io/github/stars/matthewcalcagno/mixer?style=flat&logo=github" alt="GitHub stars">
   </a>
-  <a href="https://github.com/getpaseo/paseo/releases">
-    <img src="https://img.shields.io/github/v/release/getpaseo/paseo?style=flat&logo=github" alt="GitHub release">
+  <a href="https://github.com/matthewcalcagno/mixer/releases">
+    <img src="https://img.shields.io/github/v/release/matthewcalcagno/mixer?style=flat&logo=github" alt="GitHub release">
   </a>
   <a href="https://x.com/moboudra">
     <img src="https://img.shields.io/badge/%40moboudra-555?logo=x" alt="X">
@@ -74,7 +74,7 @@ Mixer는 코딩 에이전트를 관리하는 로컬 서버인 데몬을 실행�
 
 ### 데스크톱 앱(권장)
 
-[paseo.sh/download](https://paseo.sh/download) 또는 [GitHub 릴리스 페이지](https://github.com/getpaseo/paseo/releases)에서 다운로드하세요. 앱을 열면 데몬이 자동으로 시작됩니다. 별도로 설치할 것은 없습니다.
+[paseo.sh/download](https://paseo.sh/download) 또는 [GitHub 릴리스 페이지](https://github.com/matthewcalcagno/mixer/releases)에서 다운로드하세요. 앱을 열면 데몬이 자동으로 시작됩니다. 별도로 설치할 것은 없습니다.
 
 휴대폰에서 연결하려면 **설정 → 호스트 → 기기 페어링**을 여세요.
 
@@ -133,7 +133,7 @@ mixer --host workstation.local:6767 run "run the full test suite"
 스킬은 에이전트가 Mixer를 통해 다른 에이전트를 오케스트레이션하는 방법을 알려 줍니다.
 
 ```bash
-npx skills add mixer/mixer
+npx skills add matthewcalcagno/mixer
 ```
 
 그런 다음 어떤 에이전트 대화에서든 아래 명령을 사용할 수 있습니다.

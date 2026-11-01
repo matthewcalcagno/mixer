@@ -77,6 +77,18 @@ export default defineConfig({
     projects: [
       {
         extends: true,
+        resolve: {
+          alias: [
+            {
+              find: /^@xterm\/addon-ligatures\/lib\/addon-ligatures\.mjs$/,
+              replacement: path.resolve(__dirname, "test-stubs/xterm-addon-ligatures.ts"),
+            },
+            {
+              find: /^@xterm\/addon-ligatures$/,
+              replacement: path.resolve(__dirname, "test-stubs/xterm-addon-ligatures.ts"),
+            },
+          ],
+        },
         test: {
           name: "unit",
           environment: "node",
@@ -235,14 +247,6 @@ export default defineConfig({
       {
         find: "react-dom",
         replacement: resolvePackageEntry("react-dom"),
-      },
-      {
-        find: /^@xterm\/addon-ligatures\/lib\/addon-ligatures\.mjs$/,
-        replacement: path.resolve(__dirname, "test-stubs/xterm-addon-ligatures.ts"),
-      },
-      {
-        find: /^@xterm\/addon-ligatures$/,
-        replacement: path.resolve(__dirname, "test-stubs/xterm-addon-ligatures.ts"),
       },
       {
         find: /^react-native-unistyles$/,

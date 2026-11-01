@@ -159,7 +159,7 @@ server.addHook("worktree.create.before", async ({ request }) => ({
 }));
 ```
 
-源检出目录为 `/home/me/src/mixer`、分支为 `feature/x` 时，目标为 `/home/me/src/mixer.feature-x`。完整插件见 [worktree-placement 示例](https://github.com/getpaseo/paseo/tree/main/plugin-examples/worktree-placement)。
+源检出目录为 `/home/me/src/mixer`、分支为 `feature/x` 时，目标为 `/home/me/src/mixer.feature-x`。完整插件见 [worktree-placement 示例](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/worktree-placement)。
 
 | 请求字段                                  | 含义                                                                                                                   |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -440,7 +440,7 @@ Mixer 通过 Agent 工具传输提供附加的工具，按 Provider 的支持情
 | 读取当前快照                                          | 调用 `await mixer.agents.ref(id).refresh()`。这只读取状态，不会重新打开会话。                                                                                                      |
 
 如果自动重新打开失败，触发它的提示词会返回该错误。参阅
-[完整 agent-tools 示例](https://github.com/getpaseo/paseo/tree/main/plugin-examples/agent-tools)。
+[完整 agent-tools 示例](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/agent-tools)。
 
 ## agent.close.after {#agentcloseafter}
 
@@ -478,7 +478,7 @@ server.addHook("agent.turn.before", async ({ agent, turnId }) => {
 
 ### 在轮次结束时发送后续消息 {#send-a-follow-up-when-a-turn-ends}
 
-把 [server/inspect.ts](https://github.com/getpaseo/paseo/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts) 复制到你的插件中。该辅助文件从 `@mixer/protocol/agent-types` 导入类型；请把与 daemon 版本相同的 `@mixer/protocol` 加入开发依赖，并在加载插件之前安装它们。`latestOutputText` 会拼接最近一条用户消息之后的文本片段。
+把 [server/inspect.ts](https://github.com/matthewcalcagno/mixer/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts) 复制到你的插件中。该辅助文件从 `@mixer/protocol/agent-types` 导入类型；请把与 daemon 版本相同的 `@mixer/protocol` 加入开发依赖，并在加载插件之前安装它们。`latestOutputText` 会拼接最近一条用户消息之后的文本片段。
 
 ```ts
 import type { PluginServerContext } from "@mixer/plugin/server";
@@ -518,7 +518,7 @@ Turn ends: "out of credits"
 
 ### 回应权限请求 {#answer-a-permission-request}
 
-使用同一个[辅助文件](https://github.com/getpaseo/paseo/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts)中的 `shellCommand`：
+使用同一个[辅助文件](https://github.com/matthewcalcagno/mixer/blob/main/plugin-examples/lifecycle-actions/server/inspect.ts)中的 `shellCommand`：
 
 ```ts
 import type { PluginServerContext } from "@mixer/plugin/server";
@@ -612,12 +612,12 @@ Creation request
 
 ## 完整示例 {#complete-examples}
 
-| 插件                                                                                                   | 包含                                                      |
-| ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| [lifecycle-logger](https://github.com/getpaseo/paseo/tree/main/plugin-examples/lifecycle-logger)       | Agent、工作区和 worktree 钩子；隐去环境变量值的 JSON 日志 |
-| [lifecycle-actions](https://github.com/getpaseo/paseo/tree/main/plugin-examples/lifecycle-actions)     | 后续消息、权限、环境变量、切换 Provider、选择 worktree    |
-| [agent-configuration](https://github.com/getpaseo/paseo/tree/main/plugin-examples/agent-configuration) | MCP 注入以及 Codex 沙盒/批准选项                          |
-| [agent-tools](https://github.com/getpaseo/paseo/tree/main/plugin-examples/agent-tools)                 | 按标签选择 Agent，并在插件进程中执行文件操作的工具        |
+| 插件                                                                                                          | 包含                                                      |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| [lifecycle-logger](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/lifecycle-logger)       | Agent、工作区和 worktree 钩子；隐去环境变量值的 JSON 日志 |
+| [lifecycle-actions](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/lifecycle-actions)     | 后续消息、权限、环境变量、切换 Provider、选择 worktree    |
+| [agent-configuration](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/agent-configuration) | MCP 注入以及 Codex 沙盒/批准选项                          |
+| [agent-tools](https://github.com/matthewcalcagno/mixer/tree/main/plugin-examples/agent-tools)                 | 按标签选择 Agent，并在插件进程中执行文件操作的工具        |
 
 用 `mixer plugin logs lifecycle-logger` 或主机的 `daemon.log` 读取 logger 的输出。
 

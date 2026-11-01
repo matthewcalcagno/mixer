@@ -32,7 +32,7 @@ import { openExternalUrl } from "@/utils/open-external-url";
 import { ToolbarButton } from "@/components/ui/pane-content-toolbar";
 
 const DISCORD_URL = "https://discord.gg/jz8T2uahpH";
-const GITHUB_ISSUE_URL = "https://github.com/getpaseo/paseo/issues/new";
+const GITHUB_ISSUE_URL = "https://github.com/matthewcalcagno/mixer/issues/new";
 const ThemedActivity = withUnistyles(Activity);
 const ThemedGift = withUnistyles(Gift);
 const ThemedKeyboard = withUnistyles(Keyboard);

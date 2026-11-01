@@ -58,7 +58,6 @@ import {
   TreeChevron,
   TREE_INDENT_PER_LEVEL,
   WORKSPACE_TREE_ICON_SIZE,
-  WORKSPACE_TREE_ICON_LABEL_GAP,
 } from "@/components/tree-primitives";
 
 export function ProjectFolders({
@@ -238,7 +237,7 @@ function ProjectFolderDragPreview({
   if (folder)
     return (
       <View style={styles.row} testID="sidebar-folder-drag-preview">
-        <DensityIcon icon={Folder} size="sm" color="foregroundMuted" />
+        <DensityIcon icon={Folder} size="md" color="foregroundMuted" />
         <Text style={styles.title}>{folder.name}</Text>
       </View>
     );
@@ -268,7 +267,7 @@ function parseFolderEdge(id: string): { folderId: string; edge: "before" | "afte
 function containedSortingStrategy(args: Parameters<typeof verticalListSortingStrategy>[0]) {
   return args.overIndex < 0 ? null : verticalListSortingStrategy(args);
 }
-const centerProjectPreview: Modifier = ({
+const positionProjectPreview: Modifier = ({
   activatorEvent,
   activeNodeRect,
   overlayNodeRect,
@@ -278,11 +277,12 @@ const centerProjectPreview: Modifier = ({
     return transform;
   return {
     ...transform,
-    x: transform.x + activatorEvent.clientX - activeNodeRect.left - overlayNodeRect.width / 2,
+    // Preserve the horizontal grab point; centering a sidebar-wide row shifts its label left.
+    x: transform.x,
     y: transform.y + activatorEvent.clientY - activeNodeRect.top - overlayNodeRect.height / 2,
   };
 };
-const PROJECT_PREVIEW_MODIFIERS = [centerProjectPreview];
+const PROJECT_PREVIEW_MODIFIERS = [positionProjectPreview];
 const beforeDropStyle: CSSProperties = {
   position: "absolute",
   top: 0,
@@ -476,7 +476,7 @@ function ProjectFolder({
               ) : null}
             </View>
             <View style={styles.leadingIcon} testID={`sidebar-folder-icon-${folder.id}`}>
-              <DensityIcon icon={Folder} size="sm" color="foregroundMuted" />
+              <DensityIcon icon={Folder} size="md" color="foregroundMuted" />
             </View>
             <Text style={styles.title} numberOfLines={1}>
               {editing ? (
@@ -609,10 +609,10 @@ const styles = StyleSheet.create((theme) => ({
     ...sidebarSpacing(theme).treeHeader,
     flexDirection: "row",
     alignItems: "center",
-    gap: WORKSPACE_TREE_ICON_LABEL_GAP,
+    gap: theme.spacing[2],
   },
   leadingIcon: {
-    width: densityIconBox("md"),
+    width: { xs: densityIconBox("md").xs + 2, md: densityIconBox("md").md + 2 },
     height: densityIconBox("md"),
     alignItems: "center",
     justifyContent: "center",
@@ -636,7 +636,7 @@ const styles = StyleSheet.create((theme) => ({
     ...sidebarSpacing(theme).treeHeader,
     flexDirection: "row",
     alignItems: "center",
-    gap: WORKSPACE_TREE_ICON_LABEL_GAP,
+    gap: theme.spacing[2],
     backgroundColor: theme.colors.surface2,
     borderRadius: theme.borderRadius.md,
   },

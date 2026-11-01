@@ -1,4 +1,4 @@
-// Vendored from getpaseo/paseo. See THIRD_PARTY_NOTICES.md.
+// Vendored from matthewcalcagno/mixer. See THIRD_PARTY_NOTICES.md.
 /**
  * Colour maths in OKLab, for the cases where a colour has to be adjusted rather than chosen.
  *

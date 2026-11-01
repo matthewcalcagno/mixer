@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   computeNextReleaseVersion,
+  getDesktopReleasePlan,
+  getDesktopReleaseTag,
   getReleaseInfoFromSourceTag,
   parseReleaseVersion,
 } from "./release-version-utils.mjs";
@@ -50,4 +52,42 @@ test("emits beta release info from tags", () => {
 
 test("rejects non-beta prerelease versions", () => {
   assert.throws(() => parseReleaseVersion("0.1.60-canary.1"), /Expected beta prerelease versions/);
+});
+
+test("desktop releases default to macOS and its stable update manifest", () => {
+  assert.deepEqual(getDesktopReleasePlan("desktop-v0.1.1"), {
+    platforms: ["macos"],
+    manifestNames: ["latest-mac.yml"],
+  });
+});
+
+test("a platform-specific tag selects only that platform", () => {
+  assert.deepEqual(getDesktopReleasePlan("desktop-windows-v0.1.1"), {
+    platforms: ["windows"],
+    manifestNames: ["latest.yml"],
+  });
+});
+
+test("manual platform selection overrides the tag platform", () => {
+  assert.deepEqual(getDesktopReleasePlan("desktop-macos-v0.1.1", "linux"), {
+    platforms: ["linux"],
+    manifestNames: ["latest-linux.yml"],
+  });
+});
+
+test("all-platform beta releases require exactly the beta manifests", () => {
+  assert.deepEqual(getDesktopReleasePlan("desktop-v0.1.1-beta.1", "all"), {
+    platforms: ["macos", "linux", "windows"],
+    manifestNames: ["beta-mac.yml", "beta-linux.yml", "beta.yml"],
+  });
+});
+
+test("rejects unknown desktop platforms and non-desktop source tags", () => {
+  assert.throws(() => getDesktopReleasePlan("desktop-v0.1.1", "android"), /platform/);
+  assert.throws(() => getDesktopReleasePlan("android-v0.1.1"), /desktop/);
+});
+
+test("desktop version tags do not trigger other product release workflows", () => {
+  assert.equal(getDesktopReleaseTag("0.1.1"), "desktop-v0.1.1");
+  assert.equal(getDesktopReleaseTag("0.1.1-beta.2"), "desktop-v0.1.1-beta.2");
 });

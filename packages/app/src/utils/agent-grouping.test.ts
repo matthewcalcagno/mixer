@@ -45,10 +45,10 @@ describe("deriveProjectDisplayName", () => {
   it("shows owner/repo for GitHub remote keys", () => {
     expect(
       deriveProjectDisplayName({
-        projectKey: "remote:github.com/mixer/mixer",
+        projectKey: "remote:github.com/matthewcalcagno/mixer",
         projectName: "mixer",
       }),
-    ).toBe("mixer/mixer");
+    ).toBe("matthewcalcagno/mixer");
   });
 
   it("shows remote path for non-GitHub remote keys", () => {
@@ -100,7 +100,7 @@ describe("groupAgents", () => {
     ];
 
     const { activeGroups } = groupAgents(agents, {
-      getRemoteUrl: () => "git@github.com:getpaseo/paseo.git",
+      getRemoteUrl: () => "git@github.com:matthewcalcagno/mixer.git",
     });
 
     expect(activeGroups).toHaveLength(1);

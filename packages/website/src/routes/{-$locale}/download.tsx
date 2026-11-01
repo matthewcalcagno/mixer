@@ -41,7 +41,7 @@ export const Route = createFileRoute("/{-$locale}/download")({
 const ALL_RELEASES_COMPONENTS = {
   github: (
     <a
-      href="https://github.com/getpaseo/paseo/releases"
+      href="https://github.com/matthewcalcagno/mixer/releases"
       target="_blank"
       rel="noopener noreferrer"
       className="underline hover:text-foreground transition-colors"
@@ -178,7 +178,9 @@ function Download() {
 
           <PlatformRow icon={TerminalIcon} label="Nix">
             <CodeBlock size="sm">
-              {onBeta ? `nix run github:mixer/mixer/v${version}` : "nix run github:mixer/mixer"}
+              {onBeta
+                ? `nix run github:matthewcalcagno/mixer/v${version}`
+                : "nix run github:matthewcalcagno/mixer"}
             </CodeBlock>
           </PlatformRow>
         </div>

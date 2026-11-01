@@ -13,8 +13,6 @@ const REWRITTEN_BY_TYPOGRAPHER = [
   "(R)",
   "(tm)",
   "(TM)",
-  "(p)",
-  "(P)",
   "+-",
   "two dots .. here",
   "wait for it...",
@@ -32,7 +30,7 @@ describe("createMarkdownParser", () => {
   it("renders every typographer-rewritten sequence verbatim", () => {
     const parser = createMarkdownParser({ linkify: true });
 
-    for (const source of REWRITTEN_BY_TYPOGRAPHER) {
+    for (const source of [...REWRITTEN_BY_TYPOGRAPHER, "(p)", "(P)"]) {
       expect(parser.renderInline(source)).toBe(escapeHtml(source));
     }
   });

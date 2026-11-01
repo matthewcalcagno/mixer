@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getDesktopReleaseTag } from "./release-version-utils.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -64,7 +65,7 @@ if (!version) {
   throw new Error('Root package.json must contain a valid "version"');
 }
 
-const tag = `v${version}`;
+const tag = getDesktopReleaseTag(version);
 const headCommit = runQuiet("git", ["rev-parse", "HEAD"]);
 
 let localTagCommit = "";

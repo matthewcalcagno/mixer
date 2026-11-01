@@ -26,7 +26,8 @@ const REQUIRED_ASSET_PATTERNS = [
   LINUX_APPIMAGE_ASSET_PATTERN,
   /Mixer-Setup-.*\.exe$/,
 ];
-const GITHUB_RELEASES_URL = "https://api.github.com/repos/getpaseo/paseo/releases?per_page=10";
+const GITHUB_RELEASES_URL =
+  "https://api.github.com/repos/matthewcalcagno/mixer/releases?per_page=10";
 const RELEASE_CACHE_KEY = "github-release:v2";
 function hasRequiredAssets(release: GitHubRelease): boolean {
   return REQUIRED_ASSET_PATTERNS.every((pattern) =>

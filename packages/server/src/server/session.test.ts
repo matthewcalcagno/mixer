@@ -885,11 +885,11 @@ describe("project command-center RPCs", () => {
       {
         id: "R_mixer",
         name: "mixer",
-        nameWithOwner: "mixer/mixer",
+        nameWithOwner: "matthewcalcagno/mixer",
         description: "Development environment in your pocket",
         visibility: "public",
         updatedAt: "2026-07-15T10:00:00Z",
-        cloneUrl: "git@github.com:getpaseo/paseo.git",
+        cloneUrl: "git@github.com:matthewcalcagno/mixer.git",
       },
     ]);
     const session = createSessionForTest({ messages, github: { searchRepositories } });
@@ -914,11 +914,11 @@ describe("project command-center RPCs", () => {
             {
               id: "R_mixer",
               name: "mixer",
-              nameWithOwner: "mixer/mixer",
+              nameWithOwner: "matthewcalcagno/mixer",
               description: "Development environment in your pocket",
               visibility: "public",
               updatedAt: "2026-07-15T10:00:00Z",
-              cloneUrl: "git@github.com:getpaseo/paseo.git",
+              cloneUrl: "git@github.com:matthewcalcagno/mixer.git",
             },
           ],
           available: true,
@@ -2012,7 +2012,7 @@ function createWorkspaceGitSnapshot(
       repoRoot: cwd,
       mainRepoRoot: null,
       currentBranch: "feature/service",
-      remoteUrl: "https://github.com/getpaseo/paseo.git",
+      remoteUrl: "https://github.com/matthewcalcagno/mixer.git",
       isMixerOwnedWorktree: false,
       isDirty: true,
       baseRef: "main",
@@ -2706,7 +2706,7 @@ diff --git a/file.txt b/file.txt
       body: "Updates file.",
     });
     checkoutGitMocks.createPullRequest.mockResolvedValue({
-      url: "https://github.com/getpaseo/paseo/pull/1",
+      url: "https://github.com/matthewcalcagno/mixer/pull/1",
       number: 1,
     });
     const session = createSessionForTest({ workspaceGitService });
@@ -2755,7 +2755,7 @@ diff --git a/file.txt b/file.txt
       body: "Updates file.",
     });
     checkoutGitMocks.createPullRequest.mockResolvedValue({
-      url: "https://github.com/getpaseo/paseo/pull/1",
+      url: "https://github.com/matthewcalcagno/mixer/pull/1",
       number: 1,
     });
     const session = createSessionForTest({ workspaceGitService, messages });
@@ -2796,7 +2796,7 @@ diff --git a/file.txt b/file.txt
       type: "checkout_pr_create_response",
       payload: {
         cwd: "/tmp/request-worktree",
-        url: "https://github.com/getpaseo/paseo/pull/1",
+        url: "https://github.com/matthewcalcagno/mixer/pull/1",
         number: 1,
         error: null,
         requestId: "request-generated-pr",
@@ -2891,7 +2891,7 @@ diff --git a/file.txt b/file.txt
       new StructuredAgentFallbackError([]),
     );
     checkoutGitMocks.createPullRequest.mockResolvedValue({
-      url: "https://github.com/getpaseo/paseo/pull/9",
+      url: "https://github.com/matthewcalcagno/mixer/pull/9",
       number: 9,
     });
     const session = createSessionForTest({ workspaceGitService, messages });
@@ -2917,7 +2917,7 @@ diff --git a/file.txt b/file.txt
       type: "checkout_pr_create_response",
       payload: {
         cwd: "/tmp/request-worktree",
-        url: "https://github.com/getpaseo/paseo/pull/9",
+        url: "https://github.com/matthewcalcagno/mixer/pull/9",
         number: 9,
         error: null,
         requestId: "request-generated-pr-fallback",
@@ -2931,7 +2931,7 @@ diff --git a/file.txt b/file.txt
       getSnapshot: vi.fn().mockResolvedValue({}),
     };
     checkoutGitMocks.createPullRequest.mockResolvedValue({
-      url: "https://github.com/getpaseo/paseo/pull/2",
+      url: "https://github.com/matthewcalcagno/mixer/pull/2",
       number: 2,
     });
     const session = createSessionForTest({ github, workspaceGitService, messages });
@@ -2952,7 +2952,7 @@ diff --git a/file.txt b/file.txt
       type: "checkout_pr_create_response",
       payload: {
         cwd: "/tmp/request-worktree",
-        url: "https://github.com/getpaseo/paseo/pull/2",
+        url: "https://github.com/matthewcalcagno/mixer/pull/2",
         number: 2,
         error: null,
         requestId: "request-pr-create",
@@ -3751,7 +3751,7 @@ describe("session checkout status handling", () => {
         behindOfOrigin: 1,
         upstreamRef: null,
         hasRemote: true,
-        remoteUrl: "https://github.com/getpaseo/paseo.git",
+        remoteUrl: "https://github.com/matthewcalcagno/mixer.git",
         isMixerOwnedWorktree: false,
         error: null,
         requestId: "request-status",
@@ -4504,7 +4504,7 @@ describe("session workspace script handling", () => {
     const snapshot = createWorkspaceGitSnapshot("/tmp/repo", {
       git: {
         currentBranch: "feature/service-scripts",
-        remoteUrl: "https://github.com/getpaseo/paseo.git",
+        remoteUrl: "https://github.com/matthewcalcagno/mixer.git",
       },
     });
     const workspaceRuntimeStore = { ...createWorkspaceRuntimeStore(), get: vi.fn(() => snapshot) };
@@ -4577,7 +4577,7 @@ describe("session pull request timeline handling", () => {
             forge: "github",
             number: 42,
             title: "Ship search",
-            url: "https://github.com/getpaseo/paseo/pull/42",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42",
             state: "OPEN",
             body: null,
             labels: [],
@@ -4623,7 +4623,7 @@ describe("session pull request timeline handling", () => {
             forge: "github",
             number: 42,
             title: "Ship search",
-            url: "https://github.com/getpaseo/paseo/pull/42",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42",
             state: "OPEN",
             body: null,
             labels: [],
@@ -4676,7 +4676,7 @@ describe("session pull request timeline handling", () => {
       isAuthenticated: vi.fn().mockResolvedValue(true),
       getPullRequestTimeline: vi.fn().mockResolvedValue({
         prNumber: 42,
-        repoOwner: "mixer",
+        repoOwner: "matthewcalcagno",
         repoName: "mixer",
         items: [
           {
@@ -4687,7 +4687,7 @@ describe("session pull request timeline handling", () => {
             avatarUrl: "https://avatars.githubusercontent.com/u/1?v=4",
             body: "Looks good",
             createdAt: 1710000000000,
-            url: "https://github.com/getpaseo/paseo/pull/42#pullrequestreview-1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#pullrequestreview-1",
             reviewState: "approved",
           },
         ],
@@ -4700,14 +4700,14 @@ describe("session pull request timeline handling", () => {
       type: "pull_request_timeline_request",
       cwd: "/tmp/repo",
       prNumber: 42,
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
       requestId: "request-1",
     });
     expect(github.getPullRequestTimeline).toHaveBeenCalledWith({
       cwd: "/tmp/repo",
       prNumber: 42,
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
     });
     expect(messages).toContainEqual({
@@ -4724,7 +4724,7 @@ describe("session pull request timeline handling", () => {
             avatarUrl: "https://avatars.githubusercontent.com/u/1?v=4",
             body: "Looks good",
             createdAt: 1710000000000,
-            url: "https://github.com/getpaseo/paseo/pull/42#pullrequestreview-1",
+            url: "https://github.com/matthewcalcagno/mixer/pull/42#pullrequestreview-1",
             reviewState: "approved",
           },
         ],
@@ -4736,14 +4736,14 @@ describe("session pull request timeline handling", () => {
     });
   });
   test.each([
-    { prNumber: 0, repoOwner: "mixer", repoName: "mixer" },
-    { prNumber: -1, repoOwner: "mixer", repoName: "mixer" },
+    { prNumber: 0, repoOwner: "matthewcalcagno", repoName: "mixer" },
+    { prNumber: -1, repoOwner: "matthewcalcagno", repoName: "mixer" },
     { prNumber: 42, repoOwner: "get mixer", repoName: "mixer" },
     { prNumber: 42, repoOwner: "mixer/cli", repoName: "mixer" },
     { prNumber: 42, repoOwner: "get$mixer", repoName: "mixer" },
-    { prNumber: 42, repoOwner: "mixer", repoName: "pa seo" },
-    { prNumber: 42, repoOwner: "mixer", repoName: "mixer/app" },
-    { prNumber: 42, repoOwner: "mixer", repoName: "mixer!" },
+    { prNumber: 42, repoOwner: "matthewcalcagno", repoName: "pa seo" },
+    { prNumber: 42, repoOwner: "matthewcalcagno", repoName: "mixer/app" },
+    { prNumber: 42, repoOwner: "matthewcalcagno", repoName: "mixer!" },
   ])("returns an unknown error when request identity is invalid: %j", async (identity) => {
     const messages: unknown[] = [];
     const github = {
@@ -4788,7 +4788,7 @@ describe("session pull request timeline handling", () => {
       type: "pull_request_timeline_request",
       cwd: "/tmp/repo",
       prNumber: 42,
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
       requestId: "request-3",
     });
@@ -4824,8 +4824,8 @@ describe("session pull request timeline handling", () => {
       name: "server-tests",
       status: "completed",
       conclusion: "failure",
-      url: "https://github.com/getpaseo/paseo/actions/runs/456/job/789",
-      detailsUrl: "https://github.com/getpaseo/paseo/actions/runs/456/job/789",
+      url: "https://github.com/matthewcalcagno/mixer/actions/runs/456/job/789",
+      detailsUrl: "https://github.com/matthewcalcagno/mixer/actions/runs/456/job/789",
       output: { title: "Tests failed", summary: "1 failure", text: "Assertion failed" },
       annotations: [],
       failedJobs: [],
@@ -4851,7 +4851,7 @@ describe("session pull request timeline handling", () => {
     await session.handleMessage({
       type: "checkout.forge.get_check_details.request",
       cwd: "/tmp/repo",
-      repoOwner: "mixer",
+      repoOwner: "matthewcalcagno",
       repoName: "mixer",
       checkRunId: 12345,
       workflowRunId: 456,
@@ -4860,7 +4860,7 @@ describe("session pull request timeline handling", () => {
     expect(checkDetailRequests).toEqual([
       {
         cwd: "/tmp/repo",
-        repoOwner: "mixer",
+        repoOwner: "matthewcalcagno",
         repoName: "mixer",
         checkRunId: 12345,
         workflowRunId: 456,
@@ -4877,8 +4877,8 @@ describe("session pull request timeline handling", () => {
           name: "server-tests",
           status: "completed",
           conclusion: "failure",
-          url: "https://github.com/getpaseo/paseo/actions/runs/456/job/789",
-          detailsUrl: "https://github.com/getpaseo/paseo/actions/runs/456/job/789",
+          url: "https://github.com/matthewcalcagno/mixer/actions/runs/456/job/789",
+          detailsUrl: "https://github.com/matthewcalcagno/mixer/actions/runs/456/job/789",
           output: { title: "Tests failed", summary: "1 failure", text: "Assertion failed" },
           annotations: [],
           failedJobs: [],

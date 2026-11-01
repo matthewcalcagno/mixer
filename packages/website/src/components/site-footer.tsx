@@ -77,13 +77,13 @@ export function SiteFooter({ width = "default", sponsors = true }: SiteFooterPro
           <div className="space-y-2">
             <ExternalLink href="https://discord.gg/jz8T2uahpH">Discord</ExternalLink>
             <ExternalLink href="https://www.reddit.com/r/PaseoAI/">Reddit</ExternalLink>
-            <ExternalLink href="https://github.com/getpaseo/paseo">GitHub</ExternalLink>
+            <ExternalLink href="https://github.com/matthewcalcagno/mixer">GitHub</ExternalLink>
           </div>
         </div>
         <div className="space-y-3">
           <p className="text-extra-muted-foreground">{t("footer.download")}</p>
           <div className="space-y-2">
-            <ExternalLink href="https://github.com/getpaseo/paseo/releases">
+            <ExternalLink href="https://github.com/matthewcalcagno/mixer/releases">
               {t("footer.desktop")}
             </ExternalLink>
             <ExternalLink href={webAppUrl}>{t("footer.webApp")}</ExternalLink>

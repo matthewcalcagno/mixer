@@ -445,6 +445,10 @@ function startJsonLanguageService(model: monaco.editor.ITextModel) {
 }
 
 function registerEditingActions(codeEditor: monaco.editor.IStandaloneCodeEditor) {
+  codeEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
+    // Run Monaco's Find action, which opens the widget and focuses its search input.
+    codeEditor.trigger("keyboard", "actions.find", null);
+  });
   codeEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => emit({ type: "save" }));
   for (const [id, redo] of [
     ["undo", false],
