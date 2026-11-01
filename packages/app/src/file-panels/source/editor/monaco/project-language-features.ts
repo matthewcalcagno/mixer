@@ -4,7 +4,6 @@ import {
   ImplementationRequest,
   InlayHintRequest,
   FoldingRangeRequest,
-  SemanticTokensRequest,
   LocationLink,
   type ProtocolConnection,
   type ServerCapabilities,
@@ -148,27 +147,7 @@ export function registerProjectLanguageFeatures(options: FeatureOptions): monaco
         },
       }),
     );
-  const semantic = capabilities.semanticTokensProvider;
-  if (semantic?.full) {
-    options.editor.updateOptions({ "semanticHighlighting.enabled": true });
-    registrations.push(
-      monaco.languages.registerDocumentSemanticTokensProvider(selector, {
-        getLegend: () => semantic.legend,
-        async provideDocumentSemanticTokens(document, _previousResult, token) {
-          if (document !== model) return null;
-          const result = await fresh(() =>
-            connection.sendRequest(SemanticTokensRequest.type, { textDocument }, token),
-          );
-          return result ? { data: new Uint32Array(result.data), resultId: result.resultId } : null;
-        },
-        releaseDocumentSemanticTokens() {},
-      }),
-    );
-    registrations.push({
-      dispose: () => {
-        options.editor.updateOptions({ "semanticHighlighting.enabled": false });
-      },
-    });
-  }
+  // TextMate owns syntax colors. Enabling semantic highlighting after LSP startup
+  // recolors an already-visible buffer with Monaco’s inherited semantic theme.
   return registrations;
 }

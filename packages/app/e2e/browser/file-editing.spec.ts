@@ -1296,6 +1296,44 @@ test.describe("Monaco Electron file editing", () => {
       path: test.info().outputPath("long-git-blame-hover-above-status-bar.png"),
     });
   });
+  test("keeps syntax colors stable when the TypeScript language service connects", async ({
+    page,
+    withWorkspace,
+  }) => {
+    test.setTimeout(120_000);
+    const gate = await installDaemonWebSocketGate(page);
+    gate.holdNextClientRequest("workspace.language.query.request");
+    const workspace = await withWorkspace({ prefix: "editor-stable-syntax-" });
+    await writeFile(
+      path.join(workspace.repoPath, "stable.ts"),
+      "export class Example { value: number = 42; }\nconst instance = new Example();\ninstance.value;\n",
+    );
+    await workspace.navigateTo();
+    await openWorkspaceFile(page, "stable.ts");
+    const frame = page
+      .getByTestId("file-source-editor")
+      .filter({ visible: true })
+      .frameLocator("iframe");
+    await gate.waitForHeldClientRequest();
+    const lines = frame.locator(".view-lines");
+    await expect.poll(() => lines.evaluate(distinctSourceColorCount)).toBeGreaterThan(2);
+    const colors = (element: Element) =>
+      Array.from(element.querySelectorAll(".view-line span"))
+        .filter((span) => span.children.length === 0 && span.textContent?.trim())
+        .map((span) => ({ text: span.textContent, color: getComputedStyle(span).color }));
+    const initial = await lines.evaluate(colors);
+    gate.releaseHeldClientRequest();
+    await expect(frame.locator("#editor")).toHaveAttribute("data-language-service", "typescript", {
+      timeout: 60_000,
+    });
+    await frame.getByRole("textbox").focus();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Control+Space");
+    await expect(frame.locator(".suggest-widget.visible")).toContainText("Example");
+    expect(await lines.evaluate(colors)).toEqual(initial);
+  });
   test("keeps TypeScript language services on older hosts without requesting provider discovery", async ({
     page,
     withWorkspace,

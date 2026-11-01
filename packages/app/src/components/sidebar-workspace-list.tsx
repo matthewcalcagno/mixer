@@ -2614,7 +2614,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   projectTitle: {
     color: theme.colors.foregroundMuted,
-    ...sidebarTypography(theme).primary,
+    ...sidebarTypography(theme).projectTitle,
     fontWeight: theme.fontWeight.medium,
     minWidth: 0,
     flexShrink: 1,

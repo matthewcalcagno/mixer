@@ -625,7 +625,7 @@ const styles = StyleSheet.create((theme) => ({
     height: WORKSPACE_TREE_ICON_SIZE,
     alignItems: "flex-start",
   },
-  title: { ...sidebarTypography(theme).primary, color: theme.colors.foregroundMuted, flex: 1 },
+  title: { ...sidebarTypography(theme).projectTitle, color: theme.colors.foregroundMuted, flex: 1 },
   children: {
     // Keep child icons one small gap left of the folder label, without duplicating row padding.
     paddingLeft: TREE_INDENT_PER_LEVEL,

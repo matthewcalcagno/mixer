@@ -13,6 +13,7 @@ export function sidebarTypography({ fontSize }: Pick<Theme, "fontSize">) {
   };
   return {
     primary,
+    projectTitle: { ...primary, fontSize: fontSize.base },
     secondary,
     workspaceTitle,
     workspaceMetadata,
