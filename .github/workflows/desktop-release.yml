@@ -8,6 +8,25 @@ on:
       - "desktop-macos-v*"
       - "desktop-linux-v*"
       - "desktop-windows-v*"
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      checkout_ref:
+        default: ""
+        type: string
+    secrets:
+      APPLE_CERTIFICATE:
+        required: true
+      APPLE_CERTIFICATE_PASSWORD:
+        required: true
+      APPLE_ID:
+        required: true
+      APPLE_PASSWORD:
+        required: true
+      APPLE_TEAM_ID:
+        required: true
   workflow_dispatch:
     inputs:
       tag:
@@ -44,12 +63,12 @@ on:
         type: string
 
 concurrency:
-  group: desktop-release-${{ github.ref }}
+  group: desktop-release-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 env:
-  SOURCE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
-  CHECKOUT_REF: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.checkout_ref || github.event.inputs.tag) || github.ref_name }}
+  SOURCE_TAG: ${{ inputs.tag || github.ref_name }}
+  CHECKOUT_REF: ${{ inputs.checkout_ref || inputs.tag || github.ref_name }}
   SHOULD_PUBLISH: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'false' }}
   ROLLOUT_HOURS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.rollout_hours || '36' }}
   DESKTOP_PACKAGE_PATH: "packages/desktop"

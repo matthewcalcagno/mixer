@@ -1,0 +1,58 @@
+name: Release merged desktop app
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+# Serialize version allocation and publishing across merges. Do not cancel a release.
+concurrency:
+  group: desktop-release-on-merge
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'develop' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Prepare versioned release commit
+        id: release
+        env:
+          RELEASE_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          LEFTHOOK: "0"
+        run: node scripts/prepare-merged-desktop-release.mjs
+      - name: Push desktop release tag
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: git push origin "refs/tags/$RELEASE_TAG"
+
+  release:
+    needs: version
+    permissions:
+      contents: write
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+    secrets:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
