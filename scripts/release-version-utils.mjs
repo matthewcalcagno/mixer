@@ -196,3 +196,10 @@ export function getDesktopReleasePlan(sourceTag, platform) {
     manifestNames: platforms.map((name) => `${info.releaseChannel}${suffixes[name]}.yml`),
   };
 }
+
+export function getMergedReleaseMode(labels) {
+  const modes = ["patch", "minor", "major"].filter((mode) => labels.includes(`release:${mode}`));
+  if (modes.length > 1)
+    throw new Error("Use only one release:patch, release:minor, or release:major label");
+  return modes[0] || "patch";
+}

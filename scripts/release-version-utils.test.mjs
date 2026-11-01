@@ -4,6 +4,7 @@ import {
   computeNextReleaseVersion,
   getDesktopReleasePlan,
   getDesktopReleaseTag,
+  getMergedReleaseMode,
   getReleaseInfoFromSourceTag,
   parseReleaseVersion,
 } from "./release-version-utils.mjs";
@@ -90,4 +91,75 @@ test("rejects unknown desktop platforms and non-desktop source tags", () => {
 test("desktop version tags do not trigger other product release workflows", () => {
   assert.equal(getDesktopReleaseTag("0.1.1"), "desktop-v0.1.1");
   assert.equal(getDesktopReleaseTag("0.1.1-beta.2"), "desktop-v0.1.1-beta.2");
+});
+
+test("merged PRs default to patch and honor an explicit release label", () => {
+  assert.equal(getMergedReleaseMode([]), "patch");
+  assert.equal(getMergedReleaseMode(["bug", "release:minor"]), "minor");
+  assert.equal(getMergedReleaseMode(["release:major"]), "major");
+  assert.throws(() => getMergedReleaseMode(["release:patch", "release:minor"]), /only one/);
+});
+
+test("merge release versions a detached snapshot and reuses its tag on retry", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const dir = mkdtempSync(path.join(tmpdir(), "mixer-merge-release-"));
+  const repo = path.join(dir, "repo");
+  mkdirSync(path.join(repo, "packages", "app"), { recursive: true });
+  const run = (cmd, args, env = {}) =>
+    execFileSync(cmd, args, {
+      cwd: repo,
+      encoding: "utf8",
+      env: { ...process.env, LEFTHOOK: "0", ...env },
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  const script = fileURLToPath(new URL("./prepare-merged-desktop-release.mjs", import.meta.url));
+  const output = path.join(dir, "output");
+  try {
+    writeFileSync(
+      path.join(repo, "package.json"),
+      JSON.stringify({
+        name: "fixture",
+        version: "0.1.0",
+        private: true,
+        workspaces: ["packages/app"],
+        scripts: { version: "exit 99" },
+      }),
+    );
+    writeFileSync(
+      path.join(repo, "packages/app/package.json"),
+      JSON.stringify({ name: "@fixture/app", version: "0.1.0", private: true }),
+    );
+    run("git", ["init", "-b", "main"]);
+    run("git", ["config", "user.email", "test@example.com"]);
+    run("git", ["config", "user.name", "Test"]);
+    run("git", ["add", "."]);
+    run("git", ["commit", "-m", "merged source"]);
+    const source = run("git", ["rev-parse", "HEAD"]);
+    // develop can retain an older version than the most recent release tag.
+    run("git", ["tag", "desktop-v0.1.4"]);
+    run("git", ["checkout", "--detach", source]);
+    run(process.execPath, [script], { GITHUB_OUTPUT: output, RELEASE_LABELS: "[]" });
+    assert.match(readFileSync(output, "utf8"), /tag=desktop-v0.1.5/);
+    assert.equal(run("git", ["rev-parse", "main"]), source);
+    assert.equal(run("git", ["rev-parse", "desktop-v0.1.5^1"]), source);
+    assert.equal(
+      JSON.parse(readFileSync(path.join(repo, "packages/app/package.json"))).version,
+      "0.1.5",
+    );
+    assert.equal(
+      JSON.parse(readFileSync(path.join(repo, "package-lock.json"))).packages[""].version,
+      "0.1.5",
+    );
+    const release = run("git", ["rev-parse", "desktop-v0.1.5^{}"]);
+    run("git", ["checkout", "--detach", source]);
+    run(process.execPath, [script], { GITHUB_OUTPUT: output, RELEASE_LABELS: "[]" });
+    assert.equal(run("git", ["rev-parse", "desktop-v0.1.5^{}"]), release);
+    assert.equal(run("git", ["tag", "--list", "desktop-v0.1.6"]), "");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

@@ -63,6 +63,23 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
 }
 
 describe("desktop packaging", () => {
+  it("keeps both macOS signing entitlement files available in a fresh checkout", () => {
+    const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
+    for (const key of ["entitlements", "entitlementsInherit"]) {
+      const match = config.match(new RegExp(`^  ${key}: (.+)$`, "m"));
+      expect(match, `Missing ${key} configuration`).not.toBeNull();
+      const file = join(packageRoot, match![1].trim());
+      const ignored = spawnSync("git", ["check-ignore", "--no-index", file], {
+        cwd: packageRoot,
+        encoding: "utf8",
+      });
+      expect(ignored.status, `${file} must be included in the repository`).toBe(1);
+      const contents = readFileSync(file, "utf8");
+      expect(contents).toContain('<plist version="1.0">');
+      expect(contents).toContain("com.apple.security.cs.allow-jit");
+    }
+  });
+
   it("uses an Electron runtime whose Squirrel handoff explicitly wakes ShipIt", () => {
     const pkg = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
       devDependencies?: Record<string, string>;
