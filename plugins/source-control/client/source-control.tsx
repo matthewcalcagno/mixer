@@ -9,13 +9,14 @@ import { actionRpc, autoFetchRpc, statusRpc, gitScopeKey, type GitScope } from "
 import { optimisticStatus } from "../shared/optimistic.js";
 import {
   CommitDropdown,
+  commitOptions,
   IconButton,
   NativeActionSelector,
   type CommitOption,
   type NativeSelectorOption,
 } from "./controls.js";
 import { useDiffSelection, type DiffSelection } from "./diff-selection.js";
-import { confirmAction, resizeCommitInput } from "./web.js";
+import { confirmAction, resizeCommitInput, commitMessagePlaceholder } from "./web.js";
 import { z } from "zod";
 import {
   resourceGroups,
@@ -95,7 +96,8 @@ export function SourceControlPanel({
   });
   const [selection, setSelection] = useState(emptySelection);
   const [collapsedFolders, setCollapsedFolders] = useState<ReadonlySet<string>>(() => new Set());
-  const [commitFlowPending, setCommitFlowPending] = useState(false);
+  const [commitFlowOption, setCommitFlowOption] = useState<CommitOption | null>(null);
+  const commitFlowPending = commitFlowOption !== null;
   const [commitFlowError, setCommitFlowError] = useState<Error | null>(null);
   const key = ["source-control", workspaceId];
   const mutating = useIsMutating({ mutationKey: key }) > 0 || commitFlowPending;
@@ -171,7 +173,7 @@ export function SourceControlPanel({
         { id: "changes", title: "Changes", files: grouped.changes, staged: false },
       ] satisfies { id: ResourceGroup; title: string; files: Resource[]; staged: boolean }[]
     )
-      .filter((group) => group.id === "changes" || group.files.length > 0)
+      .filter((group) => group.files.length > 0 || (group.id === "changes" && files.length > 0))
       .map((group) => {
         const matching = visibleResources(group.files, filter, sort, group.staged);
         const nodes =
@@ -302,26 +304,29 @@ export function SourceControlPanel({
   const canCommit = staged.length > 0 && !hasConflicts && !pending && !state.isPending;
   const canAmend = !hasConflicts && !pending && !!state.data;
   const showPush =
-    files.length === 0 && !!state.data?.hasRemote && (state.data.ahead > 0 || pushing);
-  const primaryLabel = showPush
-    ? `Push${state.data?.ahead ? ` ${state.data.ahead}↑` : ""}`
-    : "Commit";
+    !commitFlowPending &&
+    files.length === 0 &&
+    !!state.data?.hasRemote &&
+    (state.data.ahead > 0 || pushing);
+  let primaryLabel = "Commit";
+  if (commitFlowOption)
+    primaryLabel = commitOptions.find((option) => option.value === commitFlowOption)!.label;
+  else if (showPush) primaryLabel = `Push${state.data?.ahead ? ` ${state.data.ahead}↑` : ""}`;
   const operationError = state.error || commitFlowError || action.error;
   async function commit(message: string, option: CommitOption) {
     if (!message.trim() || !(option === "amend" ? canAmend : canCommit) || !state.data) return;
     const snapshot = state.data;
     const hasRemoteStep = option === "commit-push" || option === "commit-sync";
     if (hasRemoteStep && (!snapshot.hasRemote || !snapshot.upstream)) return;
-    setCommitFlowPending(true);
+    setCommitFlowOption(option);
     setCommitFlowError(null);
     try {
-      if (option !== "commit") {
+      if (option === "amend" || option === "commit-sync") {
         const descriptions = {
           amend:
             "Replace the latest commit with the staged changes and this message? This rewrites the latest commit.",
           "commit-sync":
             "Commit staged changes, pull with fast-forward only, then push? If branches diverge, sync stops without merging or rebasing.",
-          "commit-push": "Commit staged changes and push to the upstream branch?",
         };
         const description = descriptions[option];
         if (
@@ -348,7 +353,7 @@ export function SourceControlPanel({
     } catch (error) {
       setCommitFlowError(error instanceof Error ? error : new Error("Commit action failed"));
     } finally {
-      setCommitFlowPending(false);
+      setCommitFlowOption(null);
     }
   }
   async function confirm(operation: Action) {
@@ -527,6 +532,7 @@ export function SourceControlPanel({
       <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
         <CommitForm
           theme={theme}
+          branch={state.data?.branch ?? ""}
           initialMessage={saved.message}
           resetVersion={messageResetVersion}
           commitAllowed={canCommit}
@@ -607,6 +613,15 @@ export function SourceControlPanel({
                   {group.title}
                 </Text>
               </Pressable>
+              {group.id === "changes" &&
+                toolbar(
+                  "Undo2",
+                  "Discard all changes",
+                  () => {
+                    void confirm({ kind: "discard", paths: tracked.map((file) => file.path) });
+                  },
+                  tracked.length === 0,
+                )}
               {group.id !== "merge" &&
                 toolbar(
                   group.staged ? "Minus" : "Plus",
@@ -700,18 +715,13 @@ export function SourceControlPanel({
               No matching changes.
             </Text>
           )}
-        {files.length === 0 && !state.isPending && !state.error && (
-          <View style={{ padding: 24, alignItems: "center", gap: 8 }}>
-            <Icon name="CircleCheck" size={24} color={c.foregroundMuted} />
-            <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>No changes to commit.</Text>
-          </View>
-        )}
       </ScrollView>
     </View>
   );
 }
 
 interface CommitFormProps {
+  branch: string;
   theme: PluginTheme;
   initialMessage: string;
   resetVersion: number;
@@ -731,6 +741,7 @@ interface CommitFormProps {
 
 // Keep keystrokes and input measurement out of the repository resource tree.
 function CommitForm({
+  branch,
   theme,
   initialMessage,
   resetVersion,
@@ -774,6 +785,7 @@ function CommitForm({
   const canCommit = !!message.trim() && commitAllowed;
   const canAmend = !!message.trim() && amendAllowed;
   const primaryEnabled = showPush ? pushEnabled : canCommit;
+  const primaryAccessibilityLabel = primaryBusy ? primaryLabel : "Commit staged changes";
   const c = theme.colors;
   const text = { color: c.foreground, fontSize: 13 };
   return (
@@ -834,7 +846,7 @@ function CommitForm({
               style={{ color: c.foregroundMuted, fontSize: 12, lineHeight: 16 }}
               testID="source-control-commit-placeholder"
             >
-              Message (Ctrl/Cmd+Enter to commit)
+              {commitMessagePlaceholder(branch)}
             </Text>
           </View>
         )}
@@ -845,13 +857,15 @@ function CommitForm({
           minHeight: 26,
           borderRadius: 4,
           overflow: "hidden",
-          backgroundColor: primaryEnabled ? "#187a34" : c.surface2,
+          backgroundColor: "#187a34",
+          opacity: primaryEnabled ? 1 : 0.5,
         }}
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={showPush ? "Push outgoing commits" : "Commit staged changes"}
+          accessibilityLabel={showPush ? "Push outgoing commits" : primaryAccessibilityLabel}
           accessibilityState={{ disabled: !primaryEnabled, busy: primaryBusy }}
+          aria-busy={primaryBusy || undefined}
           disabled={!primaryEnabled}
           onPress={() => {
             if (showPush) onPush();
@@ -860,7 +874,7 @@ function CommitForm({
           style={({ pressed }) => ({
             flex: 1,
             minHeight: 26,
-            backgroundColor: primaryEnabled ? "#187a34" : c.surface2,
+            backgroundColor: "#187a34",
             opacity: pressed ? 0.85 : 1,
             flexDirection: "row",
             gap: 6,
@@ -870,18 +884,14 @@ function CommitForm({
           })}
         >
           {primaryBusy ? (
-            <ActivityIndicator size="small" color={c.foregroundMuted} />
+            <ActivityIndicator size="small" color="#ffffff" />
           ) : (
-            <Icon
-              name={showPush ? "ArrowUp" : "Check"}
-              size={16}
-              color={primaryEnabled ? "#ffffff" : c.foregroundMuted}
-            />
+            <Icon name={showPush ? "ArrowUp" : "Check"} size={16} color="#ffffff" />
           )}
           <Text
             numberOfLines={1}
             style={{
-              color: primaryEnabled ? "#ffffff" : c.foregroundMuted,
+              color: "#ffffff",
               fontSize: 13,
               fontWeight: "600",
             }}
@@ -895,7 +905,7 @@ function CommitForm({
             canCommit={canCommit}
             canAmend={canAmend}
             remoteDisabled={remoteDisabled}
-            color={canCommit ? "#ffffff" : c.foregroundMuted}
+            color="#ffffff"
             onSelect={(option) => {
               void onCommit(message, option);
             }}
