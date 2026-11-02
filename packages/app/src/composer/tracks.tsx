@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactElement, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import {
@@ -13,6 +13,7 @@ import {
   type MenuTriggerState,
 } from "@/components/ui/menu";
 import { StatusRing } from "@/components/status-ring";
+import { useNativeMenuItem } from "@/components/ui/menu/native-menu";
 import { STATUS_RING_HALO_INSET } from "@/components/status-ring/geometry";
 import { getStatusDotColor } from "@/utils/status-dot-color";
 import { STATUS_INDICATOR_FILLED_DOT_SIZE } from "@/utils/status-indicator-geometry";
@@ -237,6 +238,14 @@ export function ComposerTrackRow({
     }
     selectItem(onPress, closeOnSelect);
   }, [closeOnSelect, depth, onPress, openSub, opensPage, selectItem]);
+  const node = useRef<View>(null);
+  useNativeMenuItem({
+    node,
+    label: node,
+    disabled: disabled || (!onPress && !opensPage),
+    onSelect: onPress,
+    submenu: opensPage,
+  });
   const itemDataSet = useMemo(
     () => ({ menuItem: "true", menuDisabled: disabled ? "true" : "false" }),
     [disabled],
@@ -254,10 +263,14 @@ export function ComposerTrackRow({
     [hovered, renderRow],
   );
   if (!onPress && !opensPage) {
-    return <View accessibilityLabel={accessibilityLabel}>{renderRow(false)}</View>;
+    return (
+      <View ref={node} accessibilityLabel={accessibilityLabel}>
+        {renderRow(false)}
+      </View>
+    );
   }
   return (
-    <View onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}>
+    <View ref={node} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}>
       <Pressable
         accessibilityRole="menuitem"
         dataSet={itemDataSet}
