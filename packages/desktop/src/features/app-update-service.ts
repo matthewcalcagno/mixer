@@ -51,6 +51,7 @@ export interface AppUpdateRuntime {
   configure(input: AppUpdateRuntimeConfiguration): void;
   checkForUpdates(): Promise<RuntimeUpdateCheckResult | null>;
   downloadUpdate(targetVersion: string): Promise<unknown>;
+  prepareForInstall(targetVersion: string, signal?: AbortSignal): Promise<void>;
   quitAndInstall(input: AppUpdateInstallRequest): void;
 }
 
@@ -417,19 +418,6 @@ export function createAppUpdateService(deps: AppUpdateServiceDeps): AppUpdateSer
       return buildDeferredInstallResult(currentVersion);
     }
 
-    if (isReadyToInstallVersion(readyVersion)) {
-      await performQuitAndInstall(deps.runtime, {
-        targetVersion: readyVersion,
-        onBeforeQuit,
-        restart,
-      });
-      return {
-        installed: true,
-        version: readyVersion,
-        message: "Update downloaded. The app will restart shortly.",
-      };
-    }
-
     try {
       const preparation = await ensureUpdateDownloaded(readyVersion, signal);
       if (preparation === "aborted") {
@@ -442,6 +430,8 @@ export function createAppUpdateService(deps: AppUpdateServiceDeps): AppUpdateSer
           message: "A newer update was found and will be installed later.",
         };
       }
+      await deps.runtime.prepareForInstall(readyVersion, signal);
+      if (signal?.aborted) return buildDeferredInstallResult(currentVersion);
       await performQuitAndInstall(deps.runtime, {
         targetVersion: readyVersion,
         onBeforeQuit,
@@ -454,6 +444,7 @@ export function createAppUpdateService(deps: AppUpdateServiceDeps): AppUpdateSer
         message: "Update downloaded. The app will restart shortly.",
       };
     } catch (error) {
+      if (signal?.aborted) return buildDeferredInstallResult(currentVersion);
       const message = error instanceof Error ? error.message : String(error);
       deps.reportInstallError?.(message);
       return {
