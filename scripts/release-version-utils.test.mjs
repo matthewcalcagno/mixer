@@ -1,3 +1,10 @@
+import {
+  renderReleaseNotes,
+  writeReleaseChangelog,
+  renderPreview,
+} from "./mixer-release-notes.mjs";
+import { updateReleasePreview } from "./update-release-preview.mjs";
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -5,6 +12,7 @@ import {
   getDesktopReleasePlan,
   getDesktopReleaseTag,
   getMergedReleaseMode,
+  getMergedReleasePlan,
   getReleaseInfoFromSourceTag,
   parseReleaseVersion,
 } from "./release-version-utils.mjs";
@@ -97,7 +105,8 @@ test("merged PRs default to patch and honor an explicit release label", () => {
   assert.equal(getMergedReleaseMode([]), "patch");
   assert.equal(getMergedReleaseMode(["bug", "release:minor"]), "minor");
   assert.equal(getMergedReleaseMode(["release:major"]), "major");
-  assert.throws(() => getMergedReleaseMode(["release:patch", "release:minor"]), /only one/);
+  assert.equal(getMergedReleaseMode(["release:patch", "release:minor"]), "minor");
+  assert.equal(getMergedReleaseMode(["release:minor", "release:major"]), "major");
 });
 
 test("merge release versions a detached snapshot and reuses its tag on retry", async () => {
@@ -137,7 +146,15 @@ test("merge release versions a detached snapshot and reuses its tag on retry", a
     run("git", ["config", "user.email", "test@example.com"]);
     run("git", ["config", "user.name", "Test"]);
     run("git", ["add", "."]);
-    run("git", ["commit", "-m", "merged source"]);
+    writeFileSync(
+      path.join(repo, "CHANGELOG.md"),
+      "# Changelog\n\n## 0.14.0 - 2026-10-27\nInherited upstream notes\n",
+    );
+    run("git", ["add", "."]);
+    run("git", ["commit", "-m", "initial imported source"]);
+    writeFileSync(path.join(repo, "feature.txt"), "new Mixer feature");
+    run("git", ["add", "."]);
+    run("git", ["commit", "-m", "Add Mixer feature"]);
     const source = run("git", ["rev-parse", "HEAD"]);
     // develop can retain an older version than the most recent release tag.
     run("git", ["tag", "desktop-v0.1.4"]);
@@ -145,6 +162,13 @@ test("merge release versions a detached snapshot and reuses its tag on retry", a
     run(process.execPath, [script], { GITHUB_OUTPUT: output, RELEASE_LABELS: "[]" });
     assert.match(readFileSync(output, "utf8"), /tag=desktop-v0.1.5/);
     assert.equal(run("git", ["rev-parse", "main"]), source);
+    assert.match(
+      readFileSync(path.join(repo, "CHANGELOG.md"), "utf8"),
+      /^# Mixer Changelog\n\n## 0\.1\.5 - /,
+    );
+    const changelog = readFileSync(path.join(repo, "CHANGELOG.md"), "utf8");
+    assert.match(changelog, /Add Mixer feature/);
+    assert.ok(!changelog.includes("Inherited upstream notes"));
     assert.equal(run("git", ["rev-parse", "desktop-v0.1.5^1"]), source);
     assert.equal(
       JSON.parse(readFileSync(path.join(repo, "packages/app/package.json"))).version,
@@ -162,4 +186,155 @@ test("merge release versions a detached snapshot and reuses its tag on retry", a
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("preview and release use the same version plan, including forced labels and allocated tags", () => {
+  const input = {
+    currentVersion: "0.1.0",
+    tags: ["desktop-v0.1.4", "desktop-v0.2.0-beta.1"],
+    labels: [],
+  };
+  assert.equal(getMergedReleasePlan(input).version, "0.1.5");
+  assert.equal(
+    getMergedReleasePlan({ ...input, labels: ["release:minor", "release:patch"] }).version,
+    "0.2.0",
+  );
+  assert.equal(
+    getMergedReleasePlan({ ...input, labels: ["release:major", "release:minor"] }).version,
+    "1.0.0",
+  );
+});
+test("release notes retain feature PR descriptions, direct commits, and release PR notes", () => {
+  const notes = renderReleaseNotes(
+    [
+      {
+        number: 12,
+        title: "Editor",
+        body: "## Release notes\n\n- Added editor search\n- Added split views\n\n## Testing\nnot notes",
+        url: "https://github.com/owner/mixer/pull/12",
+      },
+      {
+        sha: "abcdef123",
+        title: "Fix startup",
+        url: "https://github.com/owner/mixer/commit/abcdef123",
+      },
+    ],
+    "## Release notes\n\n- New Mixer icon\n\n## Validation\nnot notes",
+  );
+  for (const text of ["Added editor search", "Added split views", "Fix startup", "New Mixer icon"])
+    assert.ok(notes.includes(text));
+  assert.ok(!notes.includes("not notes"));
+});
+test("only Mixer history enters the versioned changelog", () => {
+  assert.throws(
+    () =>
+      writeReleaseChangelog({
+        version: "0.1.1",
+        date: "2026-11-02",
+        notes: "- Own change",
+        previous: "# Changelog\n\n## 0.14.0 - 2026-10-27\nUpstream",
+      }),
+    /non-Mixer/,
+  );
+  const text = writeReleaseChangelog({
+    version: "0.1.2",
+    date: "2026-11-02",
+    notes: "- Own change",
+    previous: "# Mixer Changelog\n\n## 0.1.1 - 2026-11-01\n\n- Previous Mixer change\n",
+  });
+  assert.match(text, /## 0\.1\.2 - 2026-11-02/);
+  assert.match(text, /Previous Mixer change/);
+  assert.match(
+    renderPreview({
+      plan: { mode: "patch", version: "0.1.2" },
+      notes: "- Own change",
+      head: "abc",
+      baseline: "v0.1.1",
+    }),
+    /Mixer release preview: 0.1.2/,
+  );
+});
+test("a single preview comment updates on labels and commits and ignores stale runs and forks", () => {
+  const repo = "owner/mixer";
+  let pr = {
+    number: 9,
+    state: "open",
+    head: { sha: "a".repeat(40), ref: "develop", repo: { full_name: repo } },
+    base: { ref: "main", sha: "b".repeat(40) },
+    labels: [],
+    body: "## Release notes\n- Feature A",
+  };
+  let comment;
+  let writes = 0;
+  let stale = false;
+  let reads = 0;
+  const api = (endpoint, options = {}) => {
+    if (endpoint.endsWith("/pulls/9")) {
+      reads++;
+      return structuredClone(stale && reads % 2 === 0 ? { ...pr, body: "changed" } : pr);
+    }
+    if (endpoint.endsWith("/comments?per_page=100")) return comment ? [comment] : [];
+    writes++;
+    comment = { id: 123, user: { login: "github-actions[bot]" }, body: options.data.body };
+    return comment;
+  };
+  const contextFor = ({ source, labels, releasePr }) => ({
+    plan: getMergedReleasePlan({ currentVersion: "0.1.1", tags: [], labels }),
+    notes: renderReleaseNotes([], releasePr.body),
+    head: source,
+    baseline: null,
+  });
+  const run = () => updateReleasePreview({ repo, number: "9", api, runGit() {}, contextFor });
+  run();
+  assert.equal(writes, 1);
+  assert.match(comment.body, /0.1.2/);
+  run();
+  assert.equal(writes, 1);
+  pr.labels = [{ name: "release:minor" }];
+  run();
+  assert.equal(writes, 2);
+  assert.match(comment.body, /0.2.0/);
+  pr.head.sha = "c".repeat(40);
+  pr.body = "## Release notes\n- Feature B";
+  run();
+  assert.equal(writes, 3);
+  assert.match(comment.body, /Feature B/);
+  assert.equal(comment.id, 123);
+  stale = true;
+  run();
+  assert.equal(writes, 3);
+  stale = false;
+  pr.head.repo.full_name = "outsider/mixer";
+  run();
+  assert.equal(writes, 3);
+});
+
+test("PR section headings cannot become extra IDE releases", () => {
+  const notes = renderReleaseNotes([
+    {
+      number: 4,
+      title: "Feature",
+      body: "## Summary\n- Added feature\n\n## Testing\nnot notes",
+      url: "https://github.com/owner/mixer/pull/4",
+    },
+  ]);
+  assert.match(notes, /### Summary/);
+  assert.ok(!/^## /m.test(notes));
+  assert.ok(!notes.includes("not notes"));
+});
+
+test("empty PR templates do not become release features", () => {
+  const notes = renderReleaseNotes([
+    {
+      number: 2,
+      title: "Fix editor startup",
+      body: "### Linked issue\nCloses #\n\n## Type of change\n- [ ] Bug fix\n\n## Reasoning\n\n## Testing\n- [ ] tests",
+      url: "https://github.com/owner/mixer/pull/2",
+    },
+  ]);
+  assert.match(notes, /Fix editor startup/);
+  assert.ok(!notes.includes("Linked issue"));
+  assert.ok(!notes.includes("Reasoning"));
+  assert.ok(!notes.includes("Closes #"));
+  assert.ok(!notes.includes("[ ]"));
 });

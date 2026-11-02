@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { parseChangelog, type ChangelogRelease } from "./parse-changelog";
 
-const CHANGELOG_URL = "https://raw.githubusercontent.com/matthewcalcagno/mixer/main/CHANGELOG.md";
+import { fetchMixerChangelog } from "./mixer-changelog";
 
 export type ChangelogState =
   | { status: "loading" }
@@ -19,10 +19,9 @@ export interface Changelog {
 }
 
 /**
- * Reads the changelog from the repository the app was built from.
+ * Reads Mixer’s changelog from its latest published stable release tag.
  *
- * The daemon is not involved: the changelog describes the app, a phone reaching
- * a relay already has internet, and going through a host would make the notes
+ * The daemon is not involved: the changelog describes the desktop app, and going through a host would make the notes
  * depend on which host happens to be connected.
  *
  * Every open refetches, because the whole point of opening it is a release that
@@ -41,9 +40,7 @@ export function useChangelog(enabled: boolean): Changelog {
 
     void (async () => {
       try {
-        const response = await fetch(CHANGELOG_URL, { signal: controller.signal });
-        if (!response.ok) throw new Error(`Changelog request failed: ${response.status}`);
-        const markdown = await response.text();
+        const markdown = await fetchMixerChangelog(controller.signal);
         if (cached?.markdown === markdown) return;
         const releases = parseChangelog(markdown);
         if (releases.length === 0) throw new Error("Changelog has no releases");
