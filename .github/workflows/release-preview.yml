@@ -25,10 +25,11 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
-      # Only trusted base-branch scripts run with the comment-writing token.
+      # Pin helpers to the same trusted revision as this workflow definition.
+      # The target branch may not have the scripts during the first promotion.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ github.workflow_sha }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
