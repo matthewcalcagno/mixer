@@ -200,6 +200,7 @@ function SearchBody({
       <View style={styles.inputs}>
         <View testID="workspace-search-query-frame" style={queryFrameStyle}>
           <TextInput
+            autoFocus
             accessibilityLabel="Search workspace text"
             testID="workspace-search-input"
             placeholder="Search"

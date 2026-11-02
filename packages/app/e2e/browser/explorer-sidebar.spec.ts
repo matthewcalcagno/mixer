@@ -534,7 +534,12 @@ test.describe("Explorer sidebar", () => {
       await explorer.getByTestId("workspace-tab-plugin_workspace_6_search_6_search").click();
       const search = explorer.getByTestId("workspace-search-panel");
       const input = search.getByLabel("Search workspace text", { exact: true });
-      await input.focus();
+      await expect(input).toBeFocused();
+      await page.keyboard.type("autofocus");
+      await expect(input).toHaveValue("autofocus");
+      await explorer.getByTestId("workspace-tab-files").click();
+      await explorer.getByTestId("workspace-tab-plugin_workspace_6_search_6_search").click();
+      await expect(input).toBeFocused();
       const frame = search.getByTestId("workspace-search-query-frame");
       await expect(frame).toHaveCSS("outline-color", "rgb(56, 123, 206)");
       await expect(frame).toHaveCSS("outline-width", "2px");
@@ -554,7 +559,8 @@ test.describe("Explorer sidebar", () => {
       }
       await page.screenshot({ path: test.info().outputPath("search-focus.png") });
       await search.getByRole("button", { name: "Toggle search details", exact: true }).click();
-      await expect(frame).toHaveCSS("outline-width", "0px");
+      await input.blur();
+      await expect(frame).toHaveCSS("outline-style", "none");
       for (const name of ["Files to include", "Files to exclude"]) {
         const filter = search.getByLabel(name, { exact: true });
         await filter.focus();
