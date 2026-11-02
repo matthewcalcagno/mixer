@@ -4,19 +4,22 @@ import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("../", import.meta.url)));
 
 const clientShim = `let files=[{path:'src/price.tsx',index:'M',worktree:' ',head:'M'}];let ahead=0;
-window.resetCommitFixture=()=>{files=[{path:'src/price.tsx',index:'M',worktree:' ',head:'M'}];ahead=0;window.fixtureActions=[];window.failRemote=false;window.deferDiscard=false;};
+window.resetCommitFixture=()=>{files=[{path:'src/price.tsx',index:'M',worktree:' ',head:'M'}];ahead=0;window.fixtureActions=[];window.failRemote=false;window.deferDiscard=false;window.deferRemote=false;delete window.completeRemote;};
 window.setSourceControlFiles=(next)=>{files=next;};
 export function useRpc(contract) { return async (input) => {
   if(contract.name === 'git.status') return {branch:'develop',upstream:'origin/develop',ahead,behind:0,hasRemote:true,revision:'fixture',files};
   if(contract.name === 'git.autofetch') return {lastFetched:Date.now(),error:null};
   if(contract.name === 'git.action') {
     window.fixtureActions ??= [];window.fixtureActions.push(input.action);
+    if(input.action.kind === 'stage') files=files.map(file=>input.action.paths.includes(file.path)?{...file,index:file.index==='?'?'A':file.worktree,worktree:' '}:file);
+    if(input.action.kind === 'unstage') files=files.map(file=>input.action.paths.includes(file.path)?{...file,index:' ',worktree:file.index}:file);
     if(input.action.kind === 'discard') {
       if(window.deferDiscard) await new Promise((resolve,reject)=>{window.completeDiscard=resolve;window.rejectDiscard=()=>reject(new Error('Discard failed'));});
       files=files.flatMap(file=>!input.action.paths.includes(file.path)?[file]:file.index===' '?[]:[{...file,worktree:' ',head:file.index}]);
     }
     if(input.action.kind === 'commit' || input.action.kind === 'amend') {files=[];ahead++;}
     if(input.action.kind === 'push' || input.action.kind === 'sync') {
+      if(window.deferRemote) await new Promise(resolve=>{window.completeRemote=resolve;});
       if(window.failRemote) throw new Error('Remote unavailable');
       ahead=0;
     }

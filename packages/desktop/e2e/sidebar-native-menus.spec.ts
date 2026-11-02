@@ -1,3 +1,9 @@
+import { installLocalDesktopHost } from "../../app/e2e/support/helpers/local-desktop-host";
+import { openAgentRoute } from "../../app/e2e/support/helpers/mock-agent";
+import {
+  seedParentWithSubagent,
+  expectManagedSubagentArchived,
+} from "../../app/e2e/support/helpers/subagents";
 import path from "node:path";
 import { expect, test } from "../../app/e2e/support/fixtures";
 import { gotoAppShell } from "../../app/e2e/support/helpers/app";
@@ -164,3 +170,53 @@ async function waitForSidebarWorkspace(page: import("@playwright/test").Page, wo
   await expect(row).toBeVisible({ timeout: 30_000 });
   return row;
 }
+
+test("native subagent menu enables navigation and archive finished", async ({ page }) => {
+  const workspace = await seedWorkspace({ repoPrefix: "native-archive-subagents-" });
+  try {
+    const agents = await seedParentWithSubagent(workspace, {
+      parentTitle: "Native archive parent",
+      childTitle: "Native finished child",
+    });
+    await workspace.client.waitForAgentUpsert(
+      agents.child.id,
+      (snapshot) => snapshot.status === "idle",
+    );
+    await installLocalDesktopHost(page, workspace.repoPath);
+    let captured: ActionContextMenuRequest | undefined;
+    await page.exposeFunction("selectSubagentArchive", (request: ActionContextMenuRequest) => {
+      captured = request;
+      for (const item of request.items) {
+        if (item.label === "Archive finished subagents") return item.id;
+      }
+      return null;
+    });
+    await page.addInitScript(() => {
+      const host = window as unknown as {
+        mixerDesktop: { menu: unknown };
+        selectSubagentArchive(request: unknown): Promise<string | null>;
+      };
+      host.mixerDesktop.menu = {
+        showContextMenu: (request: unknown) => host.selectSubagentArchive(request),
+      };
+    });
+    await openAgentRoute(page, { workspaceId: agents.workspaceId, agentId: agents.parent.id });
+    await page.getByTestId("subagents-track-header").click();
+    await expect
+      .poll(() => {
+        for (const item of captured?.items ?? []) {
+          if (item.label === "Archive finished subagents") return !item.disabled;
+        }
+        return false;
+      })
+      .toBe(true);
+    expect(
+      captured?.items.some(
+        (item) => item.label.includes("Native finished child") && !item.disabled,
+      ),
+    ).toBe(true);
+    await expectManagedSubagentArchived(workspace, agents.child.id);
+  } finally {
+    await workspace.cleanup();
+  }
+});

@@ -121,7 +121,10 @@ export interface CheckoutDiffSubscriber {
 
 export interface CheckoutSessionOptions {
   host: CheckoutSessionHost;
-  gitMutation: Pick<GitMutationService, "checkoutExistingBranch" | "notifyGitMutation">;
+  gitMutation: Pick<
+    GitMutationService,
+    "checkoutExistingBranch" | "createBranchFromBase" | "notifyGitMutation"
+  >;
   workspaceGitService: WorkspaceGitService;
   github: ForgeService;
   checkoutDiffManager: CheckoutDiffSubscriber;
@@ -145,10 +148,7 @@ export class CheckoutSession {
   private static readonly MIXER_STASH_PREFIX = "mixer-auto-stash:";
 
   private readonly host: CheckoutSessionHost;
-  private readonly gitMutation: Pick<
-    GitMutationService,
-    "checkoutExistingBranch" | "notifyGitMutation"
-  >;
+  private readonly gitMutation: CheckoutSessionOptions["gitMutation"];
   private readonly workspaceGitService: WorkspaceGitService;
   private readonly github: ForgeService;
   private readonly checkoutDiffManager: CheckoutDiffSubscriber;
@@ -561,7 +561,18 @@ export class CheckoutSession {
     const { cwd, branch, requestId } = msg;
 
     try {
-      const checkoutResult = await this.gitMutation.checkoutExistingBranch(cwd, branch);
+      let source: "local" | "remote" = "local";
+      if (msg.createNewBranch) {
+        const current = await runGitCommand(["symbolic-ref", "--short", "HEAD"], { cwd });
+        await this.gitMutation.createBranchFromBase({
+          cwd,
+          baseBranch: current.stdout.trim(),
+          newBranchName: branch,
+        });
+      } else {
+        const result = await this.gitMutation.checkoutExistingBranch(cwd, branch);
+        source = result.source;
+      }
       this.scheduleDiffRefresh(cwd);
 
       // Push a workspace_update immediately so the sidebar/header reflect
@@ -574,7 +585,7 @@ export class CheckoutSession {
           cwd,
           success: true,
           branch,
-          source: checkoutResult.source,
+          source,
           error: null,
           requestId,
         },

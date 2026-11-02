@@ -20,6 +20,10 @@ interface FrameMessage {
   data: unknown;
 }
 
+export function commitMessagePlaceholder(branch: string): string {
+  return branch && branch !== "HEAD" ? `Commit message for "${branch}"` : "Commit message";
+}
+
 export function resizeCommitInput(input: unknown): number | null {
   if (
     Platform.OS !== "web" ||

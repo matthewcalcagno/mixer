@@ -47,6 +47,9 @@ export async function executeGitAction({ cwd, revision, action }: ActionInput): 
     case "pull":
       output = await git(cwd, ["pull", "--ff-only"]);
       break;
+    case "publish":
+      output = await publishBranch(cwd, current);
+      break;
     case "push":
       output = await git(cwd, ["push"]);
       break;
@@ -86,4 +89,19 @@ async function applyPatch(
   ];
   await git(cwd, [...args, "--check", "-"], patch);
   return git(cwd, [...args, "-"], patch);
+}
+
+async function publishBranch(
+  cwd: string,
+  current: Awaited<ReturnType<typeof status>>,
+): Promise<string> {
+  if (current.branch === "Detached HEAD") throw new Error("Create a branch before publishing.");
+  if (current.upstream)
+    throw new Error("This branch already has an upstream. Refresh before pushing.");
+  const remotes = (await git(cwd, ["remote"])).trim().split(/\s+/).filter(Boolean);
+  const remote = remotes.includes("origin") ? "origin" : remotes[0];
+  if (!remote) throw new Error("Add a Git remote before publishing this branch.");
+  if (!remotes.includes("origin") && remotes.length > 1)
+    throw new Error("Multiple remotes found. Configure an origin remote before publishing.");
+  return git(cwd, ["push", "--set-upstream", remote, `HEAD:refs/heads/${current.branch}`]);
 }

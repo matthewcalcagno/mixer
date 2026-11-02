@@ -14,6 +14,7 @@ const colors = {
   foreground: "#eff1f4",
   foregroundMuted: "#9da5ae",
   accent: "#387bce",
+  inputFocus: "#387bce",
   accentForeground: "#ffffff",
   statusSuccess: "#b8c2bb",
   statusDanger: "#df7068",

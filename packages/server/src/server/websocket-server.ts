@@ -2023,6 +2023,7 @@ export class VoiceAssistantWebSocketServer {
         // COMPAT(fsEntryDuplicate): added in v0.3.0, remove gate after 2027-02-09.
         fsEntryDuplicate: true,
         // COMPAT(checkoutDiscardChanges): added in v0.3.0, remove gate after 2027-02-08.
+        checkoutCreateBranch: true,
         checkoutDiscardChanges: true,
         checkoutDiffAll: true,
         // COMPAT(agentProfiles): added in v0.3.2, remove gate after 2027-02-11.

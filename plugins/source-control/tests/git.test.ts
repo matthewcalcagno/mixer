@@ -361,7 +361,14 @@ test("remote fetch, fast-forward pull, and push use a local bare remote", async 
     await git(cwd, ["add", "."]);
     await git(cwd, ["commit", "-m", "initial"]);
     await git(cwd, ["remote", "add", "origin", remote]);
-    await git(cwd, ["push", "-u", "origin", "main"]);
+    const unpublished = await status(cwd);
+    await executeGitAction({ cwd, revision: unpublished.revision, action: { kind: "publish" } });
+    assert.equal((await status(cwd)).upstream, "origin/main");
+    const published = await status(cwd);
+    await assert.rejects(
+      executeGitAction({ cwd, revision: published.revision, action: { kind: "publish" } }),
+      /already has an upstream/,
+    );
     await git(cwd, ["fetch"]);
     await git(cwd, ["pull", "--ff-only"]);
     await git(cwd, ["push"]);

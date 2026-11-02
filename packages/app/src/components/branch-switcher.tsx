@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { GitBranch } from "lucide-react-native";
@@ -19,6 +19,8 @@ interface BranchSwitcherProps {
   workspaceDirectory: string | null;
   isGitCheckout: boolean;
   testID?: string;
+  renderTrigger?: (onPress: () => void, pending: boolean) => ReactNode;
+  placement?: "top-start" | "bottom-start";
 }
 
 const foregroundMutedIconColorMapping = (theme: Theme) => ({
@@ -33,6 +35,8 @@ export function BranchSwitcher({
   workspaceDirectory,
   isGitCheckout,
   testID = "workspace-header-branch-switcher",
+  renderTrigger,
+  placement = "bottom-start",
 }: BranchSwitcherProps) {
   const { t } = useTranslation();
   const anchorRef = useRef<View>(null);
@@ -41,7 +45,16 @@ export function BranchSwitcher({
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { branchOptions, isOpen, setIsOpen, handleBranchSelect } = useBranchSwitcher({
+  const {
+    branchOptions,
+    canCreateBranch,
+    setSearchQuery,
+    emptyText,
+    isSwitching,
+    isOpen,
+    setIsOpen,
+    handleBranchSelect,
+  } = useBranchSwitcher({
     client,
     normalizedServerId: serverId,
     normalizedWorkspaceId: workspaceId,
@@ -63,7 +76,7 @@ export function BranchSwitcher({
   const renderBranchOption = useCallback<NonNullable<ComboboxProps["renderOption"]>>(
     ({ option, selected, active, onPress }) => (
       <ComboboxItem
-        label={option.label}
+        label={option.description ? `${option.label} (${option.description})` : option.label}
         selected={selected}
         active={active}
         onPress={onPress}
@@ -73,42 +86,51 @@ export function BranchSwitcher({
     [branchLeadingSlot],
   );
 
-  if (!currentBranchName) {
+  if (!currentBranchName && !renderTrigger) {
     return null;
   }
 
   return (
     <View ref={anchorRef} collapsable={false} style={styles.anchor}>
-      <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
-        <TooltipTrigger asChild>
-          <ToolbarLabelSelectTrigger
-            testID={testID}
-            label={currentBranchName}
-            open={isOpen}
-            onPress={handleOpen}
-            accessibilityRole="button"
-            accessibilityLabel={t("branchSwitcher.currentBranch", {
-              branchName: currentBranchName,
-            })}
-          />
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <Text style={styles.tooltipText}>{t("branchSwitcher.triggerTooltip")}</Text>
-        </TooltipContent>
-      </Tooltip>
+      {renderTrigger ? (
+        renderTrigger(handleOpen, isSwitching)
+      ) : (
+        <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
+          <TooltipTrigger asChild>
+            <ToolbarLabelSelectTrigger
+              testID={testID}
+              label={currentBranchName ?? "HEAD"}
+              disabled={isSwitching || !isConnected}
+              open={isOpen}
+              onPress={handleOpen}
+              accessibilityRole="button"
+              accessibilityLabel={t("branchSwitcher.currentBranch", {
+                branchName: currentBranchName,
+              })}
+            />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <Text style={styles.tooltipText}>{t("branchSwitcher.triggerTooltip")}</Text>
+          </TooltipContent>
+        </Tooltip>
+      )}
       <Combobox
         options={branchOptions}
-        value={currentBranchName}
+        value={currentBranchName ?? ""}
         onSelect={handleBranchSelect}
+        onSearchQueryChange={setSearchQuery}
         searchable
+        allowCustomValue={canCreateBranch}
+        customValuePrefix=""
+        customValueDescription="New branch"
         placeholder={t("branchSwitcher.placeholder")}
         searchPlaceholder={t("branchSwitcher.searchPlaceholder")}
-        emptyText={t("branchSwitcher.empty")}
+        emptyText={emptyText}
         title={t("branchSwitcher.title")}
         open={isOpen}
         onOpenChange={setIsOpen}
         anchorRef={anchorRef}
-        desktopPlacement="bottom-start"
+        desktopPlacement={placement}
         desktopPreventInitialFlash
         desktopMinWidth={280}
         renderOption={renderBranchOption}

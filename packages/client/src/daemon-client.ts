@@ -4816,13 +4816,17 @@ export class DaemonClient {
     cwd: string,
     branch: string,
     requestId?: string,
+    createNewBranch?: boolean,
   ): Promise<CheckoutSwitchBranchPayload> {
+    if (createNewBranch && this.lastServerInfoMessage?.features?.checkoutCreateBranch !== true)
+      throw new Error("Update the host to create branches from the branch picker.");
     return this.sendCorrelatedSessionRequest({
       requestId,
       message: {
         type: "checkout_switch_branch_request",
         cwd,
         branch,
+        ...(createNewBranch ? { createNewBranch: true } : {}),
       },
       responseType: "checkout_switch_branch_response",
     });

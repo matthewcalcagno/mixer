@@ -720,12 +720,30 @@ test("desktop releases only accept merged develop-to-main PRs from this reposito
   assert.deepEqual(callers, [".github/workflows/desktop-release-on-merge.yml"]);
 });
 
-test("release preview updates PR comments using trusted base scripts without running head code", () => {
+test("release preview runs helpers from its trusted workflow revision, including the first promotion", () => {
   const source = readFileSync(new URL(".github/workflows/release-preview.yml", repoRoot), "utf8");
   assert.match(source, /pull_request_target:/);
   for (const event of ["synchronize", "edited", "labeled", "unlabeled"])
     assert.ok(source.includes(event));
-  assert.match(source, /github\.event\.pull_request\.base\.sha \|\| github\.sha/);
+  assert.match(source, /ref: \$\{\{ github\.workflow_sha \}\}/);
+  const checkoutRef = /ref: \$\{\{ (.*?) \}\}/.exec(source)[1];
+  assert.equal(
+    runInNewContext(checkoutRef, {
+      github: {
+        workflow_sha: "trusted-definition-with-preview-script",
+        sha: "event-commit",
+        event: {
+          pull_request: {
+            base: { sha: "main-before-preview-was-added" },
+            head: { sha: "untrusted-pr-head" },
+          },
+        },
+      },
+    }),
+    "trusted-definition-with-preview-script",
+  );
+
+  assert.doesNotMatch(source, /ref:.*pull_request\.(?:base|head)\.sha/);
   assert.doesNotMatch(
     source,
     /ref:.*head|npm (ci|install)|secrets\.APPLE|pull_request_target.*checkout.*head/,

@@ -283,9 +283,17 @@ export function IconButton({
   const [hover, setHover] = useState(false);
   const [focus, setFocus] = useState(false);
   const [tooltipMounted, setTooltipMounted] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
   const reducedMotion = useReducedMotion();
-  const visible = (hover || focus) && !disabled;
+  const visible = (hover || focus) && !disabled && !dismissed;
+  useEffect(() => {
+    if (!disabled) return;
+    setHover(false);
+    setFocus(false);
+    setDismissed(true);
+    onFocusChange?.(false);
+  }, [disabled, onFocusChange]);
   useEffect(() => {
     if (visible) setTooltipMounted(true);
     const activeDuration = visible ? 140 : 90;
@@ -302,15 +310,27 @@ export function IconButton({
     return () => animation.stop();
   }, [visible, reducedMotion, opacity]);
   return (
-    <View style={{ zIndex: tooltipMounted || hover || focus ? 20 : 0 }}>
+    <View
+      onPointerEnter={() => {
+        setHover(true);
+        setDismissed(false);
+      }}
+      onPointerLeave={() => setHover(false)}
+      style={{ zIndex: tooltipMounted || hover || focus ? 20 : 0 }}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         disabled={disabled}
-        onPress={onPress}
-        onHoverIn={() => setHover(true)}
-        onHoverOut={() => setHover(false)}
+        onPress={() => {
+          // A click can retain DOM focus after the action disables or moves this button.
+          setDismissed(true);
+          setFocus(false);
+          onFocusChange?.(false);
+          onPress();
+        }}
         onFocus={() => {
+          setDismissed(false);
           setFocus(true);
           onFocusChange?.(true);
         }}
@@ -330,7 +350,7 @@ export function IconButton({
       >
         <Icon name={icon} size={16} color={theme.colors.foregroundMuted} />
       </Pressable>
-      {tooltipMounted && (
+      {tooltipMounted && !disabled && !dismissed && (
         <Animated.View
           testID="source-control-tooltip"
           pointerEvents="none"

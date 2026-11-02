@@ -2455,6 +2455,7 @@ export const CheckoutSwitchBranchRequestSchema = z.object({
   type: z.literal("checkout_switch_branch_request"),
   cwd: z.string(),
   branch: z.string(),
+  createNewBranch: z.boolean().optional(),
   requestId: z.string(),
 });
 
@@ -3963,6 +3964,7 @@ export const ServerInfoStatusPayloadSchema = z
         // COMPAT(fsEntryDuplicate): added in v0.3.0, remove gate after 2027-02-09.
         fsEntryDuplicate: z.boolean().optional(),
         // COMPAT(checkoutDiscardChanges): added in v0.3.0, remove gate after 2027-02-08.
+        checkoutCreateBranch: z.boolean().optional(),
         checkoutDiscardChanges: z.boolean().optional(),
         checkoutDiffAll: z.boolean().optional(),
         // COMPAT(agentProfiles): added in v0.3.2, remove gate after 2027-02-11.
