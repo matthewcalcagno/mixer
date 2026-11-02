@@ -258,7 +258,7 @@ try {
     "window.fixtureErrors=[];window.addEventListener('error',event=>window.fixtureErrors.push(event.message + ' ' + event.error?.stack))",
   );
   browser("find", "role", "button", "click", "--name", "Commit staged changes", "--exact");
-  browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Push outgoing commits\"]')");
+  browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Sync changes\"]')");
   browser(
     "wait",
     "--fn",
@@ -266,19 +266,19 @@ try {
   );
   assert.equal(
     evaluate(
-      `document.querySelector('[aria-label="Push outgoing commits"]').textContent.includes('Push 1↑')`,
+      `document.querySelector('[aria-label="Sync changes"]').textContent.includes('Sync Changes 1↑')`,
     ),
     true,
   );
-  evaluate("window.confirm=()=>{throw new Error('Push must not ask for confirmation')}");
-  browser("find", "role", "button", "click", "--name", "Push outgoing commits", "--exact");
-  browser("wait", "--fn", "window.fixtureActions.some(action=>action.kind==='push')");
+  evaluate("window.confirm=()=>{throw new Error('Sync must not ask for confirmation')}");
+  browser("find", "role", "button", "click", "--name", "Sync changes", "--exact");
+  browser("wait", "--fn", "window.fixtureActions.some(action=>action.kind==='sync')");
   browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Commit staged changes\"]')");
-  assert.equal(evaluate("window.fixtureActions.filter(action=>action.kind==='push').length"), 1);
+  assert.equal(evaluate("window.fixtureActions.filter(action=>action.kind==='sync').length"), 1);
   assert.deepEqual(
     evaluate("window.fixtureErrors"),
     [],
-    "Commit-to-push transition must not crash the sidebar",
+    "Commit-to-sync transition must not crash the sidebar",
   );
   for (const [option, expected] of [
     ["commit", ["commit"]],
@@ -287,7 +287,7 @@ try {
     ["commit-sync", ["commit", "sync"]],
   ]) {
     evaluate(
-      `window.resetCommitFixture();window.confirm=${option === "commit-push" ? "()=>{throw new Error('Commit & Push must not ask for confirmation')}" : "()=>true"}`,
+      `window.resetCommitFixture();window.confirm=${option === "commit-push" ? "()=>{throw new Error('Commit & Sync must not ask for confirmation')}" : "()=>true"}`,
     );
     browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
     browser("wait", "--text", "Staged Changes");
@@ -340,7 +340,7 @@ try {
   evaluate("window.confirm=()=>true;window.failRemote=true");
   browser("select", '[aria-label="Commit options"]', "commit-push");
   browser("wait", "--text", "Remote unavailable");
-  browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Push outgoing commits\"]')");
+  browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Sync changes\"]')");
   assert.deepEqual(evaluate("window.fixtureActions.map(action=>action.kind)"), ["commit", "push"]);
   assert.equal(
     evaluate(`document.querySelector('[aria-label="Commit message"]').value`),
