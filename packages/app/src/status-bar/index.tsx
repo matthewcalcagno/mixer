@@ -11,7 +11,7 @@ import { resolvePluginPlatform } from "@/plugins/platform";
 import { pluginStatusBarStore } from "@/plugins/status-bar/store";
 import { statusItemsForWorkspace } from "@/plugins/status-bar/model";
 import { toPluginTheme } from "@/plugins/theme";
-import { openExplorerSidebarView } from "@/workspace-tabs/explorer-sidebar";
+import { BranchSwitcher } from "@/components/branch-switcher";
 import type { Theme } from "@/styles/theme";
 import { StatusEntry } from "./item";
 import { PluginStatusItem } from "./plugin-item";
@@ -24,14 +24,14 @@ import { EditorLanguageStatus } from "./editor-language";
 interface WorkspaceStatusBarProps {
   serverId: string;
   workspaceId: string;
-  workspaceKey: string;
+  workspaceDirectory: string | null;
   isGitCheckout: boolean;
   branch: string | null;
 }
 function StatusBar({
   serverId,
   workspaceId,
-  workspaceKey,
+  workspaceDirectory,
   isGitCheckout,
   branch,
   theme,
@@ -98,13 +98,24 @@ function StatusBar({
     },
     [updateSettings],
   );
-  const openBranch = useCallback(
-    () => openExplorerSidebarView({ isCompact: compact, workspaceKey, view: "changes" }),
-    [compact, workspaceKey],
-  );
   const branchIcon = useMemo(
     () => <GitBranch size={14} color={theme.colors.foregroundMuted} />,
     [theme.colors.foregroundMuted],
+  );
+  const renderBranchTrigger = useCallback(
+    (onPress: () => void, pending: boolean) => (
+      <StatusEntry
+        pending={pending}
+        label={branch ?? "HEAD"}
+        tooltip={t("branchSwitcher.triggerTooltip")}
+        accessibilityLabel={t("branchSwitcher.currentBranch", { branchName: branch ?? "HEAD" })}
+        color={theme.colors.foregroundMuted}
+        icon={branchIcon}
+        onPress={onPress}
+        testID="status-bar-branch"
+      />
+    ),
+    [branch, branchIcon, t, theme.colors.foregroundMuted],
   );
   const visible = current.filter((entry) => !hidden.has(entry.preferenceKey));
   if (compact) return null;
@@ -122,13 +133,15 @@ function StatusBar({
               <PluginStatusItem key={entry.key} entry={entry} environment={environment} />
             ))}
           {isGitCheckout && !hidden.has("builtin:git-branch") && (
-            <StatusEntry
-              label={branch ?? "HEAD"}
-              tooltip={`${t("statusBar.branchTooltip")}: ${branch ?? "HEAD"}`}
-              color={theme.colors.foregroundMuted}
-              icon={branchIcon}
-              onPress={openBranch}
-              testID="status-bar-branch"
+            <BranchSwitcher
+              key={`${serverId}:${workspaceId}`}
+              currentBranchName={branch}
+              serverId={serverId}
+              workspaceId={workspaceId}
+              workspaceDirectory={workspaceDirectory}
+              isGitCheckout={isGitCheckout}
+              placement="top-start"
+              renderTrigger={renderBranchTrigger}
             />
           )}
           {visible

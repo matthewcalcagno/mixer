@@ -25,6 +25,18 @@ The implementation follows these upstream behaviors:
 Filtering is an adaptation of the workbench's tree-find behavior. It never changes group-wide
 action scope. Folder actions on a filtered tree explicitly say "matching files".
 
+## Branch selection
+
+Click the status bar's branch to open the shared searchable branch picker. Git operations
+use the active workspace directory, so a linked worktree switches independently of the
+main checkout. Search runs on the host rather than filtering only the first suggestion page. A name
+that is absent from the host results can be created from the current branch. Creation
+never replaces an existing branch and leaves the new branch without an upstream.
+
+A clean branch without an upstream offers **Publish branch**. Publishing sets its upstream
+on `origin`, or the sole configured remote. Changes keep **Commit** available; an existing
+upstream with outgoing commits offers **Push**.
+
 ## File selection
 
 The open diff and resource selection are separate. A plain click selects one row and opens its

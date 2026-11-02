@@ -22,7 +22,7 @@ export function ActiveWorkspaceStatusBar({
     <WorkspaceStatusBar
       serverId={serverId}
       workspaceId={workspaceId}
-      workspaceKey={`${serverId}:${workspaceId}`}
+      workspaceDirectory={workspace?.workspaceDirectory ?? null}
       isGitCheckout={data?.isGit ?? false}
       branch={data?.currentBranch ?? null}
     />
