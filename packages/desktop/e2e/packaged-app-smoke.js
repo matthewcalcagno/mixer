@@ -947,6 +947,15 @@ async function smokePackagedDesktopApp({
     console.log("Packaged desktop smoke: renderer-started desktop daemon reported running");
     await assertBuiltinPluginsStarted(listen);
     console.log("Packaged desktop smoke: every built-in plugin started");
+    await page.waitForFunction(
+      () =>
+        !document.querySelector('[data-testid="desktop-startup-monaco"]') &&
+        !document.querySelector('[data-testid="desktop-startup-recovery"]'),
+      undefined,
+      { timeout: remainingTime(deadline) },
+    );
+    console.log("Packaged desktop smoke: editor runtime prepared without startup recovery");
+
     await smokeCliShim({ appPath, env });
     await smokeCliTerminal({ appPath, env });
     if (expectedSandbox !== undefined) {

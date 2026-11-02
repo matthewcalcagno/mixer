@@ -15,7 +15,10 @@ local file itself, because a workspace can belong to a remote daemon. The existi
 The trusted editor runs in a same-origin frame to isolate Monaco's styles and
 workers from Metro and React Native Web. User file content enters only as text,
 never executable HTML. Both sides validate messages and check the sending frame
-and origin. Revision numbers prevent delayed host updates from replacing newer
+and origin. The packaged protocol serves `/monaco/index.html` as its own document;
+only the root `/index.html` redirects into the app router. Redirecting nested editor
+HTML into the app shell leaves the hidden startup frame waiting until recovery.
+Revision numbers prevent delayed host updates from replacing newer
 keystrokes. The HTML preview uses a separate, untrusted-content sandbox.
 
 ## Editor preferences
