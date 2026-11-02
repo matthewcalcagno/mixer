@@ -75,6 +75,30 @@ try {
   );
   browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
   browser("wait", '[aria-label="Open working tree diff for a.ts"]');
+  browser("find", "role", "button", "hover", "--name", "Stage all changes", "--exact");
+  browser(
+    "wait",
+    "--fn",
+    `Array.from(document.querySelectorAll('[data-testid="source-control-tooltip"]')).some(el=>el.textContent==='Stage all changes' && getComputedStyle(el).opacity==='1')`,
+  );
+  browser("find", "role", "button", "click", "--name", "Stage all changes", "--exact");
+  browser("wait", '[aria-label="Open staged diff for b.ts"]');
+  browser("mouse", "move", "500", "500");
+  browser("find", "role", "button", "click", "--name", "Unstage all changes", "--exact");
+  browser("wait", '[aria-label="Open working tree diff for b.ts"]');
+  browser("mouse", "move", "500", "500");
+  browser(
+    "wait",
+    "--fn",
+    `document.querySelectorAll('[data-testid="source-control-tooltip"]').length===0`,
+  );
+  // Focus must still reveal a tooltip after the previous action dismissed it.
+  evaluate(`document.querySelector('[aria-label="Stage all changes"]').focus()`);
+  browser(
+    "wait",
+    "--fn",
+    `Array.from(document.querySelectorAll('[data-testid="source-control-tooltip"]')).some(el=>el.textContent==='Stage all changes' && getComputedStyle(el).opacity==='1')`,
+  );
   browser("find", "role", "button", "click", "--name", "Stage all changes", "--exact");
   browser("wait", '[aria-label="Open staged diff for b.ts"]');
   assert.equal(
