@@ -102,6 +102,7 @@ export interface DesktopWebUtilsBridge {
   getPathForFile?: (file: File) => string;
 }
 export interface DesktopMenuBridge {
+  setHelpMenu?: (input: ActionContextMenuRequest | null) => Promise<void>;
   showStatusBarMenu?: (input: StatusBarMenuRequest) => Promise<StatusBarMenuResult | null>;
   showContextMenu?: (
     input?:
