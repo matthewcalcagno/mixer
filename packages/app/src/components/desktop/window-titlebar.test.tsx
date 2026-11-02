@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DesktopWindowTitlebar } from "./window-titlebar";
 
 const route = vi.hoisted(() => ({ pathname: "/settings/about", title: "Mixer" }));
+vi.mock("lucide-react-native", () => ({ Settings: () => null }));
 vi.mock("expo-router", () => ({ usePathname: () => route.pathname, router: { push: vi.fn() } }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock("react-native-unistyles", () => ({
@@ -23,7 +24,9 @@ vi.mock("./titlebar-drag-region", () => ({
 vi.mock("@/components/ui/pane-content-toolbar", () => ({
   ToolbarButton: () => <button type="button">Settings</button>,
 }));
-vi.mock("@/components/sidebar/sidebar-help-menu", () => ({ SidebarHelpMenu: () => null }));
+vi.mock("@/components/sidebar/sidebar-help-menu", () => ({
+  ApplicationHelpMenu: () => <div data-testid="application-help-menu" />,
+}));
 vi.mock("@/hooks/use-shortcut-keys", () => ({ useShortcutKeys: () => [] }));
 vi.mock("@/utils/desktop-window", () => ({
   useCustomDesktopWindowControls: () => ({ visible: false, mode: null }),
@@ -61,4 +64,10 @@ it("keeps the title on workspace routes", () => {
   route.pathname = "/h/server/workspace/one";
   const view = render(<DesktopWindowTitlebar visible />);
   expect(view.getByTestId("desktop-window-title").textContent).toBe("Mixer");
+});
+
+it("keeps the native Help menu registered when the compact window hides its titlebar", () => {
+  const view = render(<DesktopWindowTitlebar visible={false} />);
+  expect(view.queryByTestId("desktop-window-titlebar")).toBeNull();
+  expect(view.getByTestId("application-help-menu")).toBeTruthy();
 });

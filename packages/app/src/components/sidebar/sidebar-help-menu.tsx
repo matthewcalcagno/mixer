@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { Activity, CircleHelp, Gift, Keyboard } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,14 @@ import { SidebarFooterIconHighlight } from "./sidebar-footer-icon-highlight";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppDiagnosticStore } from "@/diagnostics/store";
 import { useKeyboardShortcutsAvailable } from "@/keyboard/availability";
-import { useHostRuntimeIsConnected, useHosts } from "@/runtime/host-runtime";
+import {
+  useHostRuntimeIsConnected,
+  useHosts,
+  getHostRuntimeStore,
+  isHostRuntimeConnected,
+} from "@/runtime/host-runtime";
+import { getIsElectron } from "@/constants/platform";
+import { getDesktopHost } from "@/desktop/host";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { useSessionStore } from "@/stores/session-store";
 import { density } from "@/styles/density";
@@ -80,6 +87,107 @@ function HostVersionHint({ host }: { host: HostProfile }) {
 }
 
 export function SidebarHelpMenu({ placement = "footer" }: { placement?: "footer" | "titlebar" }) {
+  return getIsElectron() ? null : <SidebarHelpPopup placement={placement} />;
+}
+
+export function ApplicationHelpMenu() {
+  return getIsElectron() ? <NativeHelpMenuRegistration /> : null;
+}
+
+function NativeHelpMenuRegistration() {
+  const { t } = useTranslation();
+  const hosts = useHosts();
+  const shortcutsAvailable = useKeyboardShortcutsAvailable();
+  const openAppDiagnostic = useAppDiagnosticStore((state) => state.open);
+  const setShortcutsDialogOpen = useKeyboardShortcutsStore((state) => state.setShortcutsDialogOpen);
+
+  useEffect(() => {
+    const desktop = getDesktopHost();
+    const runtime = getHostRuntimeStore();
+    let previousMenu = "";
+    const update = () => {
+      const sessions = useSessionStore.getState().sessions;
+      const menu = {
+        kind: "actions" as const,
+        items: [
+          ...(shortcutsAvailable ? [{ id: "shortcuts", label: t("sidebar.help.shortcuts") }] : []),
+          { id: "changelog", label: t("sidebar.help.whatsNew") },
+          { id: "diagnostics", label: t("sidebar.help.diagnostics") },
+          {
+            id: "report",
+            label: t("sidebar.help.reportIssue"),
+            disabled: true,
+            separatorBefore: true,
+          },
+          { id: "discord", label: t("sidebar.help.discord") },
+          { id: "github", label: t("sidebar.help.github") },
+          {
+            id: "version",
+            label:
+              `${t("sidebar.help.appName")} ${formatVersionWithPrefix(resolveAppVersion())}`.trim(),
+            disabled: true,
+            separatorBefore: true,
+          },
+          ...hosts.map((host) => ({
+            id: `host-${host.serverId}`,
+            label: `${host.label} ${
+              isHostRuntimeConnected(runtime.getSnapshot(host.serverId))
+                ? formatVersionWithPrefix(sessions[host.serverId]?.serverInfo?.version ?? null)
+                : t("settings.about.offline")
+            }`.trim(),
+            disabled: true,
+          })),
+        ],
+      };
+      const serialized = JSON.stringify(menu);
+      if (serialized === previousMenu) return;
+      previousMenu = serialized;
+      void desktop?.menu?.setHelpMenu?.(menu);
+    };
+    const subscription = desktop?.events?.on?.("help-menu-action", (action) => {
+      switch (action) {
+        case "shortcuts":
+          setShortcutsDialogOpen(true);
+          break;
+        case "changelog":
+          openChangelog();
+          break;
+        case "diagnostics":
+          openAppDiagnostic();
+          break;
+        case "discord":
+          void openExternalUrl(DISCORD_URL);
+          break;
+        case "github":
+          void openExternalUrl(GITHUB_ISSUE_URL);
+          break;
+      }
+    });
+    update();
+    const unsubscribers = [
+      useSessionStore.subscribe((state, previous) => {
+        if (
+          hosts.some(
+            (host) =>
+              state.sessions[host.serverId]?.serverInfo?.version !==
+              previous.sessions[host.serverId]?.serverInfo?.version,
+          )
+        )
+          update();
+      }),
+      ...hosts.map((host) => runtime.subscribe(host.serverId, update)),
+    ];
+    return () => {
+      for (const unsubscribe of unsubscribers) unsubscribe();
+      if (typeof subscription === "function") subscription();
+      else void subscription?.then((unsubscribe) => unsubscribe());
+      void desktop?.menu?.setHelpMenu?.(null);
+    };
+  }, [hosts, t, shortcutsAvailable, openAppDiagnostic, setShortcutsDialogOpen]);
+  return null;
+}
+
+function SidebarHelpPopup({ placement }: { placement: "footer" | "titlebar" }) {
   const { t } = useTranslation();
   const shortcutsAvailable = useKeyboardShortcutsAvailable();
   const openAppDiagnostic = useAppDiagnosticStore((state) => state.open);

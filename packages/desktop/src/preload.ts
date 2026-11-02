@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { BrowserKeyboardPolicy } from "./features/browser-keyboard/index.js";
 import type { DesktopWindowChromeMode } from "./window/chrome.js";
+import type { ActionContextMenuRequest } from "./features/action-context-menu.js";
 import type { StatusBarMenuRequest, StatusBarMenuResult } from "./features/status-bar-menu.js";
 
 // This preload runs in Electron's sandbox and is tsc-compiled (not bundled), so it MUST
@@ -113,6 +114,8 @@ contextBridge.exposeInMainWorld("mixerDesktop", {
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
   },
   menu: {
+    setHelpMenu: (input: ActionContextMenuRequest | null) =>
+      ipcRenderer.invoke("mixer:menu:set-help", input),
     showStatusBarMenu: (input: StatusBarMenuRequest): Promise<StatusBarMenuResult | null> =>
       ipcRenderer.invoke("mixer:menu:status-bar", input),
     showContextMenu: (input?: Record<string, unknown>) =>
