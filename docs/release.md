@@ -80,50 +80,25 @@ The workflow calls Desktop Release directly with the repository signing secrets.
 It does not rely on a bot-pushed tag starting another workflow and needs no PAT.
 A rerun reuses the merge's original release tag rather than allocating a new
 version. To retry a failed build, rerun all jobs for that merge workflow. A direct
-push to `main` does not release; the manual tag path remains available below.
-Do not run a manual release concurrently with an automatic one.
+push to `main` does not release. Pushing a version tag or using the local
+`release:*` scripts does not start the desktop workflow either.
 
-## Publish a desktop release manually
+## Desktop build workflow
 
-After the source and changelog are approved and committed, run one command:
+**Desktop Release** is reusable only. Its sole caller is **Release merged desktop
+app**, and both workflows reject events other than a closed, merged PR from this
+repository's `develop` into `main`. There is no manual dispatch or tag-push trigger.
+To retry, rerun all jobs of the original eligible merge workflow. Reruns reuse the
+same release tag and version; ship changed code through another develop-to-main
+merge rather than modifying a published version.
 
-```bash
-npm run release:patch
-# Or: npm run release:minor
-```
-
-These commands build the workspace dependencies, run typecheck and lint, bump all
-workspace versions, commit the version change, and push the current branch and a
-`desktop-vX.Y.Z` tag. The version hook stages files, so start from a clean checkout.
-The commands do not publish npm packages. Desktop tags avoid the separate Docker
-workflow's generic `v*` push trigger.
-
-For beta releases use `release:beta:patch`, `release:beta:minor`, or
-`release:beta:next`. Use `release:promote` to remove the beta suffix after review.
-The source tag is `desktop-vX.Y.Z[-beta.N]`; the downloadable GitHub Release uses
-canonical tag `vX.Y.Z[-beta.N]`. Do not push a second generic version tag yourself.
-
-The **Desktop Release** workflow defaults to macOS, building Apple Silicon and
-Intel installers. Its quality job must pass before a draft release is created.
-Notes are generated and then replaced with the matching changelog entry when one
-exists. Platform jobs upload binaries to the draft; finalization merges the macOS
-architecture manifests, validates selected-platform manifests, and publishes the
-release only after every selected build succeeds. A failed build leaves the new
-release as a draft.
-
-For manual runs, select **Actions → Desktop Release → Run workflow**:
-
-- `tag`: an existing source tag whose version matches every workspace.
-- `platform`: `macos` by default; opt into `linux`, `windows`, or `all`.
-- `publish`: `false` keeps downloads in workflow artifacts rather than publishing.
-- `rollout_hours`: `36` by default; use `0` for immediate update eligibility.
-- `checkout_ref`: leave empty to build the tag itself. An override must have the
-  same package versions and is intended for diagnosing a failed draft build.
-
-Manual macOS builds still require signing and notarization credentials. Download
-workflow artifacts from the run summary when `publish=false`. Once a version is
-public, ship different code under a new version rather than replacing its assets.
-Retry a failed draft workflow from its recorded source before publishing it.
+The workflow builds signed, notarized Apple Silicon and Intel installers. Its
+quality job must pass before a draft release is created. Notes are generated and
+then replaced with the matching changelog entry when one exists. Platform jobs
+upload binaries to the draft; finalization merges the macOS architecture manifests,
+validates them, and publishes only after both builds succeed. A failed build
+leaves the release as a draft. Rollout lasts 36 hours; the separate Desktop Rollout
+workflow can adjust an existing release without creating a build.
 
 ## Installation and auto-updates
 

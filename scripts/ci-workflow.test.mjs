@@ -650,3 +650,72 @@ process.exit(code);
     });
   }
 });
+
+test("desktop releases only accept merged develop-to-main PRs from this repository", () => {
+  const release = readFileSync(new URL(".github/workflows/desktop-release.yml", repoRoot), "utf8");
+  const caller = readFileSync(
+    new URL(".github/workflows/desktop-release-on-merge.yml", repoRoot),
+    "utf8",
+  );
+  const triggers = (source) =>
+    [
+      ...source
+        .split("\non:\n")[1]
+        .split("\nconcurrency:")[0]
+        .matchAll(/^  ([a-z_]+):/gm),
+    ].map((match) => match[1]);
+  assert.deepEqual(triggers(release), ["workflow_call"]);
+  assert.deepEqual(triggers(caller), ["pull_request"]);
+  assert.match(caller, /branches: \[main\]/);
+  assert.match(caller, /types: \[closed\]/);
+  const allowed = {
+    event_name: "pull_request",
+    repository: "owner/mixer",
+    event: {
+      action: "closed",
+      pull_request: {
+        merged: true,
+        base: { ref: "main" },
+        head: { ref: "develop", repo: { full_name: "owner/mixer" } },
+      },
+    },
+  };
+  const cases = [
+    [allowed, true],
+    [{ ...allowed, event_name: "push" }, false],
+    [{ ...allowed, event_name: "workflow_dispatch" }, false],
+    [{ ...allowed, event: { ...allowed.event, action: "opened" } }, false],
+    ...[
+      { merged: false },
+      { base: { ref: "develop" } },
+      { head: { ref: "feature", repo: { full_name: "owner/mixer" } } },
+      { head: { ref: "develop", repo: { full_name: "outsider/mixer" } } },
+    ].map((override) => [
+      {
+        ...allowed,
+        event: { ...allowed.event, pull_request: { ...allowed.event.pull_request, ...override } },
+      },
+      false,
+    ]),
+  ];
+  for (const [source, job] of [
+    [release, "prepare"],
+    [caller, "version"],
+  ]) {
+    const block = jobBlocks(source).get(job).join("\n");
+    const condition = /    if: >-\n((?:      .*\n)+)/.exec(`${block}\n`)?.[1];
+    assert.ok(condition, `${job} must guard its event`);
+    for (const [github, expected] of cases)
+      assert.equal(
+        runInNewContext(condition, { github }),
+        expected,
+        `${job}: ${JSON.stringify(github)}`,
+      );
+  }
+  const callers = filesUnder(".github/workflows", (file) => /\.ya?ml$/.test(file)).filter((file) =>
+    /uses: \.\/\.github\/workflows\/desktop-release\.yml/.test(
+      readFileSync(new URL(file, repoRoot), "utf8"),
+    ),
+  );
+  assert.deepEqual(callers, [".github/workflows/desktop-release-on-merge.yml"]);
+});
