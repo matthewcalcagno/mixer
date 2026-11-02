@@ -199,6 +199,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EP_GH_IGNORE_TIME: true
+          # Only the trusted, merged develop-to-main release can reach this job.
+          # electron-builder otherwise skips signing for the inherited PR event.
+          CSC_FOR_PULL_REQUEST: "true"
           CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -244,6 +247,37 @@ jobs:
           build_args+=("-c.publish.releaseType=$RELEASE_TYPE")
           build_args+=("-c.publish.channel=$RELEASE_CHANNEL")
           npm run build:desktop "${build_args[@]}"
+
+      - name: Verify distributed macOS app signatures and notarization
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          verification_dir="$(mktemp -d)"
+          mount_dir="$verification_dir/mount"
+          trap 'hdiutil detach "$mount_dir" -quiet 2>/dev/null || true; rm -rf "$verification_dir"' EXIT
+          verify_app() {
+            codesign --verify --deep --strict --verbose=2 \
+              -R="anchor apple generic and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\"" "$1"
+            xcrun stapler validate "$1"
+            spctl --assess --type execute --verbose=4 "$1"
+          }
+          shopt -s nullglob
+          archives=("$DESKTOP_PACKAGE_PATH"/release/*.zip)
+          images=("$DESKTOP_PACKAGE_PATH"/release/*.dmg)
+          [[ ${#archives[@]} -gt 0 && ${#images[@]} -gt 0 ]]
+          for archive in "${archives[@]}"; do
+            mkdir -p "$verification_dir/zip"
+            ditto -x -k "$archive" "$verification_dir/zip"
+            verify_app "$verification_dir/zip/Mixer.app"
+            rm -rf "$verification_dir/zip"
+          done
+          for image in "${images[@]}"; do
+            hdiutil attach "$image" -readonly -nobrowse -mountpoint "$mount_dir"
+            verify_app "$mount_dir/Mixer.app"
+            hdiutil detach "$mount_dir" -quiet
+          done
 
       - name: Upload packaged smoke diagnostics
         if: failure()

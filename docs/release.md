@@ -36,6 +36,12 @@ or GitHub personal access token is required. Keep the repository public: the
 installed app downloads updates without embedding a GitHub credential.
 The workflow requires all five Apple secrets and forces code signing. Hardened
 runtime, entitlements, and notarization are enabled in the builder configuration.
+The merged-PR release explicitly enables `CSC_FOR_PULL_REQUEST`: electron-builder
+otherwise skips signing even with `forceCodeSigning` enabled. Keep that override
+inside the trusted release job. Before upload, verify the apps extracted from both
+the ZIP and DMG with codesign, stapler, and Gatekeeper; a green build alone does
+not establish that macOS will accept the download.
+
 Windows signing needs separate certificate setup before distributing Windows
 builds; the Apple credentials cover only macOS.
 
