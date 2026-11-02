@@ -1,16 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync } from "node:fs";
-import {
-  computeNextReleaseVersion,
-  getDesktopReleaseTag,
-  getMergedReleaseMode,
-  parseReleaseVersion,
-} from "./release-version-utils.mjs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { getReleaseContext, githubApi, writeReleaseChangelog } from "./mixer-release-notes.mjs";
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const runNpm = (...args) => execFileSync("npm", args, { stdio: "inherit" });
 const source = git("rev-parse", "HEAD");
-const mode = getMergedReleaseMode(JSON.parse(process.env.RELEASE_LABELS || "[]"));
+
 const tags = git("tag", "--list", "desktop-v*", "--sort=-version:refname")
   .split("\n")
   .filter(Boolean);
@@ -23,15 +18,29 @@ let tag = existing;
 if (!tag) {
   if (git("status", "--porcelain"))
     throw new Error("Release preparation requires a clean checkout");
-  const current = JSON.parse(readFileSync("package.json", "utf8")).version;
-  const versions = [current, ...tags.map((name) => name.slice("desktop-v".length))];
-  const stable = versions
-    .map(parseReleaseVersion)
-    .filter((version) => !version.isPrerelease)
-    .sort((a, b) => b.major - a.major || b.minor - a.minor || b.patch - a.patch);
-  if (!stable.length) throw new Error("Merge releases require an existing stable version");
-  const version = computeNextReleaseVersion(stable[0].version, mode);
-  tag = getDesktopReleaseTag(version);
+  const repo = process.env.RELEASE_PR_NUMBER ? process.env.GITHUB_REPOSITORY : undefined;
+  const releasePr = repo
+    ? githubApi(`repos/${repo}/pulls/${process.env.RELEASE_PR_NUMBER}`)
+    : undefined;
+  const context = getReleaseContext({
+    source,
+    labels: releasePr
+      ? releasePr.labels.map(({ name }) => name)
+      : JSON.parse(process.env.RELEASE_LABELS || "[]"),
+    repo,
+    releasePr,
+  });
+  const { version } = context.plan;
+  tag = context.plan.tag;
+  writeFileSync(
+    "CHANGELOG.md",
+    writeReleaseChangelog({
+      version,
+      date: new Date().toISOString().slice(0, 10),
+      notes: context.notes,
+      previous: context.previous,
+    }),
+  );
   // Skip local version hooks: they stage the entire checkout and create a branch commit.
   runNpm(
     "version",
@@ -50,6 +59,7 @@ if (!tag) {
     "add",
     "package.json",
     "package-lock.json",
+    "CHANGELOG.md",
     ...root.workspaces.map((workspace) => `${workspace}/package.json`),
   );
   git("commit", "-m", `chore(release): cut ${version}`);

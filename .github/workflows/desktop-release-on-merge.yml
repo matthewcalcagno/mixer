@@ -16,11 +16,15 @@ permissions:
 jobs:
   version:
     if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
       github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.ref == 'develop' &&
       github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write
+      pull-requests: read
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
@@ -35,6 +39,8 @@ jobs:
       - name: Prepare versioned release commit
         id: release
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PR_NUMBER: ${{ github.event.pull_request.number }}
           RELEASE_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           LEFTHOOK: "0"
         run: node scripts/prepare-merged-desktop-release.mjs
@@ -47,6 +53,7 @@ jobs:
     needs: version
     permissions:
       contents: write
+      pull-requests: write
     uses: ./.github/workflows/desktop-release.yml
     with:
       tag: ${{ needs.version.outputs.tag }}
