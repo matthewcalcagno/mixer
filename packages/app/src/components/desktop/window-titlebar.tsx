@@ -15,7 +15,7 @@ import { useCustomDesktopWindowControls } from "@/utils/desktop-window";
 import { getDesktopWindowControlsWidth } from "@/desktop/window-chrome-presentation";
 import { smallIconButtonChromeFrameSize } from "@/components/ui/icon-button-chrome";
 import { ICON_SIZE, SPACING } from "@/styles/theme";
-import { SidebarHelpMenu } from "@/components/sidebar/sidebar-help-menu";
+import { ApplicationHelpMenu } from "@/components/sidebar/sidebar-help-menu";
 
 const SettingsIcon = withUnistyles(Settings, (theme) => ({ color: theme.colors.foregroundMuted }));
 
@@ -50,7 +50,7 @@ export function DesktopWindowTitlebar({ visible }: { visible: boolean }) {
     [controlsWidth],
   );
   const openSettings = useCallback(() => router.push(buildSettingsRoute()), []);
-  if (!visible) return null;
+  if (!visible) return <ApplicationHelpMenu />;
   return (
     <View style={styles.bar} testID="desktop-window-titlebar">
       <TitlebarDragRegion />
@@ -62,7 +62,7 @@ export function DesktopWindowTitlebar({ visible }: { visible: boolean }) {
         </View>
       )}
       <View style={actionStyle} testID="desktop-window-settings">
-        <SidebarHelpMenu placement="titlebar" />
+        <ApplicationHelpMenu />
         <ToolbarButton
           label={t("sidebar.actions.settings")}
           onPress={openSettings}

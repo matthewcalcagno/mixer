@@ -1,11 +1,104 @@
-import { describe, expect, it } from "vitest";
-import { reloadActiveBrowserOrWindow } from "./menu.js";
+import { describe, expect, it, vi } from "vitest";
+import { reloadActiveBrowserOrWindow, setupApplicationMenu } from "./menu.js";
 import { actionContextMenuSchema, actionContextMenuTemplate } from "./action-context-menu.js";
 import {
   statusBarMenuSchema,
   statusBarMenuTemplate,
   type StatusBarMenuResult,
 } from "./status-bar-menu.js";
+
+const nativeMenu = vi.hoisted(() => ({
+  focused: null as {
+    webContents: { id: number; send: ReturnType<typeof vi.fn> };
+    isDestroyed(): boolean;
+  } | null,
+  appOn: vi.fn(),
+  handle: vi.fn(),
+  build: vi.fn((template: Electron.MenuItemConstructorOptions[]) => template),
+  set: vi.fn(),
+}));
+vi.mock("electron", () => ({
+  app: { name: "Mixer", on: nativeMenu.appOn },
+  Menu: { buildFromTemplate: nativeMenu.build, setApplicationMenu: nativeMenu.set },
+  ipcMain: { handle: nativeMenu.handle },
+  BrowserWindow: class {
+    readonly webContents = { id: 0 };
+    static getFocusedWindow() {
+      return nativeMenu.focused;
+    }
+    static fromWebContents(sender: { id: number }) {
+      return sender.id === nativeMenu.focused?.webContents.id ? nativeMenu.focused : null;
+    }
+  },
+}));
+
+it("installs Help in the app menu and routes actions to the focused window", () => {
+  const first = { webContents: { id: 101, send: vi.fn(), on: vi.fn() }, isDestroyed: () => false };
+  const second = { webContents: { id: 202, send: vi.fn() }, isDestroyed: () => false };
+  nativeMenu.focused = first;
+  setupApplicationMenu({ onNewWindow: vi.fn() });
+  const register = nativeMenu.handle.mock.calls.find(
+    ([channel]) => channel === "mixer:menu:set-help",
+  )?.[1];
+  const focus = nativeMenu.appOn.mock.calls.find(
+    ([event]) => event === "browser-window-focus",
+  )?.[1];
+  const help = () => {
+    const template = nativeMenu.build.mock.calls.at(-1)?.[0] ?? [];
+    const entry = template.find((item) => item.label === "Help");
+    expect(entry?.role).toBe("help");
+    return entry?.submenu as Electron.MenuItemConstructorOptions[];
+  };
+  register(
+    { sender: first.webContents },
+    {
+      kind: "actions",
+      items: [
+        { id: "diagnostics", label: "Run diagnostics" },
+        { id: "version", label: "Mixer v0.1.1", disabled: true, separatorBefore: true },
+      ],
+    },
+  );
+  expect(help().map((item) => item.label ?? item.type)).toEqual([
+    "Run diagnostics",
+    "separator",
+    "Mixer v0.1.1",
+  ]);
+  expect(help()[2].enabled).toBe(false);
+  Reflect.apply(help()[0].click!, null, []);
+  expect(first.webContents.send).toHaveBeenCalledWith(
+    "mixer:event:help-menu-action",
+    "diagnostics",
+  );
+  nativeMenu.focused = second;
+  focus();
+  expect(help()).toEqual([]);
+  register(
+    { sender: second.webContents },
+    { kind: "actions", items: [{ id: "changelog", label: "What's new" }] },
+  );
+  Reflect.apply(help()[0].click!, null, []);
+  expect(second.webContents.send).toHaveBeenCalledWith("mixer:event:help-menu-action", "changelog");
+  expect(first.webContents.send).toHaveBeenCalledTimes(1);
+  register({ sender: second.webContents }, null);
+  expect(help()).toEqual([]);
+  nativeMenu.focused = first;
+  focus();
+  const created = nativeMenu.appOn.mock.calls.find(
+    ([event]) => event === "browser-window-created",
+  )?.[1];
+  created({}, first);
+  const navigate = first.webContents.on.mock.calls.find(
+    ([event]) => event === "did-start-navigation",
+  )?.[1];
+  navigate({}, "https://example.com/frame", false, false);
+  expect(help()[0].label).toBe("Run diagnostics");
+  navigate({}, "file:///app#route", true, true);
+  expect(help()[0].label).toBe("Run diagnostics");
+  navigate({}, "file:///app", false, true);
+  expect(help()).toEqual([]);
+  nativeMenu.focused = null;
+});
 
 describe("native resource context menus", () => {
   it("builds nested OS submenus and displays shortcuts without registering duplicate bindings", () => {

@@ -77,6 +77,9 @@ function buildApplicationMenuTemplate(
   const isMac = process.platform === "darwin";
   const zoomEnabled = !capturing;
 
+  const helpWindow = BrowserWindow.getFocusedWindow();
+  const helpMenu = helpWindow ? applicationHelpMenus.get(helpWindow.webContents.id) : undefined;
+
   return [
     ...(isMac
       ? [
@@ -184,9 +187,22 @@ function buildApplicationMenuTemplate(
           : [{ role: "close" as const }]),
       ],
     },
+    {
+      label: "Help",
+      role: "help",
+      submenu:
+        helpMenu && helpWindow
+          ? actionContextMenuTemplate(helpMenu, (id) => {
+              if (!helpWindow.isDestroyed()) {
+                helpWindow.webContents.send("mixer:event:help-menu-action", id);
+              }
+            })
+          : [],
+    },
   ];
 }
 
+const applicationHelpMenus = new Map<number, ReturnType<typeof actionContextMenuSchema.parse>>();
 let applicationMenuOptions: ApplicationMenuOptions | null = null;
 let capturingShortcut = false;
 
@@ -201,6 +217,15 @@ function rebuildApplicationMenu(): void {
 export function setupApplicationMenu(options: ApplicationMenuOptions): void {
   applicationMenuOptions = options;
   rebuildApplicationMenu();
+  ipcMain.handle("mixer:menu:set-help", (event, raw: unknown) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    if (raw === null) applicationHelpMenus.delete(event.sender.id);
+    else applicationHelpMenus.set(event.sender.id, actionContextMenuSchema.parse(raw));
+    rebuildApplicationMenu();
+  });
+  // The application menu is shared by all windows; actions belong to the focused renderer.
+  app.on("browser-window-focus", () => rebuildApplicationMenu());
   ipcMain.handle(
     "mixer:menu:status-bar",
     (event, raw: unknown): Promise<StatusBarMenuResult | null> => {
@@ -279,6 +304,16 @@ export function setupApplicationMenu(options: ApplicationMenuOptions): void {
   // main window finishes loading. Workspace browser webviews are not
   // BrowserWindows, so they don't trigger this.
   app.on("browser-window-created", (_event, win) => {
+    const webContentsId = win.webContents.id;
+    win.webContents.on("destroyed", () => {
+      applicationHelpMenus.delete(webContentsId);
+      rebuildApplicationMenu();
+    });
+    win.webContents.on("did-start-navigation", (_navigationEvent, _url, isInPlace, isMainFrame) => {
+      if (!isMainFrame || isInPlace) return;
+      applicationHelpMenus.delete(webContentsId);
+      rebuildApplicationMenu();
+    });
     win.webContents.on("did-finish-load", () => {
       if (!capturingShortcut) return;
       capturingShortcut = false;

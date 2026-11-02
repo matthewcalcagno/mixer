@@ -24,6 +24,13 @@ Menus with typed input or custom controls become normal app dialogs. Their scope
 opening too. Searchable comboboxes, tooltips, and informational hover cards remain app UI; they are
 not OS action menus.
 
+## Application Help menu
+
+Desktop Help lives in the native application menu bar. Its actions and version hints belong to
+that window's renderer; switching windows switches the menu's owner. Clear registrations on a
+main-frame reload or window destruction so menu actions cannot target an unloaded renderer.
+Browser previews keep the in-app Help popup.
+
 ## Browser preview presentations
 
 Browser previews choose their non-native presentation from the window width.

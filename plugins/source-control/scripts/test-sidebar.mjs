@@ -133,7 +133,7 @@ try {
   let state = evaluate(inspect);
   assert.equal(state.height, 28);
   assert.equal(state.disabled, "true");
-  assert.ok(state.text.includes('on "develop"'));
+  assert.ok(state.text.includes('Commit message for "develop"'));
   assert.ok(!state.text.includes("Remote checked"));
   assert.ok(!state.text.includes("↓0"));
   assert.equal(state.icon, "rgb(157, 165, 174)");
