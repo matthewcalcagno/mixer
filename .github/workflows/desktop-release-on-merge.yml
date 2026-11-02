@@ -47,7 +47,15 @@ jobs:
       - name: Push desktop release tag
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: git push origin "refs/tags/$RELEASE_TAG"
+        run: |
+          canonical_tag="$(node --input-type=module -e 'import { normalizeReleaseTag } from "./scripts/release-version-utils.mjs"; console.log(normalizeReleaseTag(process.env.RELEASE_TAG));')"
+          release_commit="$(git rev-parse "$RELEASE_TAG^{commit}")"
+          if git show-ref --verify --quiet "refs/tags/$canonical_tag"; then
+            test "$(git rev-parse "$canonical_tag^{commit}")" = "$release_commit"
+          else
+            git tag "$canonical_tag" "$release_commit"
+          fi
+          git push --atomic origin "refs/tags/$RELEASE_TAG" "refs/tags/$canonical_tag"
 
   release:
     needs: version

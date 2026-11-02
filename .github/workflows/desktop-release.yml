@@ -120,7 +120,7 @@ jobs:
             fi
             gh release create "$RELEASE_TAG" \
               --repo "${{ github.repository }}" \
-              --target "$(git rev-parse HEAD)" \
+              --verify-tag \
               --title "Mixer $RELEASE_TAG" \
               --generate-notes \
               --draft \

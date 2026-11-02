@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  readdirSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  existsSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,8 +17,6 @@ import { runInNewContext } from "node:vm";
 
 const repoRoot = new URL("../", import.meta.url);
 const ciWorkflowPath = new URL(".github/workflows/ci.yml", repoRoot);
-const dockerWorkflowPath = new URL(".github/workflows/docker.yml", repoRoot);
-const nixWorkflowPath = new URL(".github/workflows/nix.yml", repoRoot);
 const filtersPath = new URL(".github/ci-paths.yml", repoRoot);
 const serverTsconfigPath = new URL("packages/server/tsconfig.server.json", repoRoot);
 const desktopPackagePath = new URL("packages/desktop/package.json", repoRoot);
@@ -127,7 +133,7 @@ test("change gating allows superseded workflow runs to cancel", () => {
     /^concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true$/m,
     "a newer push to any ref, main included, cancels the superseded run",
   );
-  for (const workflowPath of [ciWorkflowPath, dockerWorkflowPath, nixWorkflowPath]) {
+  for (const workflowPath of [ciWorkflowPath]) {
     const source = readFileSync(workflowPath, "utf8");
     assert.doesNotMatch(
       source,
@@ -316,14 +322,33 @@ test("browser and desktop tests have exclusive, directory-owned suites", () => {
   ]);
 });
 
-test("packaging runs on main without allocating pull-request runners", () => {
-  for (const workflowPath of [dockerWorkflowPath, nixWorkflowPath]) {
-    const source = readFileSync(workflowPath, "utf8");
-    const trigger = source.split("jobs:", 1)[0];
-    assert.match(trigger, /push:\s*\n\s+branches: \[main\]/);
-    assert.doesNotMatch(trigger, /pull_request/);
-    assert.doesNotMatch(source, /dorny\/paths-filter/);
-  }
+test("desktop distribution does not deploy separate services or alternative packages", () => {
+  const workflows = filesUnder(".github/workflows", (file) => /\.ya?ml$/.test(file));
+  for (const name of [
+    "deploy-app",
+    "deploy-relay",
+    "deploy-website",
+    "docker",
+    "nix",
+    "nix-update-hash",
+  ])
+    assert.ok(
+      !workflows.includes(`.github/workflows/${name}.yml`),
+      `${name} is outside desktop distribution`,
+    );
+  for (const name of [
+    "ci",
+    "desktop-packages",
+    "desktop-release",
+    "desktop-release-on-merge",
+    "desktop-rollout",
+    "release-notes-sync",
+    "release-preview",
+  ])
+    assert.ok(
+      workflows.includes(`.github/workflows/${name}.yml`),
+      `${name} is required for desktop delivery`,
+    );
 });
 
 test("desktop packaging smokes main pushes and only the pull requests that touch packaging", () => {
@@ -750,4 +775,58 @@ test("release preview runs helpers from its trusted workflow revision, including
   );
   assert.match(source, /pull-requests: write/);
   assert.match(source, /run: node scripts\/update-release-preview\.mjs/);
+});
+
+test("desktop release tags are published before release creation and cannot be retargeted", () => {
+  const caller = readFileSync(
+    new URL(".github/workflows/desktop-release-on-merge.yml", repoRoot),
+    "utf8",
+  );
+  const step = caller.split("      - name: Push desktop release tag\n")[1].split("\n  release:")[0];
+  const shell = step
+    .split("        run: |\n")[1]
+    .split("\n")
+    .map((line) => line.replace(/^          /, ""))
+    .join("\n");
+  const release = readFileSync(new URL(".github/workflows/desktop-release.yml", repoRoot), "utf8");
+  const create = release.split('gh release create "$RELEASE_TAG"')[1].split("      - name:")[0];
+  assert.match(create, /--verify-tag/);
+  assert.doesNotMatch(create, /--target/);
+  const root = mkdtempSync(join(tmpdir(), "mixer-release-tags-"));
+  const cwd = join(root, "checkout");
+  const remote = join(root, "remote.git");
+  const run = (command, args, options = {}) => {
+    const result = spawnSync(command, args, { encoding: "utf8", cwd, ...options });
+    assert.equal(result.status, 0, result.stderr || result.error?.message);
+    return result.stdout.trim();
+  };
+  try {
+    mkdirSync(cwd);
+    run("git", ["init", "--bare", remote]);
+    run("git", ["init", "-b", "main"]);
+    run("git", ["config", "user.name", "Release test"]);
+    run("git", ["config", "user.email", "release@example.test"]);
+    run("git", ["-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "release"]);
+    run("git", ["tag", "-a", "desktop-v1.2.3", "-m", "release"]);
+    run("git", ["remote", "add", "origin", remote]);
+    mkdirSync(join(cwd, "scripts"));
+    writeFileSync(
+      join(cwd, "scripts/release-version-utils.mjs"),
+      readFileSync(new URL("scripts/release-version-utils.mjs", repoRoot)),
+    );
+    const env = { ...process.env, RELEASE_TAG: "desktop-v1.2.3" };
+    run("bash", ["-e", "-c", shell], { env });
+    const expected = run("git", ["rev-parse", "HEAD"]);
+    for (const tag of ["desktop-v1.2.3", "v1.2.3"])
+      assert.equal(run("git", ["rev-parse", `${tag}^{commit}`], { cwd: remote }), expected);
+    run("bash", ["-e", "-c", shell], { env });
+    run("git", ["tag", "-d", "v1.2.3"]);
+    run("git", ["-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "other"]);
+    run("git", ["tag", "v1.2.3"]);
+    const rejected = spawnSync("bash", ["-e", "-c", shell], { cwd, env, encoding: "utf8" });
+    assert.notEqual(rejected.status, 0);
+    assert.equal(run("git", ["rev-parse", "v1.2.3^{commit}"], { cwd: remote }), expected);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

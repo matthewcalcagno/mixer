@@ -116,6 +116,13 @@ existing English fallback applies until a matching translation is authored.
 
 ## Desktop build workflow
 
+Keep CI, Desktop Packages, Release merged desktop app, Desktop Release, Desktop
+Rollout, Release Notes Sync, and Mixer release preview. They validate the bundled
+app and daemon, produce installers and updater manifests, or maintain release metadata.
+Separate web app, website, relay deployment, Docker publishing, and Nix packaging
+workflows are outside this fork's desktop distribution. Relay runtime code and its
+CI coverage remain part of the desktop stack.
+
 **Desktop Release** is reusable only. Its sole caller is **Release merged desktop
 app**, and both workflows reject events other than a closed, merged PR from this
 repository's `develop` into `main`. There is no manual dispatch or tag-push trigger.
