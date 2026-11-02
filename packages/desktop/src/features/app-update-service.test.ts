@@ -26,6 +26,8 @@ class FakeAppUpdateRuntime implements AppUpdateRuntime {
     resolve(): void;
     reject(error: Error): void;
   } | null = null;
+  installPreparation: Promise<void> = Promise.resolve();
+  preparedVersions: string[] = [];
   checkCount = 0;
   downloadCallCount = 0;
   requestedDownloadVersions: string[] = [];
@@ -141,6 +143,11 @@ class FakeAppUpdateRuntime implements AppUpdateRuntime {
     if (this.downloadableUpdate) {
       this.finishUpdateDownload(this.downloadableUpdate);
     }
+  }
+
+  async prepareForInstall(targetVersion: string): Promise<void> {
+    this.preparedVersions.push(targetVersion);
+    await this.installPreparation;
   }
 
   quitAndInstall({ targetVersion, isSilent, isForceRunAfter }: AppUpdateInstallRequest): void {
@@ -866,4 +873,55 @@ describe("app update service", () => {
       errorMessage: null,
     });
   });
+});
+
+it("waits for native installer readiness before stopping the daemon", async () => {
+  const { runtime, service } = createService();
+  let ready!: () => void;
+  runtime.installPreparation = new Promise((resolve) => {
+    ready = resolve;
+  });
+  runtime.nextCheck({ isUpdateAvailable: true, updateInfo: rolledOutUpdate });
+  let stopped = false;
+  const result = service.downloadAndInstallUpdate(
+    { currentVersion: "1.2.3", releaseChannel: "stable" },
+    async () => {
+      stopped = true;
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(runtime.preparedVersions).toEqual(["1.2.4"]);
+  expect(stopped).toBe(false);
+  expect(runtime.installedVersions).toEqual([]);
+  ready();
+  expect((await result).installed).toBe(true);
+  expect(stopped).toBe(true);
+});
+
+it("reports native staging failures without disconnecting the daemon, including cached downloads", async () => {
+  const { runtime, service } = createService();
+  runtime.nextCheck({ isUpdateAvailable: true, updateInfo: rolledOutUpdate });
+  await service.checkForAppUpdate({
+    currentVersion: "1.2.3",
+    releaseChannel: "stable",
+    intent: "manual",
+  });
+  runtime.prepareUpdate(rolledOutUpdate);
+  runtime.finishUpdateDownload(rolledOutUpdate);
+  runtime.installPreparation = Promise.reject(new Error("Native signature check failed"));
+  void runtime.installPreparation.catch(() => {});
+  runtime.nextCheck({ isUpdateAvailable: true, updateInfo: rolledOutUpdate });
+  let stopped = false;
+  const result = await service.downloadAndInstallUpdate(
+    { currentVersion: "1.2.3", releaseChannel: "stable" },
+    async () => {
+      stopped = true;
+    },
+  );
+  expect(result).toMatchObject({
+    installed: false,
+    message: "Update failed: Native signature check failed",
+  });
+  expect(stopped).toBe(false);
+  expect(runtime.installedVersions).toEqual([]);
 });
