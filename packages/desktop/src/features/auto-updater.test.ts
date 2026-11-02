@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+import { prepareMacUpdate } from "./mac-update-preparation";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -320,5 +322,78 @@ describe("shouldAdmitToRollout", () => {
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
+  });
+});
+
+describe("native macOS update preparation", () => {
+  it("waits for both the ZIP proxy and native staging before it is ready", async () => {
+    const events = new EventEmitter();
+    let finishDownload!: () => void;
+    const archive = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+    let checks = 0;
+    const updater = {
+      on: events.on.bind(events),
+      removeListener: events.removeListener.bind(events),
+      checkForUpdates: () => {
+        checks++;
+      },
+    };
+    const pending = prepareMacUpdate({
+      updater,
+      signal: new AbortController().signal,
+      download: () => archive,
+    });
+    expect(checks).toBe(0);
+    finishDownload();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(checks).toBe(1);
+    events.emit("update-downloaded");
+    await pending;
+    expect(events.listenerCount("error")).toBe(0);
+    expect(events.listenerCount("update-downloaded")).toBe(0);
+  });
+
+  it("reports native staging errors and removes its listeners", async () => {
+    const events = new EventEmitter();
+    const updater = {
+      on: events.on.bind(events),
+      removeListener: events.removeListener.bind(events),
+      checkForUpdates: () => events.emit("error", new Error("Native signature failure")),
+    };
+    await expect(
+      prepareMacUpdate({ updater, signal: new AbortController().signal, download: async () => {} }),
+    ).rejects.toThrow("Native signature failure");
+    expect(events.listenerCount("update-downloaded")).toBe(0);
+  });
+
+  it("can time out while the archive is still preparing, without starting native staging", async () => {
+    const events = new EventEmitter();
+    const controller = new AbortController();
+    let checks = 0;
+    let finishDownload!: () => void;
+    const archive = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+    const updater = {
+      on: events.on.bind(events),
+      removeListener: events.removeListener.bind(events),
+      checkForUpdates: () => {
+        checks++;
+      },
+    };
+    const pending = prepareMacUpdate({
+      updater,
+      signal: controller.signal,
+      download: () => archive,
+    });
+    const rejected = expect(pending).rejects.toThrow("cancelled or timed out");
+    controller.abort();
+    await rejected;
+    finishDownload();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(checks).toBe(0);
+    expect(events.listenerCount("update-downloaded")).toBe(0);
   });
 });

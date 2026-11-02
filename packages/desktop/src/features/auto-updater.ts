@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { app } from "electron";
+import { app, autoUpdater as nativeAutoUpdater } from "electron";
+import { prepareMacUpdate } from "./mac-update-preparation.js";
 import { UUID } from "builder-util-runtime";
 import log from "electron-log/main";
 import { autoUpdater } from "electron-updater";
@@ -142,6 +143,10 @@ export function shouldInstallAppUpdateOnQuit(input: {
 
 class ElectronAppUpdateRuntime implements AppUpdateRuntime {
   private configured = false;
+  private installPreparing = false;
+  private lastCheck: RuntimeUpdateCheckResult | null = null;
+  private nativePreparedVersion: string | null = null;
+  private nativePreparation: Promise<void> | null = null;
 
   configure(input: AppUpdateRuntimeConfiguration): void {
     autoUpdater.autoDownload = true;
@@ -193,13 +198,15 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
   }
 
   async checkForUpdates(): Promise<RuntimeUpdateCheckResult | null> {
+    if (this.installPreparing) return this.lastCheck;
     try {
       const result = await autoUpdater.checkForUpdates();
       if (!result) return null;
-      return {
+      this.lastCheck = {
         isUpdateAvailable: result.isUpdateAvailable,
         updateInfo: result.updateInfo as RuntimeUpdateInfo,
       };
+      return this.lastCheck;
     } catch (error) {
       if (isUpdateChannelNotPublished(error)) return null;
       throw error;
@@ -209,6 +216,33 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
   downloadUpdate(targetVersion: string): Promise<unknown> {
     updateLifecycleLog.downloadRequested(targetVersion);
     return autoUpdater.downloadUpdate();
+  }
+
+  async prepareForInstall(targetVersion: string, signal?: AbortSignal): Promise<void> {
+    if (process.platform !== "darwin" || this.nativePreparedVersion === targetVersion) return;
+    if (this.nativePreparation) return this.nativePreparation;
+    this.installPreparing = true;
+    const deadline = AbortSignal.timeout(120_000);
+    const preparationSignal = signal ? AbortSignal.any([deadline, signal]) : deadline;
+    this.nativePreparation = (async () => {
+      // Revalidation can start another ZIP download even when our cache says ready.
+      // Wait for its proxy feed before asking Squirrel to stage the update.
+      await prepareMacUpdate({
+        updater: nativeAutoUpdater,
+        signal: preparationSignal,
+        download: () => autoUpdater.downloadUpdate(),
+      });
+      this.nativePreparedVersion = targetVersion;
+      log.info("[auto-updater] native installer ready", { targetVersion });
+    })();
+    try {
+      await this.nativePreparation;
+    } catch (error) {
+      this.installPreparing = false;
+      throw error;
+    } finally {
+      this.nativePreparation = null;
+    }
   }
 
   quitAndInstall({ targetVersion, isSilent, isForceRunAfter }: AppUpdateInstallRequest): void {
@@ -228,13 +262,13 @@ const appUpdateService = createAppUpdateService({
   now: () => Date.now(),
   bucket: async () => bucketFromStagingUserId(await getStagingUserId()),
   reportCheckError: (error) => {
-    console.error("[auto-updater] Failed to check for updates:", error);
+    log.error("[auto-updater] Failed to check for updates:", error);
   },
   reportRuntimeError: (error) => {
-    console.error("[auto-updater] Updater event failed:", error);
+    log.error("[auto-updater] Updater event failed:", error);
   },
   reportInstallError: (message) => {
-    console.error("[auto-updater] Failed to download/install update:", message);
+    log.error("[auto-updater] Failed to download/install update:", message);
   },
 });
 
