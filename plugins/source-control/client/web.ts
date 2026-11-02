@@ -21,9 +21,7 @@ interface FrameMessage {
 }
 
 export function commitMessagePlaceholder(branch: string): string {
-  const shortcut =
-    Platform.OS === "web" && /Mac/.test(navigator.platform) ? "⌘Enter" : "Ctrl+Enter";
-  return `Message (${shortcut} to commit${branch && branch !== "HEAD" ? ` on "${branch}"` : ""})`;
+  return branch && branch !== "HEAD" ? `Commit message for "${branch}"` : "Commit message";
 }
 
 export function resizeCommitInput(input: unknown): number | null {
