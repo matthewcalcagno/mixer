@@ -41,6 +41,19 @@ Filtering removes hidden rows from selection; refresh removes entries that left 
 Select-all excludes collapsed descendants. Group-wide actions retain their full-group scope.
 Failed mutations preserve selection while repository status rolls back.
 
+## Commit controls
+
+The Changes header places Discard All Changes immediately before Stage All Changes.
+Discard targets tracked worktree changes and preserves untracked files and the index.
+
+Ordinary commit, push, and Commit & Push run directly. Keep confirmation for
+amending history, synchronization that pulls changes, conflict-resolution staging,
+and destructive discard. During a combined operation the primary button retains
+the selected label and busy state through the remote step. Clear the message only
+after Git commits successfully; a failed push offers Push without restoring the
+already-committed message. Keep the empty Changes group while staged files exist,
+then hide resource groups when the repository becomes clean.
+
 ## Safety and ownership
 
 The index/worktree status pair defines conflicts. Checking a single letter misclassifies

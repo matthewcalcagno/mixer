@@ -45,6 +45,70 @@ try {
     "2 uncommitted files",
   );
   evaluate(
+    "window.fixtureActions=[];window.confirm=()=>false;window.setSourceControlFiles([{path:'tracked.ts',index:' ',worktree:'M',head:'M'},{path:'new.ts',index:'?',worktree:'?',head:'?'}])",
+  );
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", '[aria-label="Open working tree diff for tracked.ts"]');
+  browser("find", "role", "button", "click", "--name", "Discard all changes", "--exact");
+  const headerActions = evaluate(
+    `(() => {const undo=document.querySelector('[aria-label="Discard all changes"]').getBoundingClientRect();const stage=document.querySelector('[aria-label="Stage all changes"]').getBoundingClientRect();return {gap:stage.left-undo.right,aligned:stage.top===undo.top};})()`,
+  );
+  assert.equal(headerActions.aligned, true);
+  assert.ok(
+    headerActions.gap >= 0 && headerActions.gap <= 4,
+    "Discard must sit immediately before stage-all",
+  );
+  assert.deepEqual(evaluate("window.fixtureActions"), [], "Cancel must preserve all changes");
+  evaluate("window.confirm=()=>true");
+  browser("find", "role", "button", "click", "--name", "Discard all changes", "--exact");
+  browser("wait", "--fn", "window.fixtureActions.some(action=>action.kind==='discard')");
+  assert.deepEqual(evaluate("window.fixtureActions.find(action=>action.kind==='discard').paths"), [
+    "tracked.ts",
+  ]);
+  browser(
+    "wait",
+    "--fn",
+    "document.querySelector('[data-testid=source-control-change-badge]')?.textContent==='1'",
+  );
+  evaluate(
+    "window.fixtureActions=[];window.confirm=()=>{throw new Error('Staging must not confirm')};window.setSourceControlFiles([{path:'a.ts',index:' ',worktree:'M',head:'M'},{path:'b.ts',index:'?',worktree:'?',head:'?'}])",
+  );
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", '[aria-label="Open working tree diff for a.ts"]');
+  browser("find", "role", "button", "hover", "--name", "Stage all changes", "--exact");
+  browser(
+    "wait",
+    "--fn",
+    `Array.from(document.querySelectorAll('[data-testid="source-control-tooltip"]')).some(el=>el.textContent==='Stage all changes' && getComputedStyle(el).opacity==='1')`,
+  );
+  browser("find", "role", "button", "click", "--name", "Stage all changes", "--exact");
+  browser("wait", '[aria-label="Open staged diff for b.ts"]');
+  browser("mouse", "move", "500", "500");
+  browser("find", "role", "button", "click", "--name", "Unstage all changes", "--exact");
+  browser("wait", '[aria-label="Open working tree diff for b.ts"]');
+  browser("mouse", "move", "500", "500");
+  browser(
+    "wait",
+    "--fn",
+    `document.querySelectorAll('[data-testid="source-control-tooltip"]').length===0`,
+  );
+  // Focus must still reveal a tooltip after the previous action dismissed it.
+  evaluate(`document.querySelector('[aria-label="Stage all changes"]').focus()`);
+  browser(
+    "wait",
+    "--fn",
+    `Array.from(document.querySelectorAll('[data-testid="source-control-tooltip"]')).some(el=>el.textContent==='Stage all changes' && getComputedStyle(el).opacity==='1')`,
+  );
+  browser("find", "role", "button", "click", "--name", "Stage all changes", "--exact");
+  browser("wait", '[aria-label="Open staged diff for b.ts"]');
+  assert.equal(
+    evaluate(
+      `document.querySelector('[aria-label="Collapse Changes"]').parentElement.textContent.endsWith('0')`,
+    ),
+    true,
+  );
+  evaluate("window.confirm=()=>true");
+  evaluate(
     "window.setSourceControlFiles(Array.from({length:500},(_,i)=>({path:'src/file-'+i+'.ts',index:'M',worktree:' ',head:'M'})))",
   );
   browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
@@ -67,9 +131,9 @@ try {
   );
   const inspect = `(() => {const input=document.querySelector('[aria-label="Commit message"]');const button=document.querySelector('[aria-label="Commit staged changes"]');return {height:input.getBoundingClientRect().height,disabled:button.getAttribute('aria-disabled'),background:getComputedStyle(button).backgroundColor,text:document.body.innerText,icon:getComputedStyle(document.querySelector('[data-icon="RotateCw"]')).color};})()`;
   let state = evaluate(inspect);
-  assert.equal(state.height, 32);
+  assert.equal(state.height, 28);
   assert.equal(state.disabled, "true");
-  assert.ok(!state.text.includes("develop"));
+  assert.ok(state.text.includes('on "develop"'));
   assert.ok(!state.text.includes("Remote checked"));
   assert.ok(!state.text.includes("↓0"));
   assert.equal(state.icon, "rgb(157, 165, 174)");
@@ -150,7 +214,7 @@ try {
   );
   assert.deepEqual(focusRing, { color: "rgb(56, 123, 206)", offset: "-2px", width: "2px" });
   state = evaluate(inspect);
-  assert.equal(state.height, 32);
+  assert.equal(state.height, 28);
   assert.equal(state.background, "rgb(24, 122, 52)");
   browser(
     "find",
@@ -164,7 +228,7 @@ try {
   evaluate("document.querySelector('[aria-label=\"Commit message\"]').select()");
   browser("press", "Backspace");
   state = evaluate(inspect);
-  assert.equal(state.height, 32);
+  assert.equal(state.height, 28);
   assert.equal(state.disabled, "true");
   browser("find", "role", "button", "hover", "--name", "Unstage all changes", "--exact");
   browser(
@@ -222,7 +286,9 @@ try {
     ["commit-push", ["commit", "push"]],
     ["commit-sync", ["commit", "sync"]],
   ]) {
-    evaluate("window.resetCommitFixture()");
+    evaluate(
+      `window.resetCommitFixture();window.confirm=${option === "commit-push" ? "()=>{throw new Error('Commit & Push must not ask for confirmation')}" : "()=>true"}`,
+    );
     browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
     browser("wait", "--text", "Staged Changes");
     browser("find", "label", "Commit message", "fill", "fix: dropdown action");
@@ -235,6 +301,32 @@ try {
     assert.deepEqual(evaluate("window.fixtureActions.map(action=>action.kind)"), expected);
     assert.equal(evaluate(`document.querySelector('[aria-label="Commit message"]').value`), "");
   }
+  evaluate(
+    "window.resetCommitFixture();window.deferRemote=true;window.confirm=()=>{throw new Error('Commit & Push must not confirm')}",
+  );
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", "--text", "Staged Changes");
+  browser("find", "label", "Commit message", "fill", "keep operation label while pushing");
+  browser("select", '[aria-label="Commit options"]', "commit-push");
+  browser("wait", "--fn", "typeof window.completeRemote === 'function'");
+  assert.equal(
+    evaluate(`document.querySelector('[aria-label="Commit & Push"]').textContent.trim()`),
+    "Commit & Push",
+  );
+  assert.equal(
+    evaluate(`document.querySelector('[aria-label="Commit & Push"]').getAttribute('aria-busy')`),
+    "true",
+  );
+  assert.equal(evaluate(`document.querySelector('[aria-label="Commit message"]').value`), "");
+  assert.equal(evaluate(`!!document.querySelector('[aria-label="Collapse Changes"]')`), false);
+  assert.equal(
+    evaluate(
+      `getComputedStyle(document.querySelector('[aria-label="Commit & Push"]')).backgroundColor`,
+    ),
+    "rgb(24, 122, 52)",
+  );
+  evaluate("window.completeRemote()");
+  browser("wait", "--fn", "!document.querySelector('[aria-busy=true]')");
   evaluate("window.resetCommitFixture();window.confirm=()=>false");
   browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
   browser("wait", "--text", "Staged Changes");
@@ -273,7 +365,7 @@ try {
     "window.resetCommitFixture();window.setSourceControlFiles([{path:'src/a.ts',index:' ',worktree:'M',head:'M'},{path:'src/nested/b.ts',index:' ',worktree:'M',head:'M'},{path:'notes.md',index:'?',worktree:'?',head:'?'}])",
   );
   browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
-  browser("wait", "--text", "Untracked Changes");
+  browser("wait", '[aria-label="Open file notes.md"]');
   browser("find", "role", "button", "click", "--name", "Filter changes", "--exact");
   browser("find", "label", "Filter changed files", "fill", "missing-file");
   browser("wait", "--text", "No matching changes.");
