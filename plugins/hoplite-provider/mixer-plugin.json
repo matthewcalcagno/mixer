@@ -1,1 +1,1 @@
-{ "id": "hoplite-provider", "requirements": { "mixer": ">=0.11.0" } }
+{ "id": "hoplite-provider", "requirements": { "mixer": ">=0.1.0" } }
