@@ -31,7 +31,10 @@ const gatedCiJobs = new Map([
     { name: "server-integration (windows-latest)", contract: "server" },
   ],
   ["server-tests-macos", { name: "server-tests (macos-15, file observation)", contract: "server" }],
-  ["desktop-tests-ubuntu", { name: "desktop-tests (ubuntu-latest)", contract: "desktop" }],
+  [
+    "desktop-tests-ubuntu",
+    { name: "desktop-tests (ubuntu-latest)", contracts: ["desktop", "browser"] },
+  ],
   ["desktop-tests-windows", { name: "desktop-tests (windows-latest)", contract: "desktop" }],
   ["app-tests", { name: "app-tests", contract: "app" }],
   ["playwright-1", { name: "playwright (shard 1/8)", contract: "browser" }],
@@ -220,6 +223,9 @@ test("PR routing declares stable behavior ownership", () => {
       "packages/protocol/**",
     ],
     browser: [
+      "plugins/*/client/**",
+      "plugins/*/index.client.{ts,tsx}",
+      "plugins/*/shared/**",
       "packages/server/src/server/agent/provider-snapshot-manager.ts",
       "packages/server/src/server/session/provider/provider-catalog-session.ts",
       "packages/client/src/compat/normalize-provider-models.ts",
@@ -299,6 +305,9 @@ test("browser and desktop tests have exclusive, directory-owned suites", () => {
     "packages/app/package.json",
   ]);
   assert.deepEqual(filters.browser, [
+    "plugins/*/client/**",
+    "plugins/*/index.client.{ts,tsx}",
+    "plugins/*/shared/**",
     "packages/server/src/server/agent/provider-snapshot-manager.ts",
     "packages/server/src/server/session/provider/provider-catalog-session.ts",
     "packages/client/src/compat/normalize-provider-models.ts",
@@ -829,4 +838,28 @@ test("desktop release tags are published before release creation and cannot be r
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("desktop renderer edits retain broad UI coverage and exercise real Electron", () => {
+  const jobs = jobBlocks(readFileSync(ciWorkflowPath, "utf8"));
+  const desktop = jobs.get("desktop-tests-ubuntu").join("\n");
+  const windows = jobs.get("desktop-tests-windows").join("\n");
+  assert.match(desktop, /needs\.changes\.outputs\.browser != 'false'/);
+  for (const command of [
+    "test:e2e:window-startup",
+    "test:e2e:lifecycle",
+    "test:e2e:browser-tabs",
+    "test:e2e:renderer",
+  ])
+    assert.ok(desktop.includes(command), `desktop checks must retain ${command}`);
+  assert.match(desktop, /packages\/desktop\/test-results\//);
+  assert.match(windows, /needs\.changes\.outputs\.desktop != 'false'/);
+  assert.equal([...jobs.keys()].filter((name) => /^playwright-[1-8]$/.test(name)).length, 8);
+  const browser = loadFilters(filtersPath).browser;
+  for (const path of [
+    "plugins/*/client/**",
+    "plugins/*/index.client.{ts,tsx}",
+    "plugins/*/shared/**",
+  ])
+    assert.ok(browser.includes(path), `plugin UI changes must select renderer tests: ${path}`);
 });
