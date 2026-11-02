@@ -96,6 +96,7 @@ describe("plugin SDK import boundaries", () => {
     expect(Object.keys(server).sort()).toEqual([
       "defineAgentTool",
       "execCommand",
+      "resolveRipgrepPath",
       "spawnProcess",
       "terminateProcess",
     ]);

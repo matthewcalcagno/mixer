@@ -10,7 +10,7 @@ log.initialize({ spyRendererConsole: true });
 import { inheritLoginShellEnv } from "./login-shell-env.js";
 
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { createAppProtocolHandler } from "./app-protocol.js";
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import {
@@ -970,31 +970,10 @@ async function bootstrap(): Promise<void> {
   await app.whenReady();
 
   const appDistDir = getAppDistDir();
-  protocol.handle(APP_SCHEME, (request) => {
-    const { pathname, search, hash } = new URL(request.url);
-    const decodedPath = decodeURIComponent(pathname);
-
-    // Chromium can occasionally request the exported entrypoint directly.
-    // Canonicalize it back to the route URL so Expo Router sees `/`, not `/index.html`.
-    if (decodedPath.endsWith("/index.html")) {
-      const normalizedPath = decodedPath.slice(0, -"/index.html".length) || "/";
-      return Response.redirect(`${APP_SCHEME}://app${normalizedPath}${search}${hash}`, 307);
-    }
-
-    const filePath = path.join(appDistDir, decodedPath);
-    const relativePath = path.relative(appDistDir, filePath);
-
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      return new Response("Not found", { status: 404 });
-    }
-
-    // SPA fallback: serve index.html for routes without a file extension
-    if (!relativePath || !path.extname(relativePath)) {
-      return net.fetch(pathToFileURL(path.join(appDistDir, "index.html")).toString());
-    }
-
-    return net.fetch(pathToFileURL(filePath).toString());
-  });
+  protocol.handle(
+    APP_SCHEME,
+    createAppProtocolHandler(appDistDir, (url) => net.fetch(url)),
+  );
 
   await applyAppIcon();
   setupApplicationMenu({

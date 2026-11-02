@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -13,6 +14,27 @@ import { randomUUID } from "node:crypto";
 import { resultSchema } from "../../../../../../plugins/search/shared/search.js";
 
 const roots: string[] = [];
+
+test("every bundled plugin starts on the current Mixer release", async () => {
+  const { version } = JSON.parse(
+    readFileSync(new URL("../../../../../../package.json", import.meta.url), "utf8"),
+  );
+  const daemon = await createTestMixerDaemon({
+    daemonVersion: version,
+    pluginsEnabled: false,
+    builtinPlugins: new BuiltinPluginLoader(resolveBuiltinPluginsRoot()),
+  });
+  const client = new DaemonClient({ url: `ws://127.0.0.1:${daemon.port}/ws`, appVersion: version });
+  try {
+    await client.connect();
+    expect((await client.getPluginCatalog()).map(({ id }) => id).sort()).toEqual(
+      [...builtinPlugins].sort(),
+    );
+  } finally {
+    await client.close();
+    await daemon.close();
+  }
+}, 60_000);
 
 test("Search is built-in, searches its owning workspace with bundled ripgrep, and reports invalid regex", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "mixer-builtin-search-"));
