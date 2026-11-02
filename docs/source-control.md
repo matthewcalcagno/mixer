@@ -35,7 +35,11 @@ never replaces an existing branch and leaves the new branch without an upstream.
 
 A clean branch without an upstream offers **Publish branch**. Publishing sets its upstream
 on `origin`, or the sole configured remote. Changes keep **Commit** available; an existing
-upstream with outgoing commits offers **Push**.
+upstream with outgoing commits offers **Sync Changes**, which pulls before pushing,
+even when the last fetched status shows no incoming commits. Sync honors branch-specific
+rebase settings before `pull.rebase`, defaults to merge, and stops before pushing if
+integration fails. A clean checkout with only incoming commits offers fast-forward-only
+**Pull**. Push-only remains in the action menu.
 
 ## File selection
 

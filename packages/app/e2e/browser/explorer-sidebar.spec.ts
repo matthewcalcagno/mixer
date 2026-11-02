@@ -65,6 +65,7 @@ test.describe("Explorer sidebar", () => {
     const git = promisify(execFile);
     const linkedPath = `${workspace.repoPath}-linked`;
     const remotePath = `${workspace.repoPath}-remote.git`;
+    const incomingPath = `${workspace.repoPath}-incoming`;
     const gate = await installDaemonWebSocketGate(page);
     try {
       await git("git", ["init", "--bare", remotePath]);
@@ -149,11 +150,90 @@ test.describe("Explorer sidebar", () => {
       await expect(
         explorer.getByRole("button", { name: "Commit staged changes", exact: true }),
       ).toBeVisible();
+      await git("git", ["clone", "--branch", "feature/brand-new", remotePath, incomingPath]);
+      await writeFile(path.join(incomingPath, "incoming.txt"), "incoming change\n");
+      await git("git", ["add", "incoming.txt"], { cwd: incomingPath });
+      await git(
+        "git",
+        [
+          "-c",
+          "user.name=Pull test",
+          "-c",
+          "user.email=pull@example.test",
+          "-c",
+          "commit.gpgsign=false",
+          "commit",
+          "-m",
+          "incoming change",
+        ],
+        { cwd: incomingPath },
+      );
+      await git("git", ["push"], { cwd: incomingPath });
+      await git("git", ["fetch", "origin"], { cwd: linkedPath });
+      await explorer.getByRole("button", { name: "Refresh", exact: true }).click();
+      const pull = explorer.getByRole("button", { name: "Pull incoming commits", exact: true });
+      await expect(pull).toHaveText("Pull 1↓");
+      await expect(pull).toBeEnabled();
+      await pull.click();
+      await expect(
+        explorer.getByRole("button", { name: "Commit staged changes", exact: true }),
+      ).toBeVisible();
+      expect(await readFile(path.join(linkedPath, "incoming.txt"), "utf8")).toBe(
+        "incoming change\n",
+      );
+      await git(
+        "git",
+        [
+          "-c",
+          "user.name=Sync test",
+          "-c",
+          "user.email=sync@example.test",
+          "-c",
+          "commit.gpgsign=false",
+          "commit",
+          "--allow-empty",
+          "-m",
+          "local sync commit",
+        ],
+        { cwd: linkedPath },
+      );
+      await git(
+        "git",
+        [
+          "-c",
+          "user.name=Sync test",
+          "-c",
+          "user.email=sync@example.test",
+          "-c",
+          "commit.gpgsign=false",
+          "commit",
+          "--allow-empty",
+          "-m",
+          "remote sync commit",
+        ],
+        { cwd: incomingPath },
+      );
+      await git("git", ["push"], { cwd: incomingPath });
+      await git("git", ["fetch", "origin"], { cwd: linkedPath });
+      await explorer.getByRole("button", { name: "Refresh", exact: true }).click();
+      const sync = explorer.getByRole("button", { name: "Sync changes", exact: true });
+      await expect(sync).toHaveText("Sync Changes 1↓ 1↑");
+      await expect(sync).toBeEnabled();
+      await sync.click();
+      await expect(
+        explorer.getByRole("button", { name: "Commit staged changes", exact: true }),
+      ).toBeVisible();
+      const localHead = await git("git", ["rev-parse", "HEAD"], { cwd: linkedPath });
+      const remoteHead = await git("git", ["rev-parse", "refs/heads/feature/brand-new"], {
+        cwd: remotePath,
+      });
+      expect(remoteHead.stdout).toBe(localHead.stdout);
       await page.screenshot({ path: test.info().outputPath("status-branch-switched.png") });
     } finally {
       await git("git", ["worktree", "remove", "--force", linkedPath], {
         cwd: workspace.repoPath,
       }).catch(() => {});
+      await rm(incomingPath, { recursive: true, force: true });
       await rm(remotePath, { recursive: true, force: true });
       await workspace.cleanup();
     }

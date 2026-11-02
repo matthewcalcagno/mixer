@@ -1,3 +1,4 @@
+import { primaryRemoteAction } from "./primary-remote-action.js";
 import type { PluginTheme } from "@mixer/plugin";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
@@ -156,7 +157,11 @@ export function SourceControlPanel({
   });
   const pending = action.isPending || commitFlowPending;
   const pushing =
-    action.isPending && (action.variables.kind === "push" || action.variables.kind === "publish");
+    action.isPending &&
+    (action.variables.kind === "push" ||
+      action.variables.kind === "publish" ||
+      action.variables.kind === "pull" ||
+      action.variables.kind === "sync");
   const primaryBusy = commitFlowPending || pushing;
   const c = theme.colors;
   const text = { color: c.foreground, fontSize: 13 };
@@ -304,23 +309,10 @@ export function SourceControlPanel({
   const hasConflicts = groups.merge.length > 0;
   const canCommit = staged.length > 0 && !hasConflicts && !pending && !state.isPending;
   const canAmend = !hasConflicts && !pending && !!state.data;
-  const showPublish =
-    !commitFlowPending &&
-    files.length === 0 &&
-    !!state.data?.hasRemote &&
-    !state.data.upstream &&
-    state.data.branch !== "Detached HEAD";
-  const showPush =
-    !commitFlowPending &&
-    files.length === 0 &&
-    !!state.data?.hasRemote &&
-    (state.data.ahead > 0 || pushing) &&
-    !showPublish;
-  let primaryLabel = "Commit";
+  const remoteAction = primaryRemoteAction({ status: state.data, commitFlowPending, pushing });
+  let primaryLabel = remoteAction?.label ?? "Commit";
   if (commitFlowOption)
     primaryLabel = commitOptions.find((option) => option.value === commitFlowOption)!.label;
-  else if (showPublish) primaryLabel = "Publish branch";
-  else if (showPush) primaryLabel = `Push${state.data?.ahead ? ` ${state.data.ahead}↑` : ""}`;
   const operationError = state.error || commitFlowError || action.error;
   async function commit(message: string, option: CommitOption) {
     if (!message.trim() || !(option === "amend" ? canAmend : canCommit) || !state.data) return;
@@ -335,7 +327,7 @@ export function SourceControlPanel({
           amend:
             "Replace the latest commit with the staged changes and this message? This rewrites the latest commit.",
           "commit-sync":
-            "Commit staged changes, pull with fast-forward only, then push? If branches diverge, sync stops without merging or rebasing.",
+            "Commit staged changes, pull remote changes using the repository’s merge or rebase settings, then push? Conflicts stop the sync before pushing.",
         };
         const description = descriptions[option];
         if (
@@ -549,14 +541,16 @@ export function SourceControlPanel({
           disabled={pending || !state.data}
           remoteDisabled={!state.data?.hasRemote || !state.data.upstream}
           diverged={!!state.data?.ahead && !!state.data.behind}
-          showPush={showPush || showPublish}
-          pushEnabled={!pending && !state.isFetching && !state.data?.behind}
+          showRemoteAction={remoteAction !== null}
+          remoteIcon={remoteAction?.icon ?? "ArrowUp"}
+          remoteAccessibilityLabel={remoteAction?.accessibilityLabel ?? ""}
+          remoteEnabled={!pending && !state.isFetching}
           primaryBusy={primaryBusy}
           primaryLabel={primaryLabel}
           onMessage={saveMessage}
           onCommit={commit}
-          onPush={() => {
-            action.mutate({ kind: showPublish ? "publish" : "push" });
+          onRemoteAction={() => {
+            if (remoteAction) action.mutate({ kind: remoteAction.kind });
           }}
         />
         {operationError && (
@@ -739,13 +733,15 @@ interface CommitFormProps {
   disabled: boolean;
   remoteDisabled: boolean;
   diverged: boolean;
-  showPush: boolean;
-  pushEnabled: boolean;
+  showRemoteAction: boolean;
+  remoteIcon: "ArrowDown" | "ArrowUp" | "RefreshCw";
+  remoteAccessibilityLabel: string;
+  remoteEnabled: boolean;
   primaryBusy: boolean;
   primaryLabel: string;
   onMessage(message: string): void;
   onCommit(message: string, option: CommitOption): Promise<void>;
-  onPush(): void;
+  onRemoteAction(): void;
 }
 
 // Keep keystrokes and input measurement out of the repository resource tree.
@@ -759,13 +755,15 @@ function CommitForm({
   disabled,
   remoteDisabled,
   diverged,
-  showPush,
-  pushEnabled,
+  showRemoteAction,
+  remoteIcon,
+  remoteAccessibilityLabel,
+  remoteEnabled,
   primaryBusy,
   primaryLabel,
   onMessage,
   onCommit,
-  onPush,
+  onRemoteAction,
 }: CommitFormProps) {
   const [message, setMessage] = useState(initialMessage);
   const [messageHeight, setMessageHeight] = useState(28);
@@ -793,9 +791,8 @@ function CommitForm({
   );
   const canCommit = !!message.trim() && commitAllowed;
   const canAmend = !!message.trim() && amendAllowed;
-  const primaryEnabled = showPush ? pushEnabled : canCommit;
-  const remoteAccessibilityLabel =
-    primaryLabel === "Publish branch" ? primaryLabel : "Push outgoing commits";
+  const primaryEnabled = showRemoteAction ? remoteEnabled : canCommit;
+  const remoteLabel = primaryLabel === "Publish branch" ? primaryLabel : remoteAccessibilityLabel;
   const primaryAccessibilityLabel = primaryBusy ? primaryLabel : "Commit staged changes";
   const c = theme.colors;
   const text = { color: c.foreground, fontSize: 13 };
@@ -803,8 +800,8 @@ function CommitForm({
     <View style={{ paddingHorizontal: 10, paddingTop: 2, paddingBottom: 6, gap: 10 }}>
       {diverged && (
         <Text style={{ color: c.statusWarning, fontSize: 11 }}>
-          Branches have diverged. Resolve with merge or rebase before pushing. Pull here is
-          fast-forward only.
+          Branches have diverged. Sync Changes integrates incoming commits before pushing. If
+          conflicts occur, resolve them before retrying.
         </Text>
       )}
       <View>
@@ -874,12 +871,12 @@ function CommitForm({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={showPush ? remoteAccessibilityLabel : primaryAccessibilityLabel}
+          accessibilityLabel={showRemoteAction ? remoteLabel : primaryAccessibilityLabel}
           accessibilityState={{ disabled: !primaryEnabled, busy: primaryBusy }}
           aria-busy={primaryBusy || undefined}
           disabled={!primaryEnabled}
           onPress={() => {
-            if (showPush) onPush();
+            if (showRemoteAction) onRemoteAction();
             else void onCommit(message, "commit");
           }}
           style={({ pressed }) => ({
@@ -897,7 +894,7 @@ function CommitForm({
           {primaryBusy ? (
             <ActivityIndicator size="small" color="#ffffff" />
           ) : (
-            <Icon name={showPush ? "ArrowUp" : "Check"} size={16} color="#ffffff" />
+            <Icon name={showRemoteAction ? remoteIcon : "Check"} size={16} color="#ffffff" />
           )}
           <Text
             numberOfLines={1}
@@ -910,7 +907,7 @@ function CommitForm({
             {primaryLabel}
           </Text>
         </Pressable>
-        {!showPush && (
+        {!showRemoteAction && (
           <CommitDropdown
             disabled={disabled}
             canCommit={canCommit}
