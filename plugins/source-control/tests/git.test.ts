@@ -1,3 +1,4 @@
+import { primaryRemoteAction } from "../client/primary-remote-action.js";
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
@@ -400,6 +401,58 @@ test("remote fetch, fast-forward pull, and push use a local bare remote", async 
     assert.equal((await status(cwd)).ahead, 1);
     assert.equal((await status(cwd)).behind, 1);
     await assert.rejects(git(cwd, ["pull", "--ff-only"]));
+    const divergent = await status(cwd);
+    await executeGitAction({ cwd, revision: divergent.revision, action: { kind: "sync" } });
+    assert.equal((await status(cwd)).ahead, 0);
+    assert.equal((await status(cwd)).behind, 0);
+    assert.equal(await readFile(join(cwd, "remote.txt"), "utf8"), "incoming");
+    assert.equal(
+      await git(remote, ["rev-parse", "refs/heads/main"]),
+      await git(cwd, ["rev-parse", "HEAD"]),
+    );
+
+    await git(other, ["pull", "--ff-only"]);
+    await git(cwd, ["config", "pull.rebase", "true"]);
+    await writeFile(join(cwd, "rebased.txt"), "local rebase commit");
+    await git(cwd, ["add", "."]);
+    await git(cwd, ["commit", "-m", "rebase local"]);
+    await git(other, ["commit", "--allow-empty", "-m", "rebase remote"]);
+    await git(other, ["push"]);
+    const stale = await status(cwd);
+    assert.equal(stale.behind, 0, "Sync must fetch even when the cached remote appears current");
+    await executeGitAction({ cwd, revision: stale.revision, action: { kind: "sync" } });
+    assert.equal(
+      (await git(cwd, ["show", "-s", "--format=%P", "HEAD"])).trim().split(" ").length,
+      1,
+      "Configured rebase must not create a merge commit",
+    );
+    assert.equal(
+      await git(remote, ["rev-parse", "refs/heads/main"]),
+      await git(cwd, ["rev-parse", "HEAD"]),
+    );
+
+    await git(other, ["pull", "--ff-only"]);
+    await writeFile(join(other, "file.txt"), "remote conflict");
+    await git(other, ["add", "."]);
+    await git(other, ["commit", "-m", "remote conflict"]);
+    await git(other, ["push"]);
+    const remoteTip = await git(remote, ["rev-parse", "refs/heads/main"]);
+    await writeFile(join(cwd, "file.txt"), "local conflict");
+    await git(cwd, ["add", "."]);
+    await git(cwd, ["commit", "-m", "local conflict"]);
+    const conflict = await status(cwd);
+    await assert.rejects(
+      executeGitAction({ cwd, revision: conflict.revision, action: { kind: "sync" } }),
+    );
+    assert.equal(
+      await git(remote, ["rev-parse", "refs/heads/main"]),
+      remoteTip,
+      "A conflicting sync must not push",
+    );
+    assert.ok(
+      (await status(cwd)).files.some((file) => file.index === "U" || file.worktree === "U"),
+      "Conflicts must remain available for resolution",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -499,4 +552,48 @@ test("paths and porcelain status preserve unusual filenames", () => {
   assert.throws(() => validatePaths("/repo", [".git/config"]));
   assert.doesNotThrow(() => validatePaths("/repo", ["file with spaces"]));
   assert.throws(() => selectHunk("binary diff", 0));
+});
+
+test("primary action offers pull for incoming commits and commit for changed files", () => {
+  const snapshot = {
+    branch: "develop",
+    upstream: "origin/develop",
+    ahead: 0,
+    behind: 14,
+    hasRemote: true,
+    files: [],
+    revision: "test",
+  };
+  const input = { status: snapshot, commitFlowPending: false, pushing: false };
+  assert.deepEqual(primaryRemoteAction(input), {
+    kind: "pull",
+    label: "Pull 14↓",
+    icon: "ArrowDown",
+    accessibilityLabel: "Pull incoming commits",
+  });
+  assert.equal(
+    primaryRemoteAction({
+      ...input,
+      status: { ...snapshot, files: [{ path: "file.txt", index: " ", worktree: "M", head: "M" }] },
+    }),
+    null,
+  );
+  assert.equal(primaryRemoteAction({ ...input, status: { ...snapshot, behind: 0 } }), null);
+  assert.equal(
+    primaryRemoteAction({ ...input, status: { ...snapshot, ahead: 2, behind: 0 } })?.kind,
+    "sync",
+  );
+  assert.deepEqual(
+    primaryRemoteAction({ ...input, status: { ...snapshot, ahead: 2, behind: 3 } }),
+    {
+      kind: "sync",
+      label: "Sync Changes 3↓ 2↑",
+      icon: "RefreshCw",
+      accessibilityLabel: "Sync changes",
+    },
+  );
+  assert.equal(
+    primaryRemoteAction({ ...input, status: { ...snapshot, upstream: "", behind: 0 } })?.kind,
+    "publish",
+  );
 });

@@ -54,8 +54,7 @@ export async function executeGitAction({ cwd, revision, action }: ActionInput): 
       output = await git(cwd, ["push"]);
       break;
     case "sync":
-      await git(cwd, ["pull", "--ff-only"]);
-      output = await git(cwd, ["push"]);
+      output = await syncBranch(cwd, current);
       break;
     case "patch":
       output = await applyPatch(cwd, action);
@@ -104,4 +103,24 @@ async function publishBranch(
   if (!remotes.includes("origin") && remotes.length > 1)
     throw new Error("Multiple remotes found. Configure an origin remote before publishing.");
   return git(cwd, ["push", "--set-upstream", remote, `HEAD:refs/heads/${current.branch}`]);
+}
+
+async function syncBranch(
+  cwd: string,
+  current: Awaited<ReturnType<typeof status>>,
+): Promise<string> {
+  if (current.files.length > 0) throw new Error("Commit or stash changes before syncing.");
+  if (!current.upstream) throw new Error("Publish this branch before syncing.");
+  const branchRebase = (
+    await git(cwd, ["config", "--get", `branch.${current.branch}.rebase`]).catch(() => "")
+  ).trim();
+  const pullRebase =
+    branchRebase || (await git(cwd, ["config", "--get", "pull.rebase"]).catch(() => "")).trim();
+  if (pullRebase === "interactive")
+    throw new Error("Run interactive rebase in a terminal before syncing.");
+  // Modern Git requires an explicit strategy for divergent branches. Default to merge;
+  // retain the repository's rebase preference and stop before push on any conflict.
+  const strategy = pullRebase ? `--rebase=${pullRebase}` : "--no-rebase";
+  await git(cwd, ["pull", "--no-edit", strategy]);
+  return git(cwd, ["push"]);
 }
