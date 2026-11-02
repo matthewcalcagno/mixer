@@ -719,3 +719,17 @@ test("desktop releases only accept merged develop-to-main PRs from this reposito
   );
   assert.deepEqual(callers, [".github/workflows/desktop-release-on-merge.yml"]);
 });
+
+test("release preview updates PR comments using trusted base scripts without running head code", () => {
+  const source = readFileSync(new URL(".github/workflows/release-preview.yml", repoRoot), "utf8");
+  assert.match(source, /pull_request_target:/);
+  for (const event of ["synchronize", "edited", "labeled", "unlabeled"])
+    assert.ok(source.includes(event));
+  assert.match(source, /github\.event\.pull_request\.base\.sha \|\| github\.sha/);
+  assert.doesNotMatch(
+    source,
+    /ref:.*head|npm (ci|install)|secrets\.APPLE|pull_request_target.*checkout.*head/,
+  );
+  assert.match(source, /pull-requests: write/);
+  assert.match(source, /run: node scripts\/update-release-preview\.mjs/);
+});

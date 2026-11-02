@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetchMixerChangelog, MIXER_RELEASE_URL } from "./mixer-changelog";
 import {
   formatChangelogDate,
   parseChangelog,
@@ -280,7 +281,10 @@ describe("the repository's own CHANGELOG.md", () => {
   const releases = parseChangelog(markdown);
 
   it("parses every release heading", () => {
-    expect(releases.length).toBeGreaterThan(50);
+    expect(markdown).toMatch(/^# Mixer Changelog\n/);
+    expect(releases.length).toBe(
+      markdown.split("\n").filter((line) => line.startsWith("## ")).length,
+    );
     for (const release of releases) {
       expect(release.version).toMatch(/^\d+\.\d+\.\d+/);
       expect(release.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -290,12 +294,55 @@ describe("the repository's own CHANGELOG.md", () => {
 
   it("keeps every authored line inside a release", () => {
     const documentLines = markdown.split("\n");
-    const fromFirstRelease = documentLines.slice(
-      documentLines.findIndex((line) => line.startsWith("## ")),
-    );
+    const firstRelease = documentLines.findIndex((line) => line.startsWith("## "));
+    const fromFirstRelease = firstRelease < 0 ? [] : documentLines.slice(firstRelease);
 
     expect(releases.flatMap(authoredLines).filter(isNotBlank)).toEqual(
       fromFirstRelease.filter(isNotBlank).filter((line) => !line.startsWith("## ")),
     );
   });
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+it("loads only the changelog committed at the published Mixer release tag", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ tag_name: "v0.2.0" })))
+    .mockResolvedValueOnce(
+      new Response("# Mixer Changelog\n\n## 0.2.0 - 2026-11-02\n\n- Mixer feature\n"),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const signal = new AbortController().signal;
+  expect(await fetchMixerChangelog(signal)).toContain("Mixer feature");
+  expect(fetcher).toHaveBeenNthCalledWith(1, MIXER_RELEASE_URL, { signal });
+  expect(fetcher).toHaveBeenNthCalledWith(
+    2,
+    "https://raw.githubusercontent.com/matthewcalcagno/mixer/v0.2.0/CHANGELOG.md",
+    { signal },
+  );
+});
+it("rejects inherited upstream history even if present at a Mixer tag", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tag_name: "v0.1.1" })))
+      .mockResolvedValueOnce(new Response("# Changelog\n\n## 0.14.0 - 2026-10-27\nUpstream")),
+  );
+  await expect(fetchMixerChangelog(new AbortController().signal)).rejects.toThrow(
+    "Mixer changelog",
+  );
+});
+it("does not follow an unexpected tag or fall back to unpublished main notes", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ tag_name: "main/../../upstream" })));
+  vi.stubGlobal("fetch", fetcher);
+  await expect(fetchMixerChangelog(new AbortController().signal)).rejects.toThrow("release tag");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+it("reports a missing published release rather than loading upstream notes", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("not found", { status: 404 })));
+  await expect(fetchMixerChangelog(new AbortController().signal)).rejects.toThrow("404");
 });

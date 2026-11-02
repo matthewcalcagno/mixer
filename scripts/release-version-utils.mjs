@@ -198,8 +198,16 @@ export function getDesktopReleasePlan(sourceTag, platform) {
 }
 
 export function getMergedReleaseMode(labels) {
-  const modes = ["patch", "minor", "major"].filter((mode) => labels.includes(`release:${mode}`));
-  if (modes.length > 1)
-    throw new Error("Use only one release:patch, release:minor, or release:major label");
-  return modes[0] || "patch";
+  return ["major", "minor", "patch"].find((mode) => labels.includes(`release:${mode}`)) || "patch";
+}
+
+export function getMergedReleasePlan({ currentVersion, tags, labels }) {
+  const stable = [currentVersion, ...tags.map((tag) => tag.replace(/^desktop-v/, ""))]
+    .map(parseReleaseVersion)
+    .filter((version) => !version.isPrerelease)
+    .sort((a, b) => b.major - a.major || b.minor - a.minor || b.patch - a.patch);
+  if (!stable.length) throw new Error("Merge releases require an existing stable version");
+  const mode = getMergedReleaseMode(labels);
+  const version = computeNextReleaseVersion(stable[0].version, mode);
+  return { mode, version, tag: getDesktopReleaseTag(version) };
 }

@@ -180,6 +180,6 @@ test("shows a translated plugin overview, or the English one under a notice", as
 test("shows the changelog in Chinese", async ({ page }) => {
   await page.goto("/zh-CN/changelog");
 
-  await expect(page.getByRole("heading", { name: "新增" }).first()).toBeVisible();
-  await expect(page.getByRole("note")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "更新日志", level: 1 })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
 });

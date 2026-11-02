@@ -63,9 +63,9 @@ In GitHub settings, protect `main` by requiring a PR and passing CI checks.
 Do not require another person's approval for a solo repository. Branch settings
 are separate from these workflow files and must be configured in GitHub.
 
-The default bump is patch. Add one PR label, `release:minor` or `release:major`,
-for a larger bump (`release:patch` is also accepted). Conflicting labels fail
-preparation. Create those labels in GitHub before selecting them. Review release
+The default bump is patch. Add `release:minor` or `release:major`
+for a larger bump (`release:patch` is also accepted). When multiple bump labels
+are present, major wins over minor, and minor wins over patch. Create those labels in GitHub before selecting them. Review release
 contents and changelog before merging: the merge starts publication automatically.
 Closed, unmerged PRs, fork PRs, and merges from other branch names do not release.
 
@@ -82,6 +82,37 @@ A rerun reuses the merge's original release tag rather than allocating a new
 version. To retry a failed build, rerun all jobs for that merge workflow. A direct
 push to `main` does not release. Pushing a version tag or using the local
 `release:*` scripts does not start the desktop workflow either.
+
+## Release preview and changelog
+
+An open `develop` → `main` PR receives one bot comment with the next version,
+bump rule, source SHA, and proposed release notes. Commits, PR edits, label changes,
+updates to main, and newly published releases refresh the same comment. A stale
+run cannot overwrite a newer head or label snapshot. The preview never builds or
+publishes an app; the merged release workflow uses the same version planner.
+
+Add a `## Release notes` section to the release PR or feature PRs for curated
+user-facing descriptions. The generator includes every feature PR in the range,
+uses its release-notes section or description, and lists direct commits without
+an associated PR. Review this draft before merging; the generator does not infer
+features from code. Release-automation commits and the initial upstream import
+are excluded. The range starts after the last published Mixer release, so changes
+from failed draft builds remain in the next release's notes.
+
+The version commit writes root `CHANGELOG.md` with the actual release version and
+UTC date, preserving history from the previous published Mixer's changelog. It
+is committed on the release tag, alongside all package versions. Protected main
+is not rewritten by a bot. GitHub release notes and the attached `CHANGELOG.md`
+asset come from that same versioned file.
+
+The IDE resolves the latest published stable Mixer release, then loads its tagged
+`CHANGELOG.md` from `matthewcalcagno/mixer`. It rejects a document without the
+`# Mixer Changelog` title and never falls back to main or upstream. Before the
+first Mixer release is published there are no published notes to show. The
+inherited history is archived in `CHANGELOG.upstream.md` and
+`CHANGELOG.zh-CN.upstream.md`; neither is part of the app's changelog feed.
+Chinese translations remain optional for generated entries; the website's
+existing English fallback applies until a matching translation is authored.
 
 ## Desktop build workflow
 
@@ -171,7 +202,7 @@ Release notes depend on the changelog heading format. The heading **must** be st
 
 No prefix (`v`), no extra text. `Release Notes Sync` matches the `## X.Y.Z` (or `## X.Y.Z-beta.N`) line for the pushed tag to extract the version. A malformed heading breaks the release-notes sync for that tag.
 
-`CHANGELOG.md` on `main` is also what the app's **What's new** sheet fetches and renders, so the file is a shipped product surface, not just a release input. `##` starts a release and `###` starts a section; the app reads section titles from the document, so renaming or adding one needs no app change. Everything under a section is rendered as Markdown: prose, lists, links, inline code, fenced code, block quotes, tables, and images. Raw HTML does not render — the shared Markdown parser runs with `html: false`, so a `<video>`, `<iframe>` or `<embed>` tag reaches the reader as visible markup. Keep media out of the changelog, or link to it. A GitHub callout renders as a block quote with its `[!NOTE]` marker still in the text. A release entry is what a user reads on the desktop when they are offered the update — write it for them.
+The published tag’s `CHANGELOG.md` is what the app’s **What’s new** sheet fetches and renders, so the file is a shipped product surface, not just a release input. `##` starts a release and `###` starts a section; the app reads section titles from the document, so renaming or adding one needs no app change. Everything under a section is rendered as Markdown: prose, lists, links, inline code, fenced code, block quotes, tables, and images. Raw HTML does not render — the shared Markdown parser runs with `html: false`, so a `<video>`, `<iframe>` or `<embed>` tag reaches the reader as visible markup. Keep media out of the changelog, or link to it. A GitHub callout renders as a block quote with its `[!NOTE]` marker still in the text. A release entry is what a user reads on the desktop when they are offered the update — write it for them.
 
 ## Changelog policy
 
@@ -188,7 +219,7 @@ Older prerelease bodies on GitHub keep the notes they were synced with; `Release
 
 `CHANGELOG.zh-CN.md` holds the Chinese notes for `paseo.sh/zh-CN/changelog`. Only the website reads it; the app's **What's new** sheet, GitHub release bodies read `CHANGELOG.md`.
 
-- The release agent writes the Chinese entry in the changelog commit, after the English entry is approved. Every beta that rewrites the English entry rewrites the Chinese one too, and promotion renames both. `packages/website/e2e/i18n.spec.ts` fails CI on the release commit when any entry has no current translation.
+- The release agent writes the Chinese entry in the changelog commit, after the English entry is approved. For manually authored releases, every beta that rewrites the English entry rewrites the Chinese one too, and promotion renames both. Generated merge releases use English until a translation is authored. Translation and English-fallback behavior are covered by `packages/website/src/changelog.test.ts`.
 - A translated entry uses the English heading unchanged: `## X.Y.Z - YYYY-MM-DD`. The website uses it only while the version and date both match the English entry. Otherwise it shows that release whole in English under a notice. Delete Chinese entries whose English entry was renamed.
 - Keep the English sections, bullets and links one to one. Section titles: Added 新增, Improved 改进, Changed 变更, Fixed 修复, Security 安全, Breaking 破坏性变更, Plugins 插件, Notes 说明. Wording follows [website-i18n.md](website-i18n.md#chinese-style).
 
