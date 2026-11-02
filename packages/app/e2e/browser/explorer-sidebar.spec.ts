@@ -1,5 +1,7 @@
 import { seedMockAgentWorkspace, openAgentRoute } from "../support/helpers/mock-agent";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { openFileFromExplorer } from "../support/helpers/file-explorer";
 import { openSettingsSection, clickSettingsBackToWorkspace } from "../support/helpers/settings";
@@ -58,6 +60,104 @@ async function expectExplorerActiveTabForeground(
 }
 
 test.describe("Explorer sidebar", () => {
+  test("status bar branch picker switches only the selected worktree", async ({ page }) => {
+    const workspace = await seedWorkspace({ repoPrefix: "status-branch-picker-" });
+    const git = promisify(execFile);
+    const linkedPath = `${workspace.repoPath}-linked`;
+    const remotePath = `${workspace.repoPath}-remote.git`;
+    const gate = await installDaemonWebSocketGate(page);
+    try {
+      await git("git", ["init", "--bare", remotePath]);
+      await git("git", ["remote", "add", "origin", remotePath], { cwd: workspace.repoPath });
+      await git("git", ["branch", "feature/picker"], { cwd: workspace.repoPath });
+      await git("git", ["worktree", "add", "-b", "linked-worktree", linkedPath], {
+        cwd: workspace.repoPath,
+      });
+      const created = await workspace.client.createWorkspace({
+        source: { kind: "directory", path: linkedPath },
+      });
+      expect(created.workspace).toBeTruthy();
+      if (!created.workspace) throw new Error("Worktree workspace was not created");
+      await gotoWorkspace(page, created.workspace.id);
+      const branch = page.getByTestId("status-bar-branch");
+      await expect(branch).toHaveText("linked-worktree");
+      await branch.click();
+      const picker = page.getByTestId("combobox-desktop-container");
+      await expect(
+        picker.getByRole("button", { name: "linked-worktree", exact: true }),
+      ).toBeVisible();
+      const search = picker.getByPlaceholder("Filter branches...");
+      await expect(search).toBeFocused();
+      await search.fill("feature/picker");
+      await picker.getByRole("button", { name: "feature/picker", exact: true }).click();
+      await expect(branch).toHaveText("feature/picker");
+      const linkedBranch = await git("git", ["branch", "--show-current"], { cwd: linkedPath });
+      const rootBranch = await git("git", ["branch", "--show-current"], {
+        cwd: workspace.repoPath,
+      });
+      expect(linkedBranch.stdout.trim()).toBe("feature/picker");
+      expect(rootBranch.stdout.trim()).not.toBe("feature/picker");
+      await branch.click();
+      gate.holdNextServerMessage("branch_suggestions_response");
+      await search.fill("feature/brand-new");
+      await gate.waitForHeldServerMessage("branch_suggestions_response");
+      await expect(picker.getByText("Loading...", { exact: true })).toHaveCount(0);
+      await expect(
+        picker.getByRole("button", { name: "feature/brand-new (New branch)", exact: true }),
+      ).toBeVisible();
+      gate.releaseHeldServerMessage("branch_suggestions_response");
+      const createOption = picker.getByRole("button", {
+        name: "feature/brand-new (New branch)",
+        exact: true,
+      });
+      await expect(createOption).toBeVisible();
+      page.once("dialog", (dialog) => {
+        void dialog.dismiss();
+      });
+      await createOption.click();
+      await expect(branch).toHaveText("feature/picker");
+      const cancelled = await git("git", ["branch", "--list", "feature/brand-new"], {
+        cwd: linkedPath,
+      });
+      expect(cancelled.stdout.trim()).toBe("");
+      await expect(branch).toBeEnabled();
+      await branch.click();
+      await search.fill("feature/brand-new");
+      page.once("dialog", (dialog) => {
+        expect(dialog.message()).toContain("feature/brand-new");
+        void dialog.accept();
+      });
+      await createOption.click();
+      await expect(branch).toHaveText("feature/brand-new");
+      const newBranch = await git("git", ["branch", "--show-current"], { cwd: linkedPath });
+      expect(newBranch.stdout.trim()).toBe("feature/brand-new");
+      const explorer = await ensureExplorerSidebar(page);
+      await explorer.getByRole("button", { name: "Source Control", exact: true }).click();
+      await explorer.getByRole("button", { name: "Publish branch", exact: true }).click();
+      await expect
+        .poll(async () => {
+          try {
+            const result = await git("git", ["rev-parse", "--abbrev-ref", "@{upstream}"], {
+              cwd: linkedPath,
+            });
+            return result.stdout.trim();
+          } catch {
+            return "";
+          }
+        })
+        .toBe("origin/feature/brand-new");
+      await expect(
+        explorer.getByRole("button", { name: "Commit staged changes", exact: true }),
+      ).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath("status-branch-switched.png") });
+    } finally {
+      await git("git", ["worktree", "remove", "--force", linkedPath], {
+        cwd: workspace.repoPath,
+      }).catch(() => {});
+      await rm(remotePath, { recursive: true, force: true });
+      await workspace.cleanup();
+    }
+  });
   test("Source Control badge follows discard, refresh, partial staging, and commit", async ({
     page,
   }) => {

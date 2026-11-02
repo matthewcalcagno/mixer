@@ -90,7 +90,10 @@ interface RecordedHostCalls {
   renameCurrentBranch: Array<{ cwd: string; branch: string }>;
 }
 
-type GitMutationFake = Pick<GitMutationService, "checkoutExistingBranch" | "notifyGitMutation">;
+type GitMutationFake = Pick<
+  GitMutationService,
+  "checkoutExistingBranch" | "createBranchFromBase" | "notifyGitMutation"
+>;
 
 interface RecordedGitMutationCalls {
   notifyGitMutation: Array<{
@@ -144,6 +147,7 @@ function makeCheckoutSession(options?: {
     ...options?.host,
   };
   const gitMutation: GitMutationFake = {
+    createBranchFromBase: async () => {},
     notifyGitMutation: async (cwd, reason, opts) => {
       gitMutationCalls.notifyGitMutation.push({ cwd, reason, options: opts });
     },

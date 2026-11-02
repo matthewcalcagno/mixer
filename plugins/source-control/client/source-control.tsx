@@ -155,7 +155,8 @@ export function SourceControlPanel({
     },
   });
   const pending = action.isPending || commitFlowPending;
-  const pushing = action.isPending && action.variables.kind === "push";
+  const pushing =
+    action.isPending && (action.variables.kind === "push" || action.variables.kind === "publish");
   const primaryBusy = commitFlowPending || pushing;
   const c = theme.colors;
   const text = { color: c.foreground, fontSize: 13 };
@@ -303,14 +304,22 @@ export function SourceControlPanel({
   const hasConflicts = groups.merge.length > 0;
   const canCommit = staged.length > 0 && !hasConflicts && !pending && !state.isPending;
   const canAmend = !hasConflicts && !pending && !!state.data;
+  const showPublish =
+    !commitFlowPending &&
+    files.length === 0 &&
+    !!state.data?.hasRemote &&
+    !state.data.upstream &&
+    state.data.branch !== "Detached HEAD";
   const showPush =
     !commitFlowPending &&
     files.length === 0 &&
     !!state.data?.hasRemote &&
-    (state.data.ahead > 0 || pushing);
+    (state.data.ahead > 0 || pushing) &&
+    !showPublish;
   let primaryLabel = "Commit";
   if (commitFlowOption)
     primaryLabel = commitOptions.find((option) => option.value === commitFlowOption)!.label;
+  else if (showPublish) primaryLabel = "Publish branch";
   else if (showPush) primaryLabel = `Push${state.data?.ahead ? ` ${state.data.ahead}↑` : ""}`;
   const operationError = state.error || commitFlowError || action.error;
   async function commit(message: string, option: CommitOption) {
@@ -540,14 +549,14 @@ export function SourceControlPanel({
           disabled={pending || !state.data}
           remoteDisabled={!state.data?.hasRemote || !state.data.upstream}
           diverged={!!state.data?.ahead && !!state.data.behind}
-          showPush={showPush}
+          showPush={showPush || showPublish}
           pushEnabled={!pending && !state.isFetching && !state.data?.behind}
           primaryBusy={primaryBusy}
           primaryLabel={primaryLabel}
           onMessage={saveMessage}
           onCommit={commit}
           onPush={() => {
-            action.mutate({ kind: "push" });
+            action.mutate({ kind: showPublish ? "publish" : "push" });
           }}
         />
         {operationError && (
@@ -785,6 +794,8 @@ function CommitForm({
   const canCommit = !!message.trim() && commitAllowed;
   const canAmend = !!message.trim() && amendAllowed;
   const primaryEnabled = showPush ? pushEnabled : canCommit;
+  const remoteAccessibilityLabel =
+    primaryLabel === "Publish branch" ? primaryLabel : "Push outgoing commits";
   const primaryAccessibilityLabel = primaryBusy ? primaryLabel : "Commit staged changes";
   const c = theme.colors;
   const text = { color: c.foreground, fontSize: 13 };
@@ -863,7 +874,7 @@ function CommitForm({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={showPush ? "Push outgoing commits" : primaryAccessibilityLabel}
+          accessibilityLabel={showPush ? remoteAccessibilityLabel : primaryAccessibilityLabel}
           accessibilityState={{ disabled: !primaryEnabled, busy: primaryBusy }}
           aria-busy={primaryBusy || undefined}
           disabled={!primaryEnabled}

@@ -5,10 +5,13 @@ import type { DaemonClient } from "@mixer/client/internal/daemon-client";
 // callers choose the operation, never the directory.
 export function createBranchSwitcherOperations(client: DaemonClient, cwd: string) {
   return {
-    getBranchSuggestions: (limit: number) => client.getBranchSuggestions({ cwd, limit }),
+    getBranchSuggestions: (limit: number, query?: string) =>
+      client.getBranchSuggestions({ cwd, limit, query }),
     listMixerStashes: () => client.stashList(cwd, { mixerOnly: true }),
     saveStash: (branch: string | undefined) => client.stashSave(cwd, { branch }),
     popStash: (stashIndex: number) => client.stashPop(cwd, stashIndex),
+    pushBranch: () => client.checkoutPush(cwd),
+    createBranch: (branch: string) => client.checkoutSwitchBranch(cwd, branch, undefined, true),
     switchBranch: (branch: string) => client.checkoutSwitchBranch(cwd, branch),
   };
 }

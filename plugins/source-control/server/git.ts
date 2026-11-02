@@ -95,6 +95,8 @@ export async function status(cwd: string) {
   );
   hash.update(await git(cwd, ["diff", "--no-ext-diff", "--binary", "--cached"]));
   hash.update(JSON.stringify(files));
+  hash.update(branch);
+  hash.update(upstream);
   hash.update(await git(cwd, ["rev-parse", "HEAD"]).catch(() => Promise.resolve("unborn")));
   for (const file of files)
     if (file.index === "?") hash.update(await readFile(resolve(cwd, file.path)));

@@ -6,6 +6,7 @@ import type { ComboboxOption } from "@/components/ui/combobox";
 import type { ToastApi } from "@/components/toast-host";
 import { invalidateCheckoutGitQueriesForClient } from "@/git/query-keys";
 import { createBranchSwitcherOperations } from "@/git/branch-switcher-operations";
+import { confirmCreateBranch } from "@/git/confirm-create-branch";
 import { confirmDialog } from "@/utils/confirm-dialog";
 
 interface UseBranchSwitcherInput {
@@ -22,6 +23,10 @@ interface UseBranchSwitcherInput {
 
 interface UseBranchSwitcherResult {
   branchOptions: ComboboxOption[];
+  setSearchQuery: (query: string) => void;
+  emptyText: string;
+  isSwitching: boolean;
+  canCreateBranch: boolean;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   handleBranchSelect: (branchId: string) => void;
@@ -41,6 +46,8 @@ export function useBranchSwitcher({
 }: UseBranchSwitcherInput): UseBranchSwitcherResult {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSwitching, setIsSwitching] = useState(false);
 
   // Git operations are bound to the workspace directory; the opaque workspace id is
   // used only for query cache identity below, never as a cwd.
@@ -53,26 +60,40 @@ export function useBranchSwitcher({
   );
 
   const branchSuggestionsQuery = useQuery({
-    queryKey: ["branchSuggestions", normalizedServerId, normalizedWorkspaceId],
+    queryKey: ["branchSuggestions", normalizedServerId, normalizedWorkspaceId, searchQuery],
     queryFn: async () => {
       if (!operations) {
         throw new Error(t("common.errors.daemonClientUnavailable"));
       }
-      const payload = await operations.getBranchSuggestions(200);
+      const payload = await operations.getBranchSuggestions(200, searchQuery);
       if (payload.error) {
         throw new Error(payload.error);
       }
       return payload.branches ?? [];
     },
     enabled: isOpen && isGitCheckout && Boolean(operations) && isConnected,
+    // Keep the picker stable while each search runs; never carry results across workspaces.
+    placeholderData: (previous, query) => {
+      const sameWorkspace =
+        query?.queryKey[1] === normalizedServerId && query.queryKey[2] === normalizedWorkspaceId;
+      return sameWorkspace ? previous : undefined;
+    },
     retry: false,
     staleTime: 15_000,
   });
 
   const branchOptions = useMemo<ComboboxOption[]>(() => {
     const branches = branchSuggestionsQuery.data ?? [];
+    const names = new Set(branches);
+    if (branchSuggestionsQuery.data && currentBranchName && !searchQuery) {
+      names.delete(currentBranchName);
+      return [currentBranchName, ...names].map((name) => ({ id: name, label: name }));
+    }
     return branches.map((name) => ({ id: name, label: name }));
-  }, [branchSuggestionsQuery.data]);
+  }, [branchSuggestionsQuery.data, currentBranchName, searchQuery]);
+  let emptyText = t("branchSwitcher.empty");
+  if (branchSuggestionsQuery.isPending) emptyText = t("common.loading");
+  else if (branchSuggestionsQuery.error) emptyText = branchSuggestionsQuery.error.message;
 
   const stashListQueryKey = useMemo(
     () => ["stashList", normalizedServerId, normalizedWorkspaceId] as const,
@@ -119,31 +140,35 @@ export function useBranchSwitcher({
   );
 
   const stashAndSwitch = useCallback(
-    async (branchId: string) => {
-      if (!operations) return;
+    async (branchId: string, create: boolean) => {
+      if (!operations) return false;
       const shouldStash = await confirmDialog({
         title: t("branchSwitcher.uncommittedTitle"),
         message: t("branchSwitcher.uncommittedMessage"),
         confirmLabel: t("branchSwitcher.stashAndSwitch"),
         cancelLabel: t("common.actions.cancel"),
       });
-      if (!shouldStash) return;
+      if (!shouldStash) return false;
 
       try {
         const stashPayload = await operations.saveStash(currentBranchName ?? undefined);
         if (stashPayload.error) {
           toast.error(stashPayload.error.message);
-          return;
+          return false;
         }
         await invalidateStashAndCheckout();
-        const switchPayload = await operations.switchBranch(branchId);
+        const switchPayload = create
+          ? await operations.createBranch(branchId)
+          : await operations.switchBranch(branchId);
         if (switchPayload.error) {
           toast.error(switchPayload.error.message);
-          return;
+          return false;
         }
         await invalidateStashAndCheckout();
+        return true;
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t("branchSwitcher.failedToStash"));
+        return false;
       }
     },
     [operations, currentBranchName, invalidateStashAndCheckout, toast, t],
@@ -151,31 +176,60 @@ export function useBranchSwitcher({
 
   const handleBranchSelect = useCallback(
     (branchId: string) => {
-      if (branchId === currentBranchName) return;
+      if (branchId === currentBranchName || isSwitching) return;
 
       void (async () => {
         if (!operations) return;
+        setIsSwitching(true);
         try {
-          const payload = await operations.switchBranch(branchId);
+          let exists =
+            branchSuggestionsQuery.data?.includes(branchId) || branchId === currentBranchName;
+          if (!exists) {
+            // A displayed create option may precede its search response. Recheck before creating.
+            const exact = await operations.getBranchSuggestions(200, branchId);
+            if (exact.error) throw new Error(exact.error);
+            exists = exact.branches?.includes(branchId) ?? false;
+          }
+          let pushToOrigin = false;
+          if (!exists) {
+            const decision = await confirmCreateBranch(branchId);
+            if (!decision.confirmed) return;
+            pushToOrigin = decision.pushToOrigin;
+          }
+          const payload = exists
+            ? await operations.switchBranch(branchId)
+            : await operations.createBranch(branchId);
           if (payload.error) {
             // If the error is about uncommitted changes, offer the stash dialog
             if (payload.error.message.toLowerCase().includes("uncommitted")) {
-              await stashAndSwitch(branchId);
+              if (!(await stashAndSwitch(branchId, !exists))) return;
+            } else {
+              toast.error(payload.error.message);
               return;
             }
-            toast.error(payload.error.message);
-            return;
           }
           // Success — refresh and check for stashes on the target branch
           await invalidateStashAndCheckout();
+          if (pushToOrigin) {
+            const pushed = await operations.pushBranch();
+            if (pushed.error) {
+              toast.error(`Branch created, but push to origin failed: ${pushed.error.message}`);
+              return;
+            }
+            await invalidateStashAndCheckout();
+          }
           await maybeRestoreStashForBranch(branchId);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : t("branchSwitcher.failedToSwitch"));
+        } finally {
+          setIsSwitching(false);
         }
       })();
     },
     [
       operations,
+      isSwitching,
+      branchSuggestionsQuery.data,
       currentBranchName,
       invalidateStashAndCheckout,
       maybeRestoreStashForBranch,
@@ -185,5 +239,15 @@ export function useBranchSwitcher({
     ],
   );
 
-  return { branchOptions, isOpen, setIsOpen, handleBranchSelect, invalidateStashAndCheckout };
+  return {
+    branchOptions,
+    isSwitching,
+    canCreateBranch: branchSuggestionsQuery.isSuccess,
+    setSearchQuery,
+    emptyText,
+    isOpen,
+    setIsOpen,
+    handleBranchSelect,
+    invalidateStashAndCheckout,
+  };
 }

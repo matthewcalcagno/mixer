@@ -67,7 +67,7 @@ export const actionRpc = defineRpc({
         }),
         z.object({ kind: z.literal("commit"), message: z.string().trim().min(1) }),
         z.object({ kind: z.literal("amend"), message: z.string().trim().min(1) }),
-        z.object({ kind: z.enum(["fetch", "pull", "push", "sync"]) }),
+        z.object({ kind: z.enum(["fetch", "pull", "push", "sync", "publish"]) }),
         z.object({
           kind: z.literal("patch"),
           path: z.string().min(1),
