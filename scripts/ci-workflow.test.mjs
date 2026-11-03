@@ -579,9 +579,18 @@ test("Windows units and integration run independently with complete routed cover
 
 test("macOS release retries only transient stapling and validation failures without rebuilding the signed app", async (t) => {
   const workflow = readFileSync(new URL(".github/workflows/desktop-release.yml", repoRoot), "utf8");
-  const wrapper = workflow
-    .match(/<<'STAPLER'\n([\s\S]*?)\n          STAPLER/)[1]
+  const setup = workflow
+    .match(
+      /      - name: Configure Apple ticket retries\n        shell: bash\n        run: \|\n([\s\S]*?)(?=\n      - name:)/,
+    )[1]
     .replace(/^          /gm, "");
+  assert.ok(
+    workflow.indexOf("Configure Apple ticket retries") < workflow.indexOf("Build desktop release"),
+  );
+  assert.ok(
+    workflow.indexOf("Build desktop release") <
+      workflow.indexOf("Verify distributed macOS app signatures and notarization"),
+  );
   const networkError =
     'Error Domain=NSURLErrorDomain Code=-1005 "The network connection was lost."';
   const cases = [
@@ -666,9 +675,9 @@ test("macOS release retries only transient stapling and validation failures with
       const directory = mkdtempSync(join(tmpdir(), "stapler-retry-"));
       try {
         const statePath = join(directory, "state.json");
-        const realXcrun = join(directory, "real-xcrun");
-        const wrapperPath = join(directory, "xcrun");
-        writeFileSync(wrapperPath, wrapper, { mode: 0o755 });
+        const realXcrun = join(directory, "xcrun");
+        const githubEnv = join(directory, "github-env");
+        const githubPath = join(directory, "github-path");
         writeFileSync(join(directory, "sleep"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
         writeFileSync(
           statePath,
@@ -688,14 +697,39 @@ process.exit(code);
           { mode: 0o755 },
         );
         const args = [scenario.command, scenario.action ?? "staple", "-v", "Mixer signed.app"];
-        const result = spawnSync("bash", [wrapperPath, ...args], {
+        const environment = {
+          ...process.env,
+          STAPLER_STATE: statePath,
+          TMPDIR: directory,
+          PATH: `${directory}:${process.env.PATH}`,
+          GITHUB_ENV: githubEnv,
+          GITHUB_PATH: githubPath,
+        };
+        const configured = spawnSync("bash", ["-e", "-c", setup], {
           encoding: "utf8",
-          env: {
-            ...process.env,
-            MIXER_REAL_XCRUN: realXcrun,
-            STAPLER_STATE: statePath,
-            PATH: `${directory}:${process.env.PATH}`,
-          },
+          env: environment,
+          timeout: 5000,
+        });
+        assert.equal(configured.status, 0, configured.stdout + configured.stderr);
+        const publishedEnv = Object.fromEntries(
+          readFileSync(githubEnv, "utf8")
+            .trim()
+            .split("\n")
+            .map((line) => {
+              const separator = line.indexOf("=");
+              return [line.slice(0, separator), line.slice(separator + 1)];
+            }),
+        );
+        assert.equal(publishedEnv.MIXER_REAL_XCRUN, realXcrun);
+        const publishedPath = readFileSync(githubPath, "utf8").trim();
+        assert.ok(
+          existsSync(join(publishedPath, "xcrun")),
+          "Wrapper must survive the setup shell exiting",
+        );
+        // Start a separate step using only the environment files published by setup.
+        const result = spawnSync("bash", ["-c", 'exec xcrun "$@"', "--", ...args], {
+          encoding: "utf8",
+          env: { ...environment, ...publishedEnv, PATH: `${publishedPath}:${environment.PATH}` },
           timeout: 5000,
         });
         assert.equal(result.status, scenario.expected, result.stdout + result.stderr);

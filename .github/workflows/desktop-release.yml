@@ -194,30 +194,12 @@ jobs:
             fi
           done
 
-      - name: Build desktop release
+      - name: Configure Apple ticket retries
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EP_GH_IGNORE_TIME: true
-          # Only the trusted, merged develop-to-main release can reach this job.
-          # electron-builder otherwise skips signing for the inherited PR event.
-          CSC_FOR_PULL_REQUEST: "true"
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          MIXER_DESKTOP_SMOKE: "1"
-          MIXER_DESKTOP_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/desktop-smoke
-          # Metro's jest workers OOM on the generated ws-outbound.aot.js validator,
-          # the last module in the web bundle. Node's default heap is sized from
-          # runner RAM, which is not enough on the Intel runner.
-          NODE_OPTIONS: --max-old-space-size=${{ matrix.node_heap_mb }}
         run: |
           set -euo pipefail
-          export MIXER_REAL_XCRUN="$(command -v xcrun)"
+          echo "MIXER_REAL_XCRUN=$(command -v xcrun)" >> "$GITHUB_ENV"
           stapler_bin="$(mktemp -d)"
-          trap 'rm -rf "$stapler_bin"' EXIT
           cat > "$stapler_bin/xcrun" <<'STAPLER'
           #!/bin/bash
           if [[ "${1:-}" != stapler || ( "${2:-}" != staple && "${2:-}" != validate ) ]]; then
@@ -242,7 +224,29 @@ jobs:
           done
           STAPLER
           chmod +x "$stapler_bin/xcrun"
-          export PATH="$stapler_bin:$PATH"
+          echo "$stapler_bin" >> "$GITHUB_PATH"
+
+      - name: Build desktop release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_GH_IGNORE_TIME: true
+          # Only the trusted, merged develop-to-main release can reach this job.
+          # electron-builder otherwise skips signing for the inherited PR event.
+          CSC_FOR_PULL_REQUEST: "true"
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MIXER_DESKTOP_SMOKE: "1"
+          MIXER_DESKTOP_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/desktop-smoke
+          # Metro's jest workers OOM on the generated ws-outbound.aot.js validator,
+          # the last module in the web bundle. Node's default heap is sized from
+          # runner RAM, which is not enough on the Intel runner.
+          NODE_OPTIONS: --max-old-space-size=${{ matrix.node_heap_mb }}
+        run: |
+          set -euo pipefail
           build_args=(-- --publish never --mac --${{ matrix.electron_arch }} -c.forceCodeSigning=true)
           build_args+=("-c.publish.releaseType=$RELEASE_TYPE")
           build_args+=("-c.publish.channel=$RELEASE_CHANNEL")
