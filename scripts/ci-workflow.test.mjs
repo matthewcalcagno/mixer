@@ -825,9 +825,13 @@ test("desktop release tags are published before release creation and cannot be r
     .map((line) => line.replace(/^          /, ""))
     .join("\n");
   const release = readFileSync(new URL(".github/workflows/desktop-release.yml", repoRoot), "utf8");
-  const create = release.split('gh release create "$RELEASE_TAG"')[1].split("      - name:")[0];
-  assert.match(create, /--verify-tag/);
-  assert.doesNotMatch(create, /--target/);
+  assert.match(release, /sync-release-notes-from-changelog\.mjs.*--create-if-missing/);
+  const create = readFileSync(
+    new URL("scripts/sync-release-notes-from-changelog.mjs", repoRoot),
+    "utf8",
+  );
+  assert.match(create, /"--verify-tag"/);
+  assert.doesNotMatch(create, /"--target"/);
   const root = mkdtempSync(join(tmpdir(), "mixer-release-tags-"));
   const cwd = join(root, "checkout");
   const remote = join(root, "remote.git");
@@ -889,4 +893,13 @@ test("desktop renderer edits retain broad UI coverage and exercise real Electron
     "plugins/*/shared/**",
   ])
     assert.ok(browser.includes(path), `plugin UI changes must select renderer tests: ${path}`);
+});
+
+test("desktop release creation uses only its matching versioned changelog notes", () => {
+  const workflow = readFileSync(new URL(".github/workflows/desktop-release.yml", repoRoot), "utf8");
+  assert.ok(!workflow.includes("--generate-notes"));
+  assert.match(
+    workflow,
+    /sync-release-notes-from-changelog\.mjs --tag "\$RELEASE_TAG" --repo "\$\{\{ github.repository \}\}" --create-if-missing/,
+  );
 });

@@ -44,49 +44,48 @@ function cleanNotes(text) {
     .trim();
 }
 
-function meaningfulLines(text = "") {
-  return text
-    .split("\n")
-    .filter(
-      (line) =>
-        !/^\s*(?:Closes|Fixes|Resolves)\s+#?\s*$/i.test(line) &&
-        !/^\s*- \[ \]/.test(line) &&
-        !/^(?:Validation|Testing|Test plan):/i.test(line),
-    )
-    .join("\n")
-    .trim();
-}
-function descriptionNotes(body = "") {
-  const explicit = releaseNotesSection(body);
-  if (explicit) return explicit;
-  const sections = body.replace(/<!--[\s\S]*?-->/g, "").split(/^#{2,3}[ \t]+(.+?)[ \t]*$/m);
-  const kept = [meaningfulLines(sections[0])];
-  for (let index = 1; index < sections.length; index += 2) {
-    const heading = sections[index].trim();
-    if (
-      /^(?:linked issues?|related issues?|type of change|test(?:ing|s| plan)?|validation|checklist|screenshots?|demo|qa)$/i.test(
-        heading,
-      )
-    )
-      continue;
-    const content = meaningfulLines(sections[index + 1]);
-    if (content) kept.push(`### ${heading}\n\n${content}`);
-  }
-  return kept.filter(Boolean).join("\n\n");
+function changeCategory(title) {
+  if (/^(?:fix(?:\(.+?\))?:|fix(?:ed|es)?\b)/i.test(title)) return "Fixed";
+  if (/^(?:feat(?:\(.+?\))?:|add(?:ed|s)?\b|support\b|enable\b)/i.test(title)) return "Added";
+  if (/^(?:remove(?:d|s)?\b|drop\b)/i.test(title)) return "Removed";
+  if (/^security\b/i.test(title)) return "Security";
+  return "Changed";
 }
 
 export function renderReleaseNotes(changes, releaseBody = "") {
   const curated = releaseNotesSection(releaseBody);
-  const notes = changes.map((change) => {
-    const detail = descriptionNotes(change.body);
+  const entries = curated ? [{ title: "", body: `## Release notes\n${curated}` }] : changes;
+  const groups = new Map();
+  const seen = new Set();
+  for (const change of entries) {
+    let category = changeCategory(change.title);
+    const detail = releaseNotesSection(change.body) || change.title;
     const credit = change.url
       ? ` ([${change.number ? `#${change.number}` : change.sha.slice(0, 7)}](${change.url}))`
       : "";
-    return detail
-      ? `${detail}\n\nSource: [#${change.number}](${change.url})`
-      : `- ${change.title.replace(/\s+/g, " ")}${credit}`;
-  });
-  return cleanNotes([curated, ...notes].filter(Boolean).join("\n\n")) + "\n";
+    for (const line of cleanNotes(detail).split("\n")) {
+      const heading = /^#{1,3}\s+(Added|Changed|Fixed|Removed|Deprecated|Security)\s*$/i.exec(line);
+      if (heading) {
+        category = heading[1][0].toUpperCase() + heading[1].slice(1).toLowerCase();
+        continue;
+      }
+      if (!line.trim() || line.startsWith("#")) continue;
+      const text = line
+        .replace(/^\s*[-*]\s+/, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (seen.has(text.toLowerCase())) continue;
+      seen.add(text.toLowerCase());
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category).push(`- ${text}${credit}`);
+    }
+  }
+  return (
+    ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
+      .filter((category) => groups.has(category))
+      .map((category) => `### ${category}\n\n${groups.get(category).join("\n")}`)
+      .join("\n\n") + "\n"
+  );
 }
 export function writeReleaseChangelog({ version, date, notes, previous = "" }) {
   if (previous && !previous.startsWith(CHANGELOG_TITLE))
@@ -116,7 +115,18 @@ export function getReleaseContext({ source, labels, repo, releasePr, additionalS
       return y.major - x.major || y.minor - x.minor || y.patch - x.patch;
     })[0];
   const baseline = published?.tag_name || git("rev-list", "--max-parents=0", source).split("\n")[0];
-  const previous = published ? git("show", `${baseline}:CHANGELOG.md`) : "";
+  const previous = published
+    ? execFileSync(
+        "gh",
+        [
+          "api",
+          `repos/${repo}/releases/assets/${published.assets.find((asset) => asset.name === "CHANGELOG.md").id}`,
+          "-H",
+          "Accept: application/octet-stream",
+        ],
+        { encoding: "utf8" },
+      )
+    : "";
   const commits = git(
     "log",
     "--no-merges",
@@ -139,7 +149,11 @@ export function getReleaseContext({ source, labels, repo, releasePr, additionalS
       ? githubApi(`repos/${repo}/commits/${commit.sha}/pulls?per_page=100`, { paginate: true })
       : [];
     const included = pulls.filter(
-      (pr) => pr.number !== releasePr?.number && pr.base.repo.full_name === repo,
+      (pr) =>
+        pr.number !== releasePr?.number &&
+        pr.merged_at &&
+        pr.base.repo.full_name === repo &&
+        !(pr.head.ref === "develop" && pr.base.ref === "main"),
     );
     if (included.length) {
       for (const pr of included)
@@ -158,6 +172,11 @@ export function getReleaseContext({ source, labels, repo, releasePr, additionalS
         url: repo ? `https://github.com/${repo}/commit/${commit.sha}` : "",
       });
   }
-  const notes = renderReleaseNotes(changes, releasePr?.body || "");
+  const comparison = published
+    ? `compare/${published.tag_name}...v${plan.version}`
+    : `commits/v${plan.version}`;
+  const notes =
+    renderReleaseNotes(changes, releasePr?.body || "") +
+    (repo ? `\n[Full Changelog](https://github.com/${repo}/${comparison})\n` : "");
   return { plan, notes, previous, baseline: published?.tag_name || null, head: source };
 }
