@@ -1,5 +1,30 @@
 # Mixer Changelog
 
+## 0.5.0 - 2026-11-03
+
+### Added
+
+- Add reveal actions to file tabs ([#31](https://github.com/matthewcalcagno/mixer/pull/31))
+- Support dragging workspace folders into chat ([#32](https://github.com/matthewcalcagno/mixer/pull/32))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.4.4...v0.5.0)
+
+## 0.4.4 - 2026-11-03
+
+### Changed
+
+- Retry transient Apple ticket validation failures ([#24](https://github.com/matthewcalcagno/mixer/pull/24))
+- Keep Apple ticket retries active during installer verification ([#26](https://github.com/matthewcalcagno/mixer/pull/26))
+
+### Fixed
+
+- Fix unsigned macOS releases and verify distributed installers ([#22](https://github.com/matthewcalcagno/mixer/pull/22))
+- Fix changelog upload to draft desktop releases ([#29](https://github.com/matthewcalcagno/mixer/pull/29))
+- Keep each version's changelog focused on its own changes, with concise categorized notes and version comparison links. ([#28](https://github.com/matthewcalcagno/mixer/pull/28))
+- Show corrected published Mixer release history in What's new without drafts, betas, or inherited upstream entries. ([#28](https://github.com/matthewcalcagno/mixer/pull/28))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.4.0...v0.4.4)
+
 ## 0.4.0 - 2026-11-02
 
 ### Changed
