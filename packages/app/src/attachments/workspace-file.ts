@@ -33,7 +33,7 @@ export function isWorkspaceFileComposerAttachment(
     return false;
   }
   const { kind, startLine, endLine } = selection as Record<string, unknown>;
-  if (kind === "whole_file") {
+  if (kind === "whole_file" || kind === "whole_folder") {
     return true;
   }
   return (
@@ -61,9 +61,9 @@ export function createWorkspaceFileAttachment({
 export function getWorkspaceFileAttachmentKey(attachment: WorkspaceFileComposerAttachment): string {
   const selection = attachment.selection;
   const selectionKey =
-    selection.kind === "whole_file"
-      ? selection.kind
-      : `${selection.kind}:${selection.startLine}-${selection.endLine}`;
+    selection.kind === "line_range"
+      ? `${selection.kind}:${selection.startLine}-${selection.endLine}`
+      : selection.kind;
   return `${normalizePath(attachment.path)}:${selectionKey}`;
 }
 
@@ -88,18 +88,19 @@ export function workspaceFileAttachmentToAgentAttachment(
     attachment.selection.kind === "line_range"
       ? `\nLines: ${attachment.selection.startLine}-${attachment.selection.endLine}`
       : "";
+  const entryType = attachment.selection.kind === "whole_folder" ? "folder" : "file";
   return {
     type: "text",
     mimeType: "text/plain",
     title: fileName,
-    text: `Workspace file: ${attachment.path}${lines}`,
+    text: `Workspace ${entryType}: ${attachment.path}${lines}`,
   };
 }
 
 export function getWorkspaceFileAttachmentSubtitle(
   attachment: WorkspaceFileComposerAttachment,
 ): string {
-  if (attachment.selection.kind === "whole_file") {
+  if (attachment.selection.kind !== "line_range") {
     return attachment.path;
   }
   return `${attachment.path} · ${attachment.selection.startLine}-${attachment.selection.endLine}`;

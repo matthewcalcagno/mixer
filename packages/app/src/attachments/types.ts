@@ -95,6 +95,7 @@ export const NEW_WORKSPACE_PICKER_ATTACHMENT_OWNER = "new-workspace-picker";
 
 export type WorkspaceFileSelection =
   | { kind: "whole_file" }
+  | { kind: "whole_folder" }
   | { kind: "line_range"; startLine: number; endLine: number };
 
 export interface WorkspaceFileComposerAttachment {

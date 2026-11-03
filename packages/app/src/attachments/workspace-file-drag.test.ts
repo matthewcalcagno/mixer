@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createWorkspaceFileAttachment } from "./workspace-file";
+import {
+  createWorkspaceFileAttachment,
+  workspaceFileAttachmentToAgentAttachment,
+} from "./workspace-file";
 import {
   parseWorkspaceFileDragPayload,
   resolveWorkspaceFileDrop,
@@ -24,6 +27,31 @@ describe("workspace file drag payload", () => {
     expect(parseWorkspaceFileDragPayload(serializeWorkspaceFileDragPayload(payload()))).toEqual(
       payload(),
     );
+  });
+
+  it("preserves a folder reference through drag, drop, and submission", () => {
+    const dragged = {
+      ...payload(),
+      attachment: createWorkspaceFileAttachment({
+        path: "packages/app",
+        selection: { kind: "whole_folder" },
+      }),
+    };
+    const parsed = parseWorkspaceFileDragPayload(serializeWorkspaceFileDragPayload(dragged));
+    expect(parsed).toEqual(dragged);
+    if (!parsed) throw new Error("Missing folder drag payload");
+    const attachment = resolveWorkspaceFileDrop({
+      payload: parsed,
+      serverId: dragged.serverId,
+      workspaceId: dragged.workspaceId,
+    });
+    if (!attachment) throw new Error("Missing folder attachment");
+    expect(workspaceFileAttachmentToAgentAttachment(attachment)).toEqual({
+      type: "text",
+      mimeType: "text/plain",
+      title: "app",
+      text: "Workspace folder: packages/app",
+    });
   });
 
   it("rejects malformed and invalid payloads", () => {
