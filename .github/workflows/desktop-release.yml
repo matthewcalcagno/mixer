@@ -217,7 +217,7 @@ jobs:
           trap 'rm -rf "$stapler_bin"' EXIT
           cat > "$stapler_bin/xcrun" <<'STAPLER'
           #!/bin/bash
-          if [[ "${1:-}" != stapler || "${2:-}" != staple ]]; then
+          if [[ "${1:-}" != stapler || ( "${2:-}" != staple && "${2:-}" != validate ) ]]; then
             exec "$MIXER_REAL_XCRUN" "$@"
           fi
           output="$(mktemp)"
@@ -234,7 +234,7 @@ jobs:
               ! grep -Fq 'NSURLErrorDomain Code=-1005' "$output"; then
               exit "$status"
             fi
-            echo "::warning::Apple staple connection lost; retrying the same signed app ($attempt/4)" >&2
+            echo "::warning::Apple stapler ${2} connection lost; retrying the same signed app ($attempt/4)" >&2
             sleep 30
           done
           STAPLER

@@ -543,7 +543,7 @@ test("Windows units and integration run independently with complete routed cover
   }
 });
 
-test("macOS release retries only transient stapling failures without rebuilding the signed app", async (t) => {
+test("macOS release retries only transient stapling and validation failures without rebuilding the signed app", async (t) => {
   const workflow = readFileSync(new URL(".github/workflows/desktop-release.yml", repoRoot), "utf8");
   const wrapper = workflow
     .match(/<<'STAPLER'\n([\s\S]*?)\n          STAPLER/)[1]
@@ -592,6 +592,33 @@ test("macOS release retries only transient stapling failures without rebuilding 
       attempts: 1,
     },
     {
+      name: "validation connection lost then success",
+      outcomes: [68, 0],
+      output: networkError,
+      command: "stapler",
+      action: "validate",
+      expected: 0,
+      attempts: 2,
+    },
+    {
+      name: "validation exhausts network retries",
+      outcomes: [68, 68, 68, 68, 0],
+      output: networkError,
+      command: "stapler",
+      action: "validate",
+      expected: 68,
+      attempts: 4,
+    },
+    {
+      name: "invalid ticket is not retried",
+      outcomes: [68, 0],
+      output: "ticket not found",
+      command: "stapler",
+      action: "validate",
+      expected: 68,
+      attempts: 1,
+    },
+    {
       name: "notary submission is not retried",
       outcomes: [68, 0],
       output: networkError,
@@ -626,7 +653,7 @@ process.exit(code);
 `,
           { mode: 0o755 },
         );
-        const args = [scenario.command, "staple", "-v", "Mixer signed.app"];
+        const args = [scenario.command, scenario.action ?? "staple", "-v", "Mixer signed.app"];
         const result = spawnSync("bash", [wrapperPath, ...args], {
           encoding: "utf8",
           env: {
