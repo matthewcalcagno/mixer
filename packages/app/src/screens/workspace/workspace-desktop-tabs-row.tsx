@@ -1,3 +1,4 @@
+import type { FileTabRevealActions } from "./workspace-tab-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   isFixedExplorerTarget,
@@ -529,6 +530,7 @@ export interface WorkspaceDesktopTabsRowProps {
   onCopyAgentId: (agentId: string) => Promise<void> | void;
   onCopyTerminalId: (terminalId: string) => Promise<void> | void;
   onCopyFilePath: (path: string) => Promise<void> | void;
+  fileRevealActions?: FileTabRevealActions;
   onReloadAgent: (agentId: string) => Promise<void> | void;
   onRenameTab: (tab: WorkspaceTabDescriptor) => void;
   onCloseTabsToLeft: (tabId: string) => Promise<void> | void;
@@ -1129,6 +1131,7 @@ function ResolvedWorkspaceDesktopTabsRow({
   onCopyAgentId,
   onCopyTerminalId,
   onCopyFilePath,
+  fileRevealActions,
   onReloadAgent,
   onRenameTab,
   onCloseTabsToLeft,
@@ -1441,6 +1444,7 @@ function ResolvedWorkspaceDesktopTabsRow({
           onCopyAgentId={onCopyAgentId}
           onCopyTerminalId={onCopyTerminalId}
           onCopyFilePath={onCopyFilePath}
+          fileRevealActions={fileRevealActions}
           onReloadAgent={onReloadAgent}
           onRenameTab={onRenameTab}
           onCloseTabsToLeft={onCloseTabsToLeft}
@@ -1476,6 +1480,7 @@ function ResolvedWorkspaceDesktopTabsRow({
       onCopyAgentId,
       onCopyTerminalId,
       onCopyFilePath,
+      fileRevealActions,
       onCopyResumeCommand,
       onNavigateTab,
       onReloadAgent,
@@ -1608,6 +1613,7 @@ function ResolvedDesktopTabChip({
   onCopyAgentId,
   onCopyTerminalId,
   onCopyFilePath,
+  fileRevealActions,
   onReloadAgent,
   onRenameTab,
   onCloseTabsToLeft,
@@ -1636,6 +1642,7 @@ function ResolvedDesktopTabChip({
   onCopyAgentId: (agentId: string) => Promise<void> | void;
   onCopyTerminalId: (terminalId: string) => Promise<void> | void;
   onCopyFilePath: (path: string) => Promise<void> | void;
+  fileRevealActions?: FileTabRevealActions;
   onReloadAgent: (agentId: string) => Promise<void> | void;
   onRenameTab: (tab: WorkspaceTabDescriptor) => void;
   onCloseTabsToLeft: (tabId: string) => Promise<void> | void;
@@ -1665,6 +1672,7 @@ function ResolvedDesktopTabChip({
         onCopyAgentId,
         onCopyTerminalId,
         onCopyFilePath,
+        fileRevealActions,
         onReloadAgent,
         onRenameTab,
         onCloseTab,
@@ -1683,6 +1691,7 @@ function ResolvedDesktopTabChip({
       onCopyAgentId,
       onCopyTerminalId,
       onCopyFilePath,
+      fileRevealActions,
       onCopyResumeCommand,
       labels,
       onReloadAgent,

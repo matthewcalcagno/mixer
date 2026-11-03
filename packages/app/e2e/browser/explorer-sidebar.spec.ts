@@ -3,7 +3,11 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
-import { openFileFromExplorer } from "../support/helpers/file-explorer";
+import {
+  collapseFolder,
+  expandFolder,
+  openFileFromExplorer,
+} from "../support/helpers/file-explorer";
 import { openSettingsSection, clickSettingsBackToWorkspace } from "../support/helpers/settings";
 import { expect, test } from "../support/fixtures";
 import {
@@ -60,6 +64,28 @@ async function expectExplorerActiveTabForeground(
 }
 
 test.describe("Explorer sidebar", () => {
+  test("reveals a file tab in a collapsed folder", async ({ page, withWorkspace }) => {
+    const workspace = await withWorkspace({ prefix: "tab-reveal-file-" });
+    await mkdir(path.join(workspace.repoPath, "src"));
+    await writeFile(path.join(workspace.repoPath, "src", "reveal.txt"), "Reveal this file");
+    await gotoWorkspace(page, workspace.workspaceId);
+    await openFilesPanel(page);
+    await expandFolder(page, "src");
+    await openFileFromExplorer(page, "reveal.txt");
+    await collapseFolder(page, "src");
+    const tree = page.getByTestId("file-explorer-tree-scroll");
+    await expect(tree.getByText("reveal.txt", { exact: true })).toBeHidden();
+
+    const tab = page.getByTestId("workspace-tab-file_src/reveal.txt").filter({ visible: true });
+    await tab.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Reveal in File Tree", exact: true }).click();
+    const fileRow = tree
+      .locator('[data-testid^="file-explorer-row-"][aria-selected]')
+      .filter({ hasText: "reveal.txt" });
+    await expect(fileRow).toHaveAttribute("aria-selected", "true");
+    await expect(fileRow).toBeInViewport();
+  });
+
   test("status bar branch picker switches only the selected worktree", async ({ page }) => {
     const workspace = await seedWorkspace({ repoPrefix: "status-branch-picker-" });
     const git = promisify(execFile);

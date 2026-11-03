@@ -868,6 +868,18 @@ export function FileExplorerPane({
     return rows;
   }, [pendingEdit, treeRows]);
   const showInitialLoading = !directories.has(".") && requests.get(".")?.status === "loading";
+  const revealRequest = explorerState?.revealRequest;
+  const lastRevealRequest = useRef<typeof revealRequest>(undefined);
+  useEffect(() => {
+    if (!revealRequest || revealRequest === lastRevealRequest.current || !treeListRef.current)
+      return;
+    const index = listRows.findIndex(
+      (row) => row.type === "entry" && row.row.entry.path === revealRequest.path,
+    );
+    if (index < 0) return;
+    lastRevealRequest.current = revealRequest;
+    treeListRef.current.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+  }, [listRows, revealRequest]);
   const showBackFromError = Boolean(error && selectedEntryPath);
   const renderTreeRow = useCallback(
     (info: ListRenderItemInfo<ExplorerListRow>) => {
@@ -1104,6 +1116,12 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
   const handleNewFolderAtRoot = useCallback(() => {
     onNewEntryAtRoot?.(".", "directory");
   }, [onNewEntryAtRoot]);
+  const handleScrollToIndexFailed = useCallback(
+    ({ index, averageItemLength }: { index: number; averageItemLength: number }) => {
+      treeListRef.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
+    },
+    [treeListRef],
+  );
   const hiddenFilesToggleAccessibilityLabel = showHiddenFiles
     ? t("workspace.fileExplorer.actions.hideHiddenFiles")
     : t("workspace.fileExplorer.actions.showHiddenFiles");
@@ -1247,6 +1265,7 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
               data={listRows}
               renderItem={renderTreeRow}
               keyExtractor={listRowKeyExtractor}
+              onScrollToIndexFailed={handleScrollToIndexFailed}
               testID="file-explorer-tree-scroll"
               contentContainerStyle={styles.entriesContent}
               onLayout={scrollbar.onLayout}
