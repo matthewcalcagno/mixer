@@ -238,6 +238,8 @@ function EntryNameInputRow({
     </View>
   );
 }
+const ENTRY_DRAG_SELECTION = { file: undefined, directory: { kind: "whole_folder" } } as const;
+
 const TreeRowItem = memo(function TreeRowItem({
   serverId,
   workspaceId,
@@ -269,7 +271,8 @@ const TreeRowItem = memo(function TreeRowItem({
   const hideNameHover = useCallback(() => setIsHovered(false), []);
   const isDirectory = entry.kind === "directory";
   const dragSourceRef = useWorkspaceFileDragSource({
-    enabled: !isDirectory,
+    enabled: true,
+    selection: ENTRY_DRAG_SELECTION[entry.kind],
     serverId,
     workspaceId,
     path: entry.path,
