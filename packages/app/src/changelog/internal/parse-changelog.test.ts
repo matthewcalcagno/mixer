@@ -305,30 +305,56 @@ describe("the repository's own CHANGELOG.md", () => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-it("loads only the changelog committed at the published Mixer release tag", async () => {
+function mixerRelease(tag: string, body: string) {
+  return {
+    tag_name: tag,
+    draft: false,
+    prerelease: false,
+    body,
+    assets: [
+      {
+        name: "CHANGELOG.md",
+        browser_download_url: `https://github.com/matthewcalcagno/mixer/releases/download/${tag}/CHANGELOG.md`,
+      },
+    ],
+  };
+}
+it("loads separate published Mixer version notes in descending order", async () => {
   const fetcher = vi
     .fn()
-    .mockResolvedValueOnce(new Response(JSON.stringify({ tag_name: "v0.2.0" })))
-    .mockResolvedValueOnce(
-      new Response("# Mixer Changelog\n\n## 0.2.0 - 2026-11-02\n\n- Mixer feature\n"),
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          mixerRelease("v0.1.0", "## 0.1.0 - 2026-11-01\n\n### Added\n\n- Previous feature"),
+          { ...mixerRelease("v0.3.0", "Draft changes"), draft: true },
+          { ...mixerRelease("v0.3.0-beta.1", "Beta changes"), prerelease: true },
+          mixerRelease("v0.2.0", "## 0.2.0 - 2026-11-02\n\n### Fixed\n\n- Mixer repair"),
+        ]),
+      ),
     );
   vi.stubGlobal("fetch", fetcher);
   const signal = new AbortController().signal;
-  expect(await fetchMixerChangelog(signal)).toContain("Mixer feature");
-  expect(fetcher).toHaveBeenNthCalledWith(1, MIXER_RELEASE_URL, { signal });
-  expect(fetcher).toHaveBeenNthCalledWith(
-    2,
-    "https://raw.githubusercontent.com/matthewcalcagno/mixer/v0.2.0/CHANGELOG.md",
-    { signal },
-  );
+  const markdown = await fetchMixerChangelog(signal);
+  expect(markdown).toContain("Mixer repair");
+  expect(markdown).toContain("Previous feature");
+  expect(markdown.indexOf("## 0.2.0")).toBeLessThan(markdown.indexOf("## 0.1.0"));
+  expect(markdown).not.toContain("Draft changes");
+  expect(markdown).not.toContain("Beta changes");
+  expect(fetcher).toHaveBeenCalledWith(MIXER_RELEASE_URL, { signal });
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
-it("rejects inherited upstream history even if present at a Mixer tag", async () => {
+it("rejects inherited upstream or cumulative history in a release body", async () => {
   vi.stubGlobal(
     "fetch",
     vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ tag_name: "v0.1.1" })))
-      .mockResolvedValueOnce(new Response("# Changelog\n\n## 0.14.0 - 2026-10-27\nUpstream")),
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify([
+            mixerRelease("v0.1.1", "# Changelog\n\n## 0.14.0 - 2026-10-27\nUpstream"),
+          ]),
+        ),
+      ),
   );
   await expect(fetchMixerChangelog(new AbortController().signal)).rejects.toThrow(
     "Mixer changelog",
@@ -337,12 +363,23 @@ it("rejects inherited upstream history even if present at a Mixer tag", async ()
 it("does not follow an unexpected tag or fall back to unpublished main notes", async () => {
   const fetcher = vi
     .fn()
-    .mockResolvedValue(new Response(JSON.stringify({ tag_name: "main/../../upstream" })));
+    .mockResolvedValue(
+      new Response(JSON.stringify([mixerRelease("main/../../upstream", "Bad notes")])),
+    );
   vi.stubGlobal("fetch", fetcher);
   await expect(fetchMixerChangelog(new AbortController().signal)).rejects.toThrow("release tag");
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
-it("reports a missing published release rather than loading upstream notes", async () => {
+it("reports missing release metadata rather than loading upstream notes", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("not found", { status: 404 })));
   await expect(fetchMixerChangelog(new AbortController().signal)).rejects.toThrow("404");
+});
+it("rejects a changelog asset from another repository", async () => {
+  const release = mixerRelease("v0.2.0", "## 0.2.0 - 2026-11-02\n");
+  release.assets[0].browser_download_url =
+    "https://github.com/getpaseo/paseo/releases/download/v0.2.0/CHANGELOG.md";
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify([release]))));
+  await expect(fetchMixerChangelog(new AbortController().signal)).rejects.toThrow(
+    "changelog asset",
+  );
 });

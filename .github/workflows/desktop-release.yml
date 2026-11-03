@@ -106,40 +106,18 @@ jobs:
         shell: bash
         run: node scripts/emit-release-env.mjs --source-tag "$SOURCE_TAG" >> "$GITHUB_ENV"
 
-      - name: Create GitHub release
+      - name: Create or update release with versioned changelog notes
         if: env.IS_SMOKE_TAG != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if node scripts/github-release.mjs --repo "${{ github.repository }}" --tag "$RELEASE_TAG" > /dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists, skipping creation"
-          else
-            prerelease_flag=""
-            if [[ "$IS_PRERELEASE" == "true" ]]; then
-              prerelease_flag="--prerelease"
-            fi
-            gh release create "$RELEASE_TAG" \
-              --repo "${{ github.repository }}" \
-              --verify-tag \
-              --title "Mixer $RELEASE_TAG" \
-              --generate-notes \
-              --draft \
-              $prerelease_flag || {
-                echo "Release creation raced with another workflow; continuing."
-                node scripts/github-release.mjs --repo "${{ github.repository }}" --tag "$RELEASE_TAG" > /dev/null
-              }
-          fi
-
-      - name: Sync release notes from changelog
-        if: env.IS_SMOKE_TAG != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/sync-release-notes-from-changelog.mjs --tag "$RELEASE_TAG" --repo "${{ github.repository }}"
+        run: node scripts/sync-release-notes-from-changelog.mjs --tag "$RELEASE_TAG" --repo "${{ github.repository }}" --create-if-missing
 
       - name: Attach versioned Mixer changelog
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" CHANGELOG.md --clobber --repo "${{ github.repository }}"
+        run: |
+          release_lookup="$(node scripts/github-release.mjs --repo "${{ github.repository }}" --tag "$RELEASE_TAG")"
+          gh release upload "$release_lookup" CHANGELOG.md --clobber --repo "${{ github.repository }}"
 
   publish-macos:
     needs: [prepare, quality, create-release]

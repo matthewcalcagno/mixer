@@ -125,8 +125,7 @@ export function syncReleaseNotes(argv = process.argv.slice(2), deps = {}) {
   let notes = targetEntry?.notes ?? null;
 
   if (!notes) {
-    console.log(`No matching changelog section found for ${targetTag}. Skipping.`);
-    return;
+    throw new Error(`No matching changelog section found for ${targetTag}.`);
   }
 
   notes = exposeGitHubContributorMentions(notes);
