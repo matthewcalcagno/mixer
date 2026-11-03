@@ -674,6 +674,7 @@ export const es: TranslationResources = {
         copyAgentId: "Copiar ID del agente",
         copyTerminalId: "Copiar ID del terminal",
         copyFilePath: "Copy file path",
+        revealInFileTree: "Mostrar en el árbol de archivos",
         rename: "Rebautizar",
         closeAbove: "Cerrar pestañas arriba",
         closeBelow: "Cerrar pestañas a continuación",

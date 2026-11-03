@@ -664,6 +664,7 @@ export const en = {
         copyAgentId: "Copy agent id",
         copyTerminalId: "Copy terminal id",
         copyFilePath: "Copy file path",
+        revealInFileTree: "Reveal in File Tree",
         rename: "Rename",
         closeAbove: "Close tabs above",
         closeBelow: "Close tabs below",

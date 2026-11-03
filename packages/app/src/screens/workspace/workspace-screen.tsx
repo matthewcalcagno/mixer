@@ -1,3 +1,8 @@
+import { isHiddenExplorerPath } from "@/file-explorer/visibility";
+import type { FileTabRevealActions } from "./workspace-tab-menu";
+import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
+import { parentExplorerPath } from "@/utils/explorer-paths";
+import { openDesktopTarget, useDesktopOpenTargets } from "@/workspace/desktop-open-targets";
 import { planTimelineTailFetch } from "@/timeline/timeline-sync-plan";
 import { SOURCE_CONTROL_TARGET } from "@/workspace-tabs/source-control";
 import { useHostFeature } from "@/runtime/host-features";
@@ -203,6 +208,7 @@ import { WorkspaceHeaderMenuMobile } from "@/screens/workspace/workspace-header-
 import {
   createWorkspaceFileTabTarget,
   normalizeWorkspaceFileLocation,
+  resolveWorkspaceFilePaths,
   type OpenFileDisposition,
   type WorkspaceFileLocation,
   type WorkspaceFileOpenRequest,
@@ -1918,6 +1924,76 @@ function WorkspaceScreenContent({
     },
     [toast, t],
   );
+  const { revealDirectory, selectExplorerEntry } = useFileExplorerActions({
+    serverId: normalizedServerId,
+    workspaceId: normalizedWorkspaceId,
+    workspaceRoot: workspaceDirectory,
+  });
+  const isLocalDaemon = useIsLocalDaemon(normalizedServerId);
+  const { targets: desktopOpenTargets } = useDesktopOpenTargets({
+    isLocalExecution: isLocalDaemon,
+  });
+  const fileManagerTarget = desktopOpenTargets.find((target) => target.kind === "file-manager");
+  const fileRevealActions = useCallback<FileTabRevealActions>(
+    (path) => {
+      if (!workspaceDirectory) return [];
+      const paths = resolveWorkspaceFilePaths({ path, workspaceRoot: workspaceDirectory });
+      if (!paths) return [];
+      const actions: ReturnType<FileTabRevealActions> = [];
+      const relativePath = paths.relativePath;
+      if (relativePath) {
+        actions.push({
+          key: "reveal-in-file-tree",
+          label: t("workspace.tabs.menu.revealInFileTree"),
+          onSelect: async () => {
+            openExplorerSidebarView({
+              isCompact: isMobile,
+              workspaceKey: persistenceKey,
+              view: "files",
+            });
+            const panel = usePanelStore.getState();
+            if (isHiddenExplorerPath(relativePath) && !panel.explorerShowHiddenFiles) {
+              panel.toggleExplorerShowHiddenFiles();
+            }
+            await revealDirectory(parentExplorerPath(relativePath));
+            selectExplorerEntry(relativePath, { reveal: true });
+          },
+        });
+      }
+      if (fileManagerTarget) {
+        actions.push({
+          key: "reveal-in-file-manager",
+          label: t("workspace.fileActions.revealIn", { target: fileManagerTarget.label }),
+          onSelect: async () => {
+            try {
+              await openDesktopTarget({
+                editorId: fileManagerTarget.id,
+                workspacePath: workspaceDirectory,
+                filePath: paths.absolutePath,
+              });
+            } catch (cause) {
+              toast.error(
+                cause instanceof Error
+                  ? cause.message
+                  : t("workspace.fileExplorer.errors.revealFailed"),
+              );
+            }
+          },
+        });
+      }
+      return actions;
+    },
+    [
+      workspaceDirectory,
+      t,
+      isMobile,
+      persistenceKey,
+      revealDirectory,
+      selectExplorerEntry,
+      fileManagerTarget,
+      toast,
+    ],
+  );
   const handleCopyFilePath = useCallback(
     async (path: string) => {
       if (!path) return;
@@ -3111,6 +3187,7 @@ function WorkspaceScreenContent({
         onCopyAgentId={handleCopyAgentId}
         onCopyTerminalId={handleCopyTerminalId}
         onCopyFilePath={handleCopyFilePath}
+        fileRevealActions={fileRevealActions}
         onReloadAgent={handleReloadAgent}
         onRenameTab={handleRenameTab}
         onCloseTabsToLeft={handleCloseTabsToLeftInPane}
@@ -3145,6 +3222,7 @@ function WorkspaceScreenContent({
     handleCopyAgentId,
     handleCopyTerminalId,
     handleCopyFilePath,
+    fileRevealActions,
     handleReloadAgent,
     handleRenameTab,
     handleCloseTabsToLeftInPane,
@@ -3203,6 +3281,7 @@ function WorkspaceScreenContent({
             onCopyAgentId={handleCopyAgentId}
             onCopyTerminalId={handleCopyTerminalId}
             onCopyFilePath={handleCopyFilePath}
+            fileRevealActions={fileRevealActions}
             onReloadAgent={handleReloadAgent}
             onRenameTab={handleRenameTab}
             onCloseTabsToLeft={handleCloseTabsToLeft}
@@ -3264,6 +3343,7 @@ function WorkspaceScreenContent({
         onCopyAgentId={handleCopyAgentId}
         onCopyTerminalId={handleCopyTerminalId}
         onCopyFilePath={handleCopyFilePath}
+        fileRevealActions={fileRevealActions}
         onReloadAgent={handleReloadAgent}
         onRenameTab={handleRenameTab}
         onCloseTabsToLeft={handleCloseTabsToLeftInPane}
@@ -3305,6 +3385,7 @@ function WorkspaceScreenContent({
     handleCopyAgentId,
     handleCopyTerminalId,
     handleCopyFilePath,
+    fileRevealActions,
     handleReloadAgent,
     handleRenameTab,
     handleCloseTabsToLeftInPane,
@@ -3317,11 +3398,6 @@ function WorkspaceScreenContent({
     workspaceViewportWidth,
     desktopFocusModeEnabled,
   ]);
-  const { revealDirectory } = useFileExplorerActions({
-    serverId: normalizedServerId,
-    workspaceId: normalizedWorkspaceId,
-    workspaceRoot: workspaceDirectory,
-  });
   const openMarkdownFile = useStableEvent((location: WorkspaceFileLocation) => {
     handleOpenPreferredAssistantFile({ location, parentTabId: activeTabId });
   });

@@ -41,6 +41,7 @@ import {
   AudioLines,
   CircleDot,
   FileText,
+  Folder,
   GitPullRequest,
   Image as ImageIcon,
   Paperclip,
@@ -827,7 +828,7 @@ function WorkspaceFileAttachmentPill({
       disabled={disabled}
     >
       <AttachmentLabel
-        icon={filePillIcon}
+        icon={attachment.selection.kind === "whole_folder" ? folderPillIcon : filePillIcon}
         title={fileName}
         subtitle={getWorkspaceFileAttachmentSubtitle(attachment)}
       />
@@ -2550,6 +2551,7 @@ const ThemedAudioLines = withUnistyles(AudioLines);
 const ThemedPaperclip = withUnistyles(Paperclip);
 const ThemedImageIcon = withUnistyles(ImageIcon);
 const ThemedFileText = withUnistyles(FileText);
+const ThemedFolder = withUnistyles(Folder);
 const iconForegroundMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const iconForegroundMutedMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 const iconAccentForegroundMapping = (theme: Theme) => ({ color: theme.colors.accentForeground });
@@ -2564,6 +2566,7 @@ const githubPrPillIcon = (
 const githubIssuePillIcon = (
   <ThemedCircleDot size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />
 );
+const folderPillIcon = <ThemedFolder size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />;
 const filePillIcon = <ThemedFileText size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />;
 const pendingFilePillIcon = (
   <ThemedAttachmentSpinner size={18} uniProps={iconForegroundMutedMapping} />

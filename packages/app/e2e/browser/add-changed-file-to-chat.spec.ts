@@ -1,3 +1,4 @@
+import { openFileExplorer } from "../support/helpers/file-explorer";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test, expect, type Page } from "../support/fixtures";
@@ -55,3 +56,30 @@ for (const width of [1400, 390]) {
     }
   });
 }
+
+test("drops a collapsed folder from Files into the agent composer", async ({ page }) => {
+  const workspace = await seedMockAgentWorkspace({
+    repoPrefix: "drop-folder-to-chat-",
+    title: "Folder context",
+  });
+  try {
+    await mkdir(path.join(workspace.cwd, "context-folder"));
+    await writeFile(path.join(workspace.cwd, "context-folder", "notes.txt"), "Folder contents");
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await openAgentRoute(page, { workspaceId: workspace.workspaceId, agentId: workspace.agentId });
+    await openFileExplorer(page);
+    const composer = visibleComposer(page);
+    await composer.fill("Read this folder");
+    const folder = page
+      .getByTestId("file-explorer-tree-scroll")
+      .getByText("context-folder", { exact: true });
+    await folder.dragTo(composer);
+
+    const attachment = page.getByTestId("composer-workspace-file-attachment-pill");
+    await expect(attachment).toHaveCount(1);
+    await expect(attachment).toContainText("context-folder");
+    await expect(composer).toHaveValue("Read this folder");
+  } finally {
+    await workspace.cleanup();
+  }
+});

@@ -263,6 +263,7 @@ export interface AgentFileExplorerState {
   directories: Map<string, ExplorerDirectory>;
   requests: Map<string, ExplorerDirectoryRequestState>;
   selectedEntryPath: string | null;
+  revealRequest?: { path: string };
 }
 
 export interface DaemonServerInfo {
