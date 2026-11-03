@@ -1,6 +1,6 @@
 {
   "name": "@mixer/cli",
-  "version": "0.1.1",
+  "version": "0.4.3",
   "private": true,
   "description": "Mixer CLI - control your AI coding agents from the command line",
   "bin": {
