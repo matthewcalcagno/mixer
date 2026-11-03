@@ -99,8 +99,11 @@ publishes an app; the merged release workflow uses the same version planner.
 
 Add a `## Release notes` section to the release PR or feature PRs for curated
 user-facing descriptions. The generator includes every feature PR in the range,
-uses its release-notes section or description, and lists direct commits without
-an associated PR. Review this draft before merging; the generator does not infer
+uses its explicit release-notes section or title, and lists direct commit subjects
+without an associated feature PR. Full PR descriptions and validation details do not
+enter the changelog. Entries use Added, Changed, Fixed, Removed, Deprecated, and
+Security sections; empty sections are omitted. A release PR's explicit notes replace
+the generated list, rather than repeating it. Review this draft before merging; the generator does not infer
 features from code. Release-automation commits and the initial upstream import
 are excluded. The range starts after the last published Mixer release, so changes
 from failed draft builds remain in the next release's notes.
@@ -109,11 +112,17 @@ The version commit writes root `CHANGELOG.md` with the actual release version an
 UTC date, preserving history from the previous published Mixer's changelog. It
 is committed on the release tag, alongside all package versions. Protected main
 is not rewritten by a bot. GitHub release notes and the attached `CHANGELOG.md`
-asset come from that same versioned file.
+asset initially come from that same versioned file. Create the draft with these
+notes directly; never leave GitHub-generated cumulative notes as a fallback.
+Missing notes for the requested version fail release creation.
 
-The IDE resolves the latest published stable Mixer release, then loads its tagged
-`CHANGELOG.md` from `matthewcalcagno/mixer`. It rejects a document without the
-`# Mixer Changelog` title and never falls back to main or upstream. Before the
+Subsequent release generation reads the corrected `CHANGELOG.md` asset attached to
+the last published Mixer release. The IDE assembles the matching version-specific
+bodies of published stable Mixer releases through GitHub's API; direct asset downloads
+do not support renderer CORS. This permits historical note corrections without
+moving release tags or rebuilding signed binaries. Keep the asset and release body
+consistent when correcting notes. The IDE validates the exact repository, versioned
+asset URL, and single matching version heading; it never falls back to main or upstream. Before the
 first Mixer release is published there are no published notes to show. The
 inherited history is archived in `CHANGELOG.upstream.md` and
 `CHANGELOG.zh-CN.upstream.md`; neither is part of the app's changelog feed.

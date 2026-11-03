@@ -241,3 +241,20 @@ test("converts contributor profile links to mentions in synced release notes", (
     assert.doesNotMatch(syncedNotes, /\[@therainisme\]\(https:\/\/github\.com\/therainisme\)/);
   }, changelogText);
 });
+
+test("refuses release creation when the requested version has no changelog entry", () => {
+  withTempChangelog(() => {
+    assert.throws(
+      () =>
+        syncReleaseNotes(
+          ["--repo", "matthewcalcagno/mixer", "--tag", "v9.0.0", "--create-if-missing"],
+          {
+            execFileSync() {
+              throw new Error("GitHub must not be called for missing notes");
+            },
+          },
+        ),
+      /No matching changelog section/,
+    );
+  });
+});

@@ -1,5 +1,6 @@
 import {
   renderReleaseNotes,
+  getReleaseContext,
   writeReleaseChangelog,
   renderPreview,
 } from "./mixer-release-notes.mjs";
@@ -204,24 +205,21 @@ test("preview and release use the same version plan, including forced labels and
     "1.0.0",
   );
 });
-test("release notes retain feature PR descriptions, direct commits, and release PR notes", () => {
-  const notes = renderReleaseNotes(
-    [
-      {
-        number: 12,
-        title: "Editor",
-        body: "## Release notes\n\n- Added editor search\n- Added split views\n\n## Testing\nnot notes",
-        url: "https://github.com/owner/mixer/pull/12",
-      },
-      {
-        sha: "abcdef123",
-        title: "Fix startup",
-        url: "https://github.com/owner/mixer/commit/abcdef123",
-      },
-    ],
-    "## Release notes\n\n- New Mixer icon\n\n## Validation\nnot notes",
-  );
-  for (const text of ["Added editor search", "Added split views", "Fix startup", "New Mixer icon"])
+test("release notes use explicit feature notes and direct commit summaries", () => {
+  const notes = renderReleaseNotes([
+    {
+      number: 12,
+      title: "Editor",
+      body: "## Release notes\n\n- Added editor search\n- Added split views\n\n## Testing\nnot notes",
+      url: "https://github.com/owner/mixer/pull/12",
+    },
+    {
+      sha: "abcdef123",
+      title: "Fix startup",
+      url: "https://github.com/owner/mixer/commit/abcdef123",
+    },
+  ]);
+  for (const text of ["Added editor search", "Added split views", "Fix startup"])
     assert.ok(notes.includes(text));
   assert.ok(!notes.includes("not notes"));
 });
@@ -318,7 +316,11 @@ test("PR section headings cannot become extra IDE releases", () => {
       url: "https://github.com/owner/mixer/pull/4",
     },
   ]);
-  assert.match(notes, /### Summary/);
+  assert.match(notes, /### Changed/);
+  assert.ok(
+    !notes.includes("Added feature"),
+    "Uncurated PR descriptions do not enter the changelog",
+  );
   assert.ok(!/^## /m.test(notes));
   assert.ok(!notes.includes("not notes"));
 });
@@ -337,4 +339,80 @@ test("empty PR templates do not become release features", () => {
   assert.ok(!notes.includes("Reasoning"));
   assert.ok(!notes.includes("Closes #"));
   assert.ok(!notes.includes("[ ]"));
+});
+
+test("curated release notes replace generated notes and repeated items are deduplicated", () => {
+  const change = {
+    title: "Fix editor startup",
+    number: 4,
+    url: "https://github.com/owner/mixer/pull/4",
+    body: "Long implementation details",
+  };
+  const notes = renderReleaseNotes([change, change]);
+  assert.equal(notes.match(/Fix editor startup/g).length, 1);
+  assert.match(notes, /### Fixed/);
+  assert.ok(!notes.includes("implementation"));
+  const curated = renderReleaseNotes(
+    [change],
+    "## Release notes\n### Added\n- Editor split views\n## Testing\nInternal details",
+  );
+  assert.match(curated, /### Added/);
+  assert.ok(!curated.includes("Fix editor startup"));
+});
+
+test("release context excludes published commits and preserves corrected asset history", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const directory = mkdtempSync(join(tmpdir(), "mixer-release-boundary-"));
+  const previousCwd = process.cwd();
+  const previousPath = process.env.PATH;
+  const run = (...args) =>
+    execFileSync("git", args, { cwd: directory, encoding: "utf8", stdio: "pipe" }).trim();
+  try {
+    run("init", "-b", "main");
+    run("config", "user.name", "Release test");
+    run("config", "user.email", "test@example.test");
+    writeFileSync(join(directory, "package.json"), JSON.stringify({ version: "1.0.0" }));
+    writeFileSync(
+      join(directory, "CHANGELOG.md"),
+      "# Mixer Changelog\n\n## 1.0.0 - 2026-11-01\n\nRaw old implementation details\n",
+    );
+    run("add", ".");
+    run("-c", "commit.gpgsign=false", "commit", "-m", "feat: previously published feature");
+    run("tag", "v1.0.0");
+    run("tag", "desktop-v1.0.0");
+    run("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fix: new startup repair");
+    const head = run("rev-parse", "HEAD");
+    const bin = join(directory, "bin");
+    mkdirSync(bin);
+    const corrected =
+      "# Mixer Changelog\n\n## 1.0.0 - 2026-11-01\n\n### Added\n\n- Corrected published feature\n";
+    writeFileSync(
+      join(bin, "gh"),
+      `#!/usr/bin/env node
+const endpoint = process.argv[3];
+if (endpoint.endsWith('/releases/assets/42')) process.stdout.write(${JSON.stringify(corrected)});
+else if (endpoint.includes('/releases?')) console.log(JSON.stringify([[{ tag_name: 'v1.0.0', draft: false, prerelease: false, assets: [{name:'CHANGELOG.md',id:42}] }]]));
+else if (endpoint.includes('/commits/${head}/pulls')) console.log(JSON.stringify([[{ number:7,title:'Fix new startup repair',body:'Do not copy full PR implementation details',html_url:'https://github.com/matthewcalcagno/mixer/pull/7',merged_at:'2026-11-02',head:{ref:'fix/startup'},base:{ref:'develop',repo:{full_name:'matthewcalcagno/mixer'}} }]]));
+else throw new Error('Unexpected request, possibly a previously published commit: '+endpoint);
+`,
+      { mode: 0o755 },
+    );
+    process.chdir(directory);
+    process.env.PATH = `${bin}:${previousPath}`;
+    const context = getReleaseContext({ source: head, labels: [], repo: "matthewcalcagno/mixer" });
+    assert.equal(context.baseline, "v1.0.0");
+    assert.equal(context.plan.version, "1.0.1");
+    assert.match(context.notes, /Fix new startup repair/);
+    assert.ok(!context.notes.includes("published feature"));
+    assert.ok(!context.notes.includes("implementation details"));
+    assert.equal(context.previous, corrected);
+    assert.match(context.notes, /compare\/v1\.0\.0\.\.\.v1\.0\.1/);
+  } finally {
+    process.chdir(previousCwd);
+    process.env.PATH = previousPath;
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
