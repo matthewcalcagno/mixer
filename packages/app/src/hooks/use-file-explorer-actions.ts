@@ -274,10 +274,11 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
   );
 
   const selectExplorerEntry = useCallback(
-    (path: string | null) => {
+    (path: string | null, options?: { reveal?: boolean }) => {
       updateExplorerState((state) => ({
         ...state,
         selectedEntryPath: path,
+        revealRequest: path && options?.reveal ? { path } : undefined,
       }));
     },
     [updateExplorerState],
