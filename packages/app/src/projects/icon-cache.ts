@@ -92,7 +92,7 @@ export class ProjectIconCache {
       if (parsed.version !== CACHE_VERSION || !Array.isArray(parsed.entries)) return;
       for (const value of parsed.entries) {
         const entry = parseStoredIcon(value);
-        if (entry && this.activeServerIds.has(entry.serverId)) {
+        if (entry && this.activeServerIds.has(entry.serverId) && !this.entries.has(keyOf(entry))) {
           this.entries.set(keyOf(entry), entry);
         }
       }

@@ -1,3 +1,4 @@
+import { useDesktopStartupBlocker } from "@/desktop/startup-readiness";
 import { isHiddenExplorerPath } from "@/file-explorer/visibility";
 import type { FileTabRevealActions } from "./workspace-tab-menu";
 import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
@@ -157,6 +158,7 @@ import {
 } from "@/screens/workspace/workspace-header-source";
 import {
   resolveWorkspaceRouteState,
+  isWorkspaceStartupPending,
   type WorkspaceRouteState,
 } from "@/screens/workspace/workspace-route-state";
 import { renderWorkspaceRouteGate } from "@/screens/workspace/workspace-route-state-views";
@@ -3006,6 +3008,10 @@ function WorkspaceScreenContent({
     [focusedPaneId, handleReorderTabsInPane],
   );
   const containerStyle = [styles.container, styles.containerWorkspaceBackground];
+  useDesktopStartupBlocker(
+    "Loading startup workspace",
+    isRouteFocused && isWorkspaceStartupPending(workspaceRouteState),
+  );
   const workspaceScreenGate = renderWorkspaceRouteGate({
     state: workspaceRouteState,
     actions: {

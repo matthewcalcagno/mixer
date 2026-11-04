@@ -27,6 +27,13 @@ export type WorkspaceRouteState =
   | { kind: "recoveryUnavailable"; hostName: string; message: string }
   | { kind: "recoveryInspectionFailed"; hostName: string; error: string };
 
+/** Wait for the first connection attempt, while allowing offline and error recovery to appear. */
+export function isWorkspaceStartupPending(state: WorkspaceRouteState): boolean {
+  if (state.kind === "loading") return true;
+  if (state.kind !== "reconnecting" && state.kind !== "unreachable") return false;
+  return state.connectionStatus === "idle" || state.connectionStatus === "connecting";
+}
+
 export function resolveWorkspaceRouteState(input: {
   hostName: string;
   connectionStatus: HostRuntimeConnectionStatus;

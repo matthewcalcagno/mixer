@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type CSSProperties,
-} from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Button } from "@/components/ui/button";
@@ -14,17 +6,6 @@ import { getDesktopHost, type DesktopHostBridge } from "./host";
 import { usePanelStore } from "@/stores/panel-store";
 import { useWorkspaceLayoutStoreHydrated } from "@/stores/workspace-layout-store";
 import { desktopStartup, useDesktopStartupBlocker } from "./startup-readiness";
-import { editorEventSchema } from "@/file-panels/source/editor/monaco/messages";
-
-const WARMUP_FRAME_STYLE: CSSProperties = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  left: -10000,
-  top: 0,
-  opacity: 0,
-  pointerEvents: "none",
-};
 const STARTUP_RECOVERY_DELAY_MS = 90000;
 function retryStartup() {
   window.location.reload();
@@ -55,13 +36,10 @@ function NativeStartupGate({ bridge, isLinux }: NativeStartupGateProps) {
     desktopStartup.getSnapshot,
     desktopStartup.getSnapshot,
   );
-  const [runtimeReady, setRuntimeReady] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
-  const frame = useRef<HTMLIFrameElement>(null);
   const revealed = useRef(false);
-  const releaseRuntime = useDesktopStartupBlocker("Monaco runtime", !runtimeReady);
   const releaseFonts = useDesktopStartupBlocker("Fonts", !fontsReady);
   const revealFailed = useCallback(
     (cause: unknown) =>
@@ -119,58 +97,21 @@ function NativeStartupGate({ bridge, isLinux }: NativeStartupGateProps) {
       else cancelAnimationFrame(raf);
     };
   }, [bridge, error, snapshot, timedOut, revealFailed, isLinux]);
-  useLayoutEffect(() => {
-    const receive = (event: MessageEvent<unknown>) => {
-      if (event.source !== frame.current?.contentWindow || event.origin !== window.location.origin)
-        return;
-      const parsed = editorEventSchema.safeParse(event.data);
-      if (!parsed.success) return;
-      if (parsed.data.type === "booted" || parsed.data.type === "error") {
-        if (parsed.data.type === "error") setError(parsed.data.message);
-        setRuntimeReady(true);
-        releaseRuntime();
-      }
-    };
-    window.addEventListener("message", receive);
-    return () => window.removeEventListener("message", receive);
-  }, [releaseRuntime]);
-  const warmupFailed = useCallback(() => {
-    setError("The bundled editor could not be loaded.");
-    setRuntimeReady(true);
-    releaseRuntime();
-  }, [releaseRuntime]);
   if (snapshot.completed && !error) return null;
   const delayed = timedOut && snapshot.pending.length > 0;
+  if (!error && !delayed) return null;
   return (
-    <>
-      {!runtimeReady && (
-        // oxlint-disable-next-line react/iframe-missing-sandbox -- Trusted bundled editor runtime requires the app origin, matching the source editor iframe.
-        <iframe
-          ref={frame}
-          src="/monaco/index.html"
-          style={WARMUP_FRAME_STYLE}
-          tabIndex={-1}
-          aria-hidden="true"
-          title="Prepare editor"
-          onError={warmupFailed}
-          data-testid="desktop-startup-monaco"
-        />
-      )}
-      {(error || delayed) && (
-        <View style={styles.notice} testID="desktop-startup-recovery">
-          <Text style={styles.title}>
-            {error ? "Unable to prepare the editor" : "Startup is taking longer than expected"}
-          </Text>
-          <Text style={styles.message}>
-            {error ??
-              `Still preparing: ${snapshot.pending.join(", ")}. You can keep waiting or retry.`}
-          </Text>
-          <Button variant="outline" onPress={retryStartup}>
-            Retry
-          </Button>
-        </View>
-      )}
-    </>
+    <View style={styles.notice} testID="desktop-startup-recovery">
+      <Text style={styles.title}>
+        {error ? "Unable to prepare the editor" : "Startup is taking longer than expected"}
+      </Text>
+      <Text style={styles.message}>
+        {error ?? `Still preparing: ${snapshot.pending.join(", ")}. You can keep waiting or retry.`}
+      </Text>
+      <Button variant="outline" onPress={retryStartup}>
+        Retry
+      </Button>
+    </View>
   );
 }
 const styles = StyleSheet.create((theme) => ({
