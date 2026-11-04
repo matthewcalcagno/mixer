@@ -1,4 +1,5 @@
-import { Redirect } from "expo-router";
+import { useDesktopStartupBlocker } from "@/desktop/startup-readiness";
+import { Redirect, usePathname } from "expo-router";
 import { useHostRouteServerId } from "@/navigation/host-route-context";
 import {
   resolveHostIndexRoute,
@@ -13,6 +14,11 @@ import {
 
 export default function HostIndexRoute() {
   const serverId = useHostRouteServerId();
+  const pathname = usePathname();
+  useDesktopStartupBlocker(
+    "Restoring workspace route",
+    pathname.replace(/\/$/, "") === `/h/${serverId}`,
+  );
   const workspaceSelection = useLastWorkspaceSelection();
   const isWorkspaceSelectionLoaded = useIsLastWorkspaceSelectionHydrated();
   const workspaceSelectionWorkspaceId =

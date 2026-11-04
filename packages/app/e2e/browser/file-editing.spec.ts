@@ -30,7 +30,7 @@ import { installDesktopRuntime } from "../../../desktop/e2e/support/runtime";
 import { getE2EDaemonPort } from "../support/helpers/daemon-port";
 
 for (const startupPlatform of ["darwin", "linux"] as const) {
-  test(`desktop startup prepares Monaco and restores the active editor before revealing the IDE on ${startupPlatform}`, async ({
+  test(`desktop startup skips unused Monaco and restores the active editor before revealing the IDE on ${startupPlatform}`, async ({
     page,
   }) => {
     test.skip(
@@ -48,8 +48,16 @@ for (const startupPlatform of ["darwin", "linux"] as const) {
         startupReadiness: true,
         platform: startupPlatform,
       });
+      // An unused editor runtime must not delay the project list and empty workspace shell.
+      const runtimeRequests: string[] = [];
+      await page.route("**/monaco/index.html", async (route) => {
+        runtimeRequests.push(route.request().url());
+        await route.abort();
+      });
       await gotoAppShell(page);
       await expect.poll(() => page.evaluate(() => window.__desktopStartupSignals?.length)).toBe(1);
+      expect(runtimeRequests).toEqual([]);
+      await page.unroute("**/monaco/index.html");
       expect(await page.evaluate(() => window.__desktopStartupSignals?.[0])).toEqual({
         splash: false,
         warmup: false,

@@ -39,6 +39,10 @@ remembered workspace for that host after the remembered selection has hydrated
 and the workspace has not been proven missing. If there is no restorable
 workspace, it goes to global `/open-project`.
 
+Desktop startup readiness spans the redirects and the first workspace connection attempt.
+A redirect or a connecting placeholder must not release the window before the restored
+visible editors register their readiness. Offline and error recovery can reveal normally.
+
 This restore is based on the last navigated workspace, not current connection
 status. Do not redirect to another online host just because the remembered host
 is still connecting or offline; the workspace screen owns that offline/loading
