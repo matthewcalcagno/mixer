@@ -1738,7 +1738,8 @@ export class HostRuntimeStore {
       this.hosts = profiles;
       this.replicaCache.setHosts(profiles.map((profile) => profile.serverId));
       projectIconCache.setHosts(profiles.map((profile) => profile.serverId));
-      await projectIconCache.restore();
+      // Project connections and directory restore must not wait for decorative icon data.
+      void projectIconCache.restore();
       this.syncHosts(profiles);
       for (const profile of profiles) {
         void this.directorySyncByServer

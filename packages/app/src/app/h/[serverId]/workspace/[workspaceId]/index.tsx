@@ -1,3 +1,4 @@
+import { useDesktopStartupBlocker } from "@/desktop/startup-readiness";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigation } from "expo-router/react-navigation";
 import { StyleSheet, View } from "react-native";
@@ -141,6 +142,7 @@ function HostWorkspaceRouteContent() {
 }
 function WorkspaceDeck() {
   const activeSelection = useActiveWorkspaceSelection();
+  useDesktopStartupBlocker("Selecting startup workspace", activeSelection === null);
   const [retainedSelections, setRetainedSelections] = useState<RetainedWorkspaceSelection[]>(() =>
     activeSelection ? [{ selection: activeSelection, inactiveSince: null }] : [],
   );

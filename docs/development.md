@@ -67,8 +67,11 @@ bundles until it stops.
 
 Electron's `ready-to-show` means a frame can be painted, not that the IDE is usable.
 The window remains hidden until the renderer has applied appearance, resolved its initial
-route, prepared the bundled Monaco runtime, and initialized any visible source editors.
-Hidden tabs and language servers do not participate. Normal startup has no logo splash.
+route and initialized any visible source editors.
+Hidden tabs and language servers do not participate. Do not create a hidden editor to warm
+the runtime: it duplicates module execution and competes with the visible editors and
+workspace bootstrap. Files uses resource hints for optional preloading. Normal startup
+has no logo splash.
 
 Keep both renderer and main-process deadlines. A renderer-only timeout cannot reveal a window
 when JavaScript fails to boot. Slow or failed startup reveals recovery UI instead of leaving

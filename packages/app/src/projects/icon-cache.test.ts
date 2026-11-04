@@ -57,6 +57,30 @@ describe("ProjectIconCache", () => {
     expect(reader.query(target, true, () => null, false).initialData).toEqual(icon);
   });
 
+  it("keeps a fresh icon when cache hydration finishes after the host connects", async () => {
+    const storage = new MemoryStorage();
+    const writer = new ProjectIconCache(storage);
+    writer.setHosts([target.serverId]);
+    await writer.query(target, true, () => clientWith(icon), true).queryFn();
+    await writer.flush();
+
+    let finishRead: (value: string | null) => void = () => {};
+    const read = new Promise<string | null>((resolve) => {
+      finishRead = resolve;
+    });
+    const reader = new ProjectIconCache({
+      getItem: () => read,
+      setItem: (key, value) => storage.setItem(key, value),
+    });
+    reader.setHosts([target.serverId]);
+    const restoring = reader.restore();
+    await reader.query(target, true, () => clientWith(null), true).queryFn();
+    finishRead([...storage.values.values()][0]);
+    await restoring;
+    expect(reader.query(target, true, () => null, false).initialData).toBeNull();
+    await reader.flush();
+  });
+
   it("persists an explicit no-icon result", async () => {
     const storage = new MemoryStorage();
     const writer = new ProjectIconCache(storage);

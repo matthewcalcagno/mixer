@@ -1,3 +1,4 @@
+import { useDesktopStartupBlocker } from "@/desktop/startup-readiness";
 import React from "react";
 import { Redirect, usePathname } from "expo-router";
 import { StartupSplashScreen } from "@/screens/startup-splash-screen";
@@ -46,6 +47,11 @@ export default function Index() {
     isWorkspaceSelectionLoaded,
     hasGivenUpWaitingForHost: bootstrapState.hasGivenUpWaitingForHost,
   });
+
+  useDesktopStartupBlocker(
+    "Resolving startup route",
+    (pathname === "/" || pathname === "") && startupRoute.kind === "redirect",
+  );
 
   if (startupRoute.kind === "redirect") {
     return <Redirect href={startupRoute.href} />;
