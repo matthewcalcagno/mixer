@@ -43,21 +43,34 @@ async function qaScreenshot(page: Page, name: string, area?: Locator) {
   else await page.screenshot({ path: file });
 }
 
-/** Footer rows sit above the fixed bottom line, spanning it from Add project to Settings. */
+/** Footer contributions span the padded footer rows and stay above its icon line when present. */
 async function expectFooterRow(page: Page, row: Locator) {
-  // Polled: on compact the drawer is still sliding in when the row first shows.
   await expect
     .poll(async () => {
-      const addProject = (await visibleTestId(page, "sidebar-add-project").boundingBox())!;
-      const settings = (await visibleTestId(page, "sidebar-settings").boundingBox())!;
+      const rows = visibleTestId(page, "sidebar-footer-rows");
+      const rails = await rows.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          left: box.left + Number.parseFloat(style.paddingLeft),
+          right: box.right - Number.parseFloat(style.paddingRight),
+          top: box.top,
+          bottom: box.bottom,
+        };
+      });
       const box = (await row.boundingBox())!;
+      const iconLine = await page
+        .locator('[data-testid="sidebar-footer-bottom-line"]:visible')
+        .first()
+        .boundingBox();
       return {
-        aboveBottomLine: box.y + box.height <= addProject.y,
-        alignedLeft: Math.abs(box.x - addProject.x) < 1,
-        alignedRight: Math.abs(box.x + box.width - (settings.x + settings.width)) < 1,
+        withinFooter: box.y >= rails.top && box.y + box.height <= rails.bottom,
+        aboveIconLine: !iconLine || box.y + box.height <= iconLine.y,
+        alignedLeft: Math.abs(box.x - rails.left) < 1,
+        alignedRight: Math.abs(box.x + box.width - rails.right) < 1,
       };
     })
-    .toEqual({ aboveBottomLine: true, alignedLeft: true, alignedRight: true });
+    .toEqual({ withinFooter: true, aboveIconLine: true, alignedLeft: true, alignedRight: true });
 }
 
 function botRow(page: Page, rowId: string): Locator {
@@ -70,7 +83,7 @@ async function boxOf(locator: Locator) {
   return result!;
 }
 
-/** The open screen's header title; a pushed screen keeps the one below it mounted. */
+/** Host-provided screen headings are omitted for custom views. */
 function screenTitle(page: Page): Locator {
   return page.locator('[data-testid="plugin-surface-title"]:visible').last();
 }
@@ -80,8 +93,8 @@ async function expectBotScreen(page: Page, botId: string) {
     new RegExp(`/plugin/${BOTS_PLUGIN_ID}/surface/bot\\?param\\.botId=${botId}$`),
   );
   await expect(page.getByText(`Bot screen: ${botId}`, { exact: true })).toBeVisible();
-  // The plugin titles the screen from its params: the bot's name.
-  await expect(screenTitle(page)).toHaveText(botId === "bot-1" ? "Bot 1" : "Bot 2");
+  // The plugin owns its visible content, without a duplicate host heading.
+  await expect(screenTitle(page)).toHaveCount(0);
   await expectRowActive(botRow(page, "bot-1"), botId === "bot-1");
   await expectRowActive(botRow(page, "bot-2"), botId === "bot-2");
   await expectRowActive(botRow(page, "status"), false);
@@ -130,7 +143,7 @@ async function nextAlertsObservation(page: Page, previous: string | null): Promi
 }
 
 function sidebarFooter(page: Page): Locator {
-  return visibleTestId(page, "sidebar-add-project").locator("xpath=..");
+  return visibleTestId(page, "sidebar-footer");
 }
 
 test.describe("Plugin sidebar items", () => {
@@ -149,6 +162,16 @@ test.describe("Plugin sidebar items", () => {
 
   test.afterEach(async () => {
     await cleanup();
+  });
+
+  test("custom screens render without a host header", async ({ page }) => {
+    await page.setViewportSize(WIDE);
+    await gotoWorkspace(page, workspaceId);
+    await headerRow(page, SHOWCASE_PLUGIN_ID, "deploys").click();
+    await expect(page.getByText("Deploys screen body", { exact: true })).toBeVisible();
+    await expect(screenTitle(page)).toHaveCount(0);
+    await expect(page.getByTestId("plugin-surface-close")).toHaveCount(0);
+    await closeScreen(page);
   });
 
   test("a plugin's screen, header row, footer popover and command work together", async ({
@@ -179,7 +202,7 @@ test.describe("Plugin sidebar items", () => {
       await row.click();
       await expect(page).toHaveURL(new RegExp(`/plugin/${SHOWCASE_PLUGIN_ID}/surface/deploys`));
       await expect(page.getByText("Deploys screen body", { exact: true })).toBeVisible();
-      await expect(screenTitle(page)).toHaveText("Deploys");
+      await expect(screenTitle(page)).toHaveCount(0);
       await expectRowActive(row, true);
       await qaScreenshot(page, "phase2-desktop-sidebar-screen");
       await closeScreen(page);
@@ -247,7 +270,7 @@ test.describe("Plugin sidebar items", () => {
     const newWorkspace = visibleTestId(page, "sidebar-global-new-workspace");
     await expect(newWorkspace).toBeVisible({ timeout: 30_000 });
     await newWorkspace.hover();
-    const hint = page.getByText("Ctrl+N", { exact: true }).locator("visible=true");
+    const hint = page.getByText(/^(?:⌥⌘N|Ctrl\+Alt\+N)$/).locator("visible=true");
     await expect(hint).toBeVisible();
     await qaScreenshot(page, "phase7-header-row-hint", newWorkspace.locator("xpath=../.."));
     await hint.click();
@@ -290,8 +313,8 @@ test.describe("Plugin sidebar items", () => {
       await entry.click();
       await expect(page).toHaveURL(new RegExp(`/plugin/${LEGACY_PLUGIN_ID}/sidebar/entry$`));
       await expect(page.getByText("Legacy screen body", { exact: true })).toBeVisible();
-      await expect(page.getByTestId("plugin-surface-close")).toBeVisible();
-      await expect(screenTitle(page)).toHaveText("Legacy entry");
+      await expect(page.getByTestId("plugin-surface-close")).toHaveCount(0);
+      await expect(screenTitle(page)).toHaveCount(0);
       await expectRowActive(entry, true);
       await closeScreen(page);
     });
@@ -310,10 +333,10 @@ test.describe("Plugin sidebar items", () => {
       await expect(page.getByText("Bot screen: bot-2", { exact: true })).toBeVisible({
         timeout: 30_000,
       });
-      await expect(screenTitle(page)).toHaveText("Bot 2");
+      await expect(screenTitle(page)).toHaveCount(0);
       await page.goto(`/h/${host}/plugin/${BOTS_PLUGIN_ID}/bot`);
       await expect(page).toHaveURL(new RegExp(`/plugin/${BOTS_PLUGIN_ID}/sidebar/bot$`));
-      await expect(screenTitle(page)).toHaveText("Bot");
+      await expect(screenTitle(page)).toHaveCount(0);
     });
 
     await test.step("settings shows a legacy row's own icon and one generic icon for the rest", async () => {
@@ -408,7 +431,7 @@ test.describe("Plugin sidebar items", () => {
       await expect(page.getByText("Bot screen: bot-3", { exact: true })).toBeVisible();
       await expect(page.getByText("serverId param: x", { exact: true })).toBeVisible();
       // No bot named bot-3, so the title function returns its own fallback.
-      await expect(screenTitle(page)).toHaveText("Bot");
+      await expect(screenTitle(page)).toHaveCount(0);
       await page.reload();
       await expect(page.getByText("serverId param: x", { exact: true })).toBeVisible();
     });

@@ -1,23 +1,15 @@
 import { router, useLocalSearchParams } from "expo-router";
-import type { PluginIcon, PluginScreenParams, PluginScreenProps } from "@mixer/plugin/client";
+import type { PluginScreenParams, PluginScreenProps } from "@mixer/plugin/client";
 import type { PluginTheme } from "@mixer/plugin";
-import { X } from "lucide-react-native";
+import type { Theme } from "@/styles/theme";
 import { useCallback, useMemo, type ComponentType } from "react";
 import { Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { HeaderIconBadge } from "@/components/headers/header-icon-badge";
-import { HeaderToggleButton } from "@/components/headers/header-toggle-button";
-import { CompactHeader } from "@/components/headers/compact-header";
-import { ScreenHeader } from "@/components/headers/screen-header";
-import { ScreenTitle } from "@/components/headers/screen-title";
 import { HostFilter } from "@/components/hosts/host-filter";
 import type { HostPickerHost } from "@/components/hosts/host-picker";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { useHostRuntimeClient, useHosts } from "@/runtime/host-runtime";
-import type { Theme } from "@/styles/theme";
-import type { ShortcutKey } from "@/utils/format-shortcut";
 import { usePluginHostNavigation } from "./host-navigation";
-import { PluginIconView } from "./icons";
 import { toPluginTheme } from "./theme";
 import { useInstalledPlugin, usePluginInstallations } from "./registry-state";
 import { buildPluginSurfaceRoute, pluginScreenParamsFromRoute } from "./routes";
@@ -30,29 +22,18 @@ import { SurfaceErrorBoundary } from "./surface-error-boundary";
 import { PluginInstallationProvider } from "./installation-provider";
 import {
   getPluginSurfaceContributionServerIds,
-  resolvePluginScreenTitle,
   resolvePluginSurfaceContribution,
   type PluginSurfaceContributionIdentity,
 } from "./surface-contribution";
 import { resolvePluginPlatform } from "./platform";
 import { MainPanelIsland } from "@/components/main-panel-island";
-
-const EMPTY_SHORTCUT_KEYS: ShortcutKey[] = [];
-const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 const pluginThemeMapping = (theme: Theme) => ({
   theme: toPluginTheme(theme),
 });
-const ThemedX = withUnistyles(X);
 
 function routeParam(value: string | string[] | undefined): string {
   return typeof value === "string" ? value : "";
 }
-
-function PluginHeaderIcon({ icon, color = "" }: { icon: PluginIcon; color?: string }) {
-  return <PluginIconView icon={icon} size={16} color={color} />;
-}
-
-const ThemedPluginHeaderIcon = withUnistyles(PluginHeaderIcon);
 
 function SurfaceRenderer({
   Surface,
@@ -139,7 +120,7 @@ export function PluginSurfaceScreen() {
   const hosts = useHosts();
   const client = useHostRuntimeClient(serverId);
   const compact = useIsCompactFormFactor();
-  const { sidebarItem, surface } = useMemo(
+  const { surface } = useMemo(
     () => resolvePluginSurfaceContribution(plugin, identity),
     [identity, plugin],
   );
@@ -150,34 +131,8 @@ export function PluginSurfaceScreen() {
     const serverIds = getPluginSurfaceContributionServerIds(installations, pluginId, identity);
     return hosts.filter((candidate) => serverIds.includes(candidate.serverId));
   }, [hosts, identity, installations, pluginId]);
-  const title = useMemo(() => {
-    if (surface && plugin)
-      return resolvePluginScreenTitle(surface, sidebarItem, params, (text) =>
-        plugin.i18n.resolve(text, plugin.locale),
-      );
-    if (sidebarItem && plugin) return plugin.i18n.resolve(sidebarItem.title, plugin.locale);
-    return pluginId || "Plugin";
-  }, [params, plugin, pluginId, sidebarItem, surface]);
-  const icon = sidebarItem?.icon ?? null;
-  const close = useCallback(() => {
-    if (router.canGoBack()) router.back();
-    else router.replace(`/h/${encodeURIComponent(serverId)}`);
-  }, [serverId]);
   const layout = useMemo(() => ({ compact, platform: resolvePluginPlatform() }), [compact]);
   const host = useMemo(() => ({ id: serverId, label: hostLabel }), [hostLabel, serverId]);
-  const headerLeft = useMemo(
-    () => (
-      <>
-        {icon ? (
-          <HeaderIconBadge>
-            <ThemedPluginHeaderIcon icon={icon} uniProps={mutedColorMapping} />
-          </HeaderIconBadge>
-        ) : null}
-        <ScreenTitle testID="plugin-surface-title">{title}</ScreenTitle>
-      </>
-    ),
-    [icon, title],
-  );
   const hostFilter = useMemo(
     () =>
       identity && filterHosts.length > 1 ? (
@@ -191,39 +146,11 @@ export function PluginSurfaceScreen() {
       ) : null,
     [filterHosts, identity, params, pluginId, serverId],
   );
-  const headerRight = useMemo(
-    () => (
-      <>
-        {hostFilter}
-        <HeaderToggleButton
-          accessibilityLabel="Close plugin"
-          onPress={close}
-          testID="plugin-surface-close"
-          tooltipKeys={EMPTY_SHORTCUT_KEYS}
-          tooltipLabel="Close"
-          tooltipSide="bottom"
-        >
-          <ThemedX size={18} uniProps={mutedColorMapping} />
-        </HeaderToggleButton>
-      </>
-    ),
-    [close, hostFilter],
-  );
 
   return (
     <MainPanelIsland testID="plugin-main-island">
-      {compact ? (
-        <CompactHeader
-          navigation="back"
-          onBack={close}
-          title={title}
-          titleTestID="plugin-surface-title"
-          actions={hostFilter}
-        />
-      ) : (
-        <ScreenHeader left={headerLeft} right={headerRight} />
-      )}
       <View style={styles.body}>
+        {hostFilter ? <View style={styles.hostControls}>{hostFilter}</View> : null}
         {plugin && surface && client ? (
           <SurfaceErrorBoundary
             key={`${serverId}/${pluginId}/${identity?.kind}/${contributionId}`}
@@ -255,6 +182,7 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     minHeight: 0,
   },
+  hostControls: { alignItems: "flex-end", padding: theme.spacing[3] },
   errorText: {
     color: theme.colors.statusDanger,
     padding: theme.spacing[4],

@@ -739,13 +739,12 @@ export default function contribute(client: PluginClientContext) {
 | `params`     | The params the screen was opened with, as string keys and values. `{}` when none.                                                                                                                                                                                                                                                 |
 | `navigation` | Optional client navigation. `openAgent({ agentId, serverId? })` and `openWorkspace({ workspaceId, serverId? })` open targets on `serverId`, or on the selected host when omitted. `openBrowser({ url, workspaceId, serverId? })` is available only on Electron; see [links and browsers](#external-links-and-workspace-browsers). |
 
-Mixer owns the route, header, close action, host picker, error boundary, and query client. The plugin owns the screen body.
+Mixer owns the route, island frame, host picker, error boundary, and query client. The plugin owns the screen content, including any visible heading.
 
-`addScreen({ id, title, Component })` registers a screen. `title` is the screen header's title: a
+`addScreen({ id, title, Component })` registers a screen. `title` supplies screen metadata: a
 [display text](#runtime-translations), or a function that takes the screen's params and returns
-display text. The function runs again when params or language change. Invalid or empty literal
-titles are rejected. A title function that throws or resolves to an empty string shows the screen
-ID instead; the screen still renders.
+display text. Invalid or empty literal titles are rejected. Mixer does not render a separate
+header for the screen.
 
 `openScreen({ screenId, params })` opens a screen with params, such as the bot a bot screen shows.
 Params live in the screen's URL query, so a reload, back and forward, and a link to the screen keep
