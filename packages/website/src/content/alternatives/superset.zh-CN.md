@@ -86,7 +86,6 @@ Superset 有一个免费的个人版。团队功能、远程访问和集成属�
 | 应用内拉取请求                 | GitHub、GitLab、Gitea、Forgejo、Codeberg                                           | GitHub                                                 |
 | 应用内浏览器                   | 是（元素选择器、Agent 浏览器工具）                                                 | 是                                                     |
 | 每个 worktree 的开发服务器 URL | 是（`web--fix-auth--my-app.localhost`）                                            | 端口检测                                               |
-| 定时任务与 heartbeat           | 是                                                                                 | 是（定时任务）                                         |
 | 套餐用量                       | 是                                                                                 | -                                                      |
 | 插件                           | 是（新界面、面板、Agent hook 和 Provider，同一个插件可在桌面端、Web 和移动端运行） | 否                                                     |
 | 语音                           | 是（本地语音输入、实时语音）                                                       | -                                                      |

@@ -287,7 +287,7 @@ export const MIXER_TOOL_CATALOG = {
     detail: { inputOrder: ["terminalId"] },
   },
 
-  // Schedules and heartbeats
+  // COMPAT(retiredSchedules): retain labels for historical tool calls.
   create_schedule: {
     label: "Create schedule",
     completedLabel: "Created schedule",

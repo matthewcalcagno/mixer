@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: "Mixer CLI reference: manage projects, workspaces, agents, plugins, scripts, schedules, daemons, and permissions from your terminal."
+description: "Mixer CLI reference: manage projects, workspaces, agents, plugins, scripts, daemons, and permissions from your terminal."
 nav: CLI reference
 order: 35
 category: Orchestration
@@ -339,16 +339,6 @@ mixer wait <id> --timeout 60   # 60 second timeout
 ```
 
 Useful in scripts or when one agent needs to wait for another.
-
-## Schedules
-
-Run an agent on a cron schedule. The CLI also accepts simple cadence presets and compiles them to cron. See [Schedules from the CLI](/docs/schedules-cli) for the full reference.
-
-```bash
-mixer schedule create --every 30m --cwd ~/dev/my-app "Continue the refactor and leave a note."
-mixer schedule ls
-mixer schedule pause <id>
-```
 
 ## Permissions
 

@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarClock,
   CircleCheck,
   CircleDot,
   CircleHelp,
@@ -138,7 +137,6 @@ const DONE_ROWS: WorkspaceRow[] = [
 // Icons passed as props are hoisted so they are not rebuilt on every render.
 const NEW_WORKSPACE_ICON = <Plus size={14} />;
 const HISTORY_ICON = <History size={14} />;
-const SCHEDULES_ICON = <CalendarClock size={14} />;
 const PLUGIN_ICON = <Puzzle size={14} />;
 const WORKING_ICON = <CircleDot size={16} className="text-mock-dot-running" />;
 const READY_TO_REVIEW_ICON = <CircleCheck size={16} className="text-mock-success" />;
@@ -290,7 +288,6 @@ export function Sidebar({ state }: { state: MockupStateId }) {
       >
         <NavItem icon={NEW_WORKSPACE_ICON} label={t("landing.mockup.app.newWorkspace")} />
         <NavItem icon={HISTORY_ICON} label={t("landing.mockup.app.history")} />
-        <NavItem icon={SCHEDULES_ICON} label={t("landing.mockup.app.schedules")} />
         <motion.div initial={false} animate={extending ? FADE_IN : FADE_OUT}>
           <NavItem icon={PLUGIN_ICON} label="Release Radar" active />
         </motion.div>

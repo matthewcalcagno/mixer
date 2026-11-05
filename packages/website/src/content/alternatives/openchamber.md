@@ -39,13 +39,13 @@ OpenChamber does not document an application extension API for adding both serve
 
 ## Workspaces and review
 
-Both tools support isolated Git worktrees, terminals, diff review, browser previews, GitHub workflows, schedules, and remote machines.
+Both tools support isolated Git worktrees, terminals, diff review, browser previews, GitHub workflows, and remote machines.
 
 OpenChamber adds multi-run comparisons, Fusion, and guided changes walkthroughs. Mixer adds split panes and tabs, a native Files and Changes explorer, and a full pull-request workflow across its clients.
 
 ## Automation
 
-Mixer exposes workspace and agent operations through its CLI, TypeScript SDK, and MCP server. These interfaces can create workspaces, launch agents, follow progress, send messages, and manage schedules.
+Mixer exposes workspace and agent operations through its CLI, TypeScript SDK, and MCP server. These interfaces can create workspaces, launch agents, follow progress, and send messages.
 
 OpenChamber's CLI runs and manages its server, remote access, and updates. Its Agent Control Tool lets an OpenCode agent create and continue sessions, create worktrees, and manage schedules.
 
@@ -76,7 +76,6 @@ Both tools provide iOS and Android clients and support dictation and spoken repl
 | Pull requests in app         | GitHub, GitLab, Gitea, Forgejo, Codeberg                                                           | GitHub (issue, PR, checks, review, merge)      |
 | In-app browser               | Yes (element picker, agent browser tools)                                                          | Yes (previews)                                 |
 | Per-worktree dev server URLs | Yes (`web--fix-auth--my-app.localhost`)                                                            | Preview and port detection                     |
-| Schedules and heartbeats     | Yes                                                                                                | Yes (schedules)                                |
 | Plan usage                   | Yes                                                                                                | -                                              |
 | Plugins                      | Yes (new screens, panels, agent hooks, and providers, one plugin runs on desktop, web, and mobile) | No                                             |
 | Voice                        | Yes (local dictation, realtime voice)                                                              | Dictation and spoken replies                   |

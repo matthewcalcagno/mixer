@@ -45,20 +45,16 @@ it("hides an unavailable workspace's empty title without removing window control
   expect(view.getByRole("button", { name: "Settings" })).toBeTruthy();
 });
 
-it.each([
-  "/settings",
-  "/settings/about",
-  "/settings/host/server/agents",
-  "/h/server/settings",
-  "/schedules",
-  "/schedules/new",
-])("hides the centered title on %s without removing window chrome", (pathname) => {
-  route.pathname = pathname;
-  const view = render(<DesktopWindowTitlebar visible />);
-  expect(view.queryByTestId("desktop-window-title")).toBeNull();
-  expect(view.getByTestId("drag-region")).toBeTruthy();
-  expect(view.getByRole("button", { name: "Settings" })).toBeTruthy();
-});
+it.each(["/settings", "/settings/about", "/settings/host/server/agents", "/h/server/settings"])(
+  "hides the centered title on %s without removing window chrome",
+  (pathname) => {
+    route.pathname = pathname;
+    const view = render(<DesktopWindowTitlebar visible />);
+    expect(view.queryByTestId("desktop-window-title")).toBeNull();
+    expect(view.getByTestId("drag-region")).toBeTruthy();
+    expect(view.getByRole("button", { name: "Settings" })).toBeTruthy();
+  },
+);
 
 it("keeps the title on workspace routes", () => {
   route.pathname = "/h/server/workspace/one";

@@ -75,10 +75,9 @@ mixer run --provider claude --worktree refactor-auth "refactor auth"
 mixer run --host devbox:6767 "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
-`mixer run --host` 连接到远程 daemon。`mixer schedule` 按 cron 运行 Agent。MCP 服务器让其他 Agent 能够创建 worktree、启动 Agent、打开终端和发送提示词。
+`mixer run --host` 连接到远程 daemon。MCP 服务器让其他 Agent 能够创建 worktree、启动 Agent、打开终端和发送提示词。
 
 ## 语音 {#voice}
 
@@ -109,7 +108,6 @@ Mixer 支持语音输入和实时语音模式。语音转文字和文字转语�
 | 应用内拉取请求                 | GitHub、GitLab、Gitea、Forgejo、Codeberg                                           | 提交、推送、PR                        |
 | 应用内浏览器                   | 是（元素选择器、Agent 浏览器工具）                                                 | 是                                    |
 | 每个 worktree 的开发服务器 URL | 是（`web--fix-auth--my-app.localhost`）                                            | 否                                    |
-| 定时任务与 heartbeat           | 是                                                                                 | -                                     |
 | 套餐用量                       | 是                                                                                 | -                                     |
 | 插件                           | 是（新界面、面板、Agent hook 和 Provider，同一个插件可在桌面端、Web 和移动端运行） | 否                                    |
 | 语音                           | 是（本地语音输入、实时语音）                                                       | 语音输入                              |

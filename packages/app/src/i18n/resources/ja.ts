@@ -1284,7 +1284,6 @@ export const ja: TranslationResources = {
     sections: {
       sessions: "履歴",
       search: "検索",
-      schedules: "スケジュール",
     },
     worktreeSetup: {
       title: "ワークツリースクリプトを設定",
@@ -2865,7 +2864,7 @@ export const ja: TranslationResources = {
         unavailable: "オーケストレーションを管理するにはこのホストに接続してください",
         enableTools: {
           title: "Mixerツールを有効にする",
-          hint: "エージェントがワークツリー、エージェント、スケジュールを管理できるようになります",
+          hint: "エージェントがワークツリーとエージェントを管理できるようになります",
           accessibilityLabel: "Mixerツールを有効にする",
         },
         systemPrompt: {

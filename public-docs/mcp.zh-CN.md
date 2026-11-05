@@ -1,6 +1,6 @@
 ---
 title: MCP 参考
-description: Agent 用来管理 Agent、工作区、脚本、终端和定时任务的 Mixer 工具参考。
+description: Agent 用来管理 Agent、工作区、脚本、终端的 Mixer 工具参考。
 nav: MCP 参考
 ---
 
@@ -126,28 +126,6 @@ Mixer Agent 默认会收到完成、错误和权限通知；设置 `notifyOnFini
 | `kill_terminal`      | 结束终端会话。                             |
 | `capture_terminal`   | 捕获终端会话的纯文本输出。                 |
 | `send_terminal_keys` | 向终端会话发送文本或特殊按键标记。         |
-
-### 定时任务与 heartbeat {#schedules-and-heartbeats}
-
-两者使用相同的 cron 引擎，但接口有意设计得不同。
-
-| 工具                | 功能                                                      |
-| ------------------- | --------------------------------------------------------- |
-| `create_schedule`   | 创建一个 cron 定时任务，每次运行都启动一个新的 Agent。    |
-| `list_schedules`    | 列出 daemon 管理的新建 Agent 定时任务。                   |
-| `inspect_schedule`  | 查看定时任务及其运行历史。                                |
-| `pause_schedule`    | 暂停一个活动的定时任务。                                  |
-| `resume_schedule`   | 恢复一个已暂停的定时任务。                                |
-| `update_schedule`   | 修改定时任务的 cron、提示词、Agent 设置、限制或其他设置。 |
-| `schedule_logs`     | 返回定时任务最近的运行及输出。                            |
-| `run_schedule_once` | 启动一次新建 Agent 的定时任务运行，不改变它的 cron。      |
-| `delete_schedule`   | 永久删除一个新建 Agent 的定时任务。                       |
-| `create_heartbeat`  | 向当前 Agent 发送一段由 cron 驱动的周期性提示词。         |
-| `delete_heartbeat`  | 删除当前 Agent 的某个 heartbeat。                         |
-
-MCP heartbeat 是临时的：只能创建或删除。要修改一个 heartbeat，请删除它并创建一个替代的。暂停、恢复、更新、查看、日志和单次运行只适用于新建 Agent 的定时任务。
-
-默认情况下，新建 Agent 的定时任务每次运行结束时都会归档其工作区。`create_schedule` 和 `update_schedule` 不提供 **Archive on finish**（`archiveOnFinish`）；要让之后的运行工作区保持活跃，请[在应用中修改该选项](/docs/schedules#keep-run-workspaces)。
 
 ### Agent 配置 {#agent-profiles}
 

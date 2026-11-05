@@ -67,7 +67,6 @@
       "Providers": "Provider",
       "Orchestration": "编排",
       "Browser": "浏览器",
-      "Schedules": "定时任务",
       "Configuration": "配置",
       "Plugins": "插件",
       "TypeScript SDK": "TypeScript SDK",
@@ -454,7 +453,6 @@
       "app": {
         "newWorkspace": "新建工作区",
         "history": "历史",
-        "schedules": "计划",
         "pinned": "已置顶",
         "readyToReview": "待查看",
         "working": "运行中",

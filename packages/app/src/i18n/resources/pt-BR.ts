@@ -1296,7 +1296,6 @@ export const ptBR: TranslationResources = {
     sections: {
       sessions: "Histórico",
       search: "Buscar",
-      schedules: "Agendamentos",
     },
     worktreeSetup: {
       title: "Configurar scripts de worktree",
@@ -2879,7 +2878,7 @@ export const ptBR: TranslationResources = {
         unavailable: "Conecte-se a este host para gerenciar a orquestração",
         enableTools: {
           title: "Ativar ferramentas do Mixer",
-          hint: "Agentes poderão gerenciar worktrees, agentes e agendamentos",
+          hint: "Agentes poderão gerenciar worktrees e agentes",
           accessibilityLabel: "Injetar ferramentas do Mixer",
         },
         systemPrompt: {

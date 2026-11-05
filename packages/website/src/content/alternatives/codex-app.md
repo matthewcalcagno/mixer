@@ -75,10 +75,9 @@ mixer run --provider claude --worktree refactor-auth "refactor auth"
 mixer run --host devbox:6767 "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
-`mixer run --host` connects to a remote daemon. `mixer schedule` runs an agent on a cron. The MCP server lets other agents create worktrees, launch agents, open terminals, and send prompts.
+`mixer run --host` connects to a remote daemon. The MCP server lets other agents create worktrees, launch agents, open terminals, and send prompts.
 
 ## Voice
 
@@ -109,7 +108,6 @@ Mixer supports dictation and realtime voice mode. Speech-to-text and text-to-spe
 | Pull requests in app         | GitHub, GitLab, Gitea, Forgejo, Codeberg                                                           | Commit, push, PR                                     |
 | In-app browser               | Yes (element picker, agent browser tools)                                                          | Yes                                                  |
 | Per-worktree dev server URLs | Yes (`web--fix-auth--my-app.localhost`)                                                            | No                                                   |
-| Schedules and heartbeats     | Yes                                                                                                | -                                                    |
 | Plan usage                   | Yes                                                                                                | -                                                    |
 | Plugins                      | Yes (new screens, panels, agent hooks, and providers, one plugin runs on desktop, web, and mobile) | No                                                   |
 | Voice                        | Yes (local dictation, realtime voice)                                                              | Dictation                                            |

@@ -66,10 +66,9 @@ mixer run --provider codex "implement OAuth"
 mixer run --host devbox:6767 "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
-`mixer run --host` 连接到远程 daemon。`mixer schedule` 按 cron 运行 Agent。
+`mixer run --host` 连接到远程 daemon。
 
 Happy Coder 提供 CLI，用于启动被包装的会话，以及创建远程会话、向其发送消息、监控和停止远程会话。它没有公开文档化定时任务或循环。
 
@@ -100,7 +99,6 @@ Happy Coder 提供 CLI，用于启动被包装的会话，以及创建远程会�
 | 应用内拉取请求                 | GitHub、GitLab、Gitea、Forgejo、Codeberg                                           | -                                         |
 | 应用内浏览器                   | 是（元素选择器、Agent 浏览器工具）                                                 | 是（预览）                                |
 | 每个 worktree 的开发服务器 URL | 是（`web--fix-auth--my-app.localhost`）                                            | -                                         |
-| 定时任务与 heartbeat           | 是                                                                                 | -                                         |
 | 套餐用量                       | 是                                                                                 | -                                         |
 | 插件                           | 是（新界面、面板、Agent hook 和 Provider，同一个插件可在桌面端、Web 和移动端运行） | 否                                        |
 | 语音                           | 是（本地语音输入、实时语音）                                                       | 是                                        |

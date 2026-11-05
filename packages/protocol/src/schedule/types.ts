@@ -1,3 +1,4 @@
+// COMPAT(retiredSchedules): removed in v0.4.x, retain schemas for older clients and stored history.
 import { z } from "zod";
 import { AgentProviderSchema } from "../provider-manifest.js";
 
