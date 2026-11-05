@@ -344,20 +344,20 @@ test.describe("plugin workspace panels and Command Center", () => {
         await openPluginExternalTab(page, "link", "Plugin documentation");
         await openPluginExternalTab(page, "button", "Open external plugin URL");
         await capture(page, testInfo, "plugin-external-links-web");
-        await page.getByTestId("plugin-surface-close").click();
+        await page.goBack();
       });
 
       await test.step("direct and sidebar routes preserve same-id contribution kind", async () => {
         await runCommand(page, "Open direct collision surface");
         await expect(page.getByText("Direct collision surface", { exact: true })).toBeVisible();
         await expect(page.getByText("Sidebar collision surface", { exact: true })).toHaveCount(0);
-        await page.getByTestId("plugin-surface-close").click();
+        await page.goBack();
 
         await page.getByTestId(`plugin-sidebar-${PLUGIN_ID}-collision`).click();
         await expect(page.getByText("Sidebar collision surface", { exact: true })).toBeVisible();
         await expect(page.getByText("Direct collision surface", { exact: true })).toHaveCount(0);
         await capture(page, testInfo, "plugin-surface-kind-collision");
-        await page.getByTestId("plugin-surface-close").click();
+        await page.goBack();
       });
 
       await test.step("surface navigation opens host-owned workspace and agent routes", async () => {

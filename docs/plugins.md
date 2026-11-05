@@ -361,18 +361,13 @@ may be async; Mixer waits for it when stopping the server plugin. Cleanup errors
 not interrupt host teardown. Client installation retention and disposal follow the public
 [hosts and lifecycle contract](../public-docs/plugins/reference.md#hosts-and-lifecycle).
 
-Mixer owns the route, main island frame, screen header, icon validation, close action, theme DTO,
-layout facts, and render error boundary. Every plugin screen, including legacy sidebar surfaces,
-renders its header and body inside the host's main island, including offline and error states.
-The contributed component owns the body below the header, not the outer frame. Workspace,
-Explorer, file, and settings contributions stay inside their existing host panels; do not add
-another outer island around those contributions. Custom actions open screens or panels through
-host navigation so the same framing applies.
-The plugin owns the header's text through the screen's `title` (`resolvePluginScreenTitle` in
-`plugins/surface-contribution.ts`). A legacy `addSidebarItem` route (`/sidebar/<id>`) shows the
-item's title and icon instead, as before screens had titles; the `addSurface` alias titles its
-screen with the id. A `/sidebar/<id>` route with no legacy item of that id opens the screen with
-that id, so links saved before a plugin migrated keep working.
+Mixer owns the route, main island frame, theme DTO, layout facts, host selection, and render
+error boundary. Plugin screens render their content directly inside that frame, including
+legacy sidebar surfaces. Screens provide their own visible headings when needed. Host selection
+appears as a standalone control only when the contribution is available on multiple hosts.
+Workspace, Explorer, file, and settings contributions stay inside their existing host panels.
+A `/sidebar/<id>` route with no legacy item of that id opens the screen with that id, so links
+saved before a plugin migrated keep working.
 
 Screen params ride in the screen route's query string (`plugins/routes.ts`), not in app state, so
 reload, history, links, and the host switcher keep them without a store. Expo Router merges the

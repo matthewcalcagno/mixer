@@ -70,7 +70,7 @@ async function boxOf(locator: Locator) {
   return result!;
 }
 
-/** The open screen's header title; a pushed screen keeps the one below it mounted. */
+/** Host-provided screen headings are omitted for custom views. */
 function screenTitle(page: Page): Locator {
   return page.locator('[data-testid="plugin-surface-title"]:visible').last();
 }
@@ -80,8 +80,8 @@ async function expectBotScreen(page: Page, botId: string) {
     new RegExp(`/plugin/${BOTS_PLUGIN_ID}/surface/bot\\?param\\.botId=${botId}$`),
   );
   await expect(page.getByText(`Bot screen: ${botId}`, { exact: true })).toBeVisible();
-  // The plugin titles the screen from its params: the bot's name.
-  await expect(screenTitle(page)).toHaveText(botId === "bot-1" ? "Bot 1" : "Bot 2");
+  // The plugin owns its visible content, without a duplicate host heading.
+  await expect(screenTitle(page)).toHaveCount(0);
   await expectRowActive(botRow(page, "bot-1"), botId === "bot-1");
   await expectRowActive(botRow(page, "bot-2"), botId === "bot-2");
   await expectRowActive(botRow(page, "status"), false);
@@ -151,6 +151,16 @@ test.describe("Plugin sidebar items", () => {
     await cleanup();
   });
 
+  test("custom screens render without a host header", async ({ page }) => {
+    await page.setViewportSize(WIDE);
+    await gotoWorkspace(page, workspaceId);
+    await headerRow(page, SHOWCASE_PLUGIN_ID, "deploys").click();
+    await expect(page.getByText("Deploys screen body", { exact: true })).toBeVisible();
+    await expect(screenTitle(page)).toHaveCount(0);
+    await expect(page.getByTestId("plugin-surface-close")).toHaveCount(0);
+    await closeScreen(page);
+  });
+
   test("a plugin's screen, header row, footer popover and command work together", async ({
     page,
   }) => {
@@ -179,7 +189,7 @@ test.describe("Plugin sidebar items", () => {
       await row.click();
       await expect(page).toHaveURL(new RegExp(`/plugin/${SHOWCASE_PLUGIN_ID}/surface/deploys`));
       await expect(page.getByText("Deploys screen body", { exact: true })).toBeVisible();
-      await expect(screenTitle(page)).toHaveText("Deploys");
+      await expect(screenTitle(page)).toHaveCount(0);
       await expectRowActive(row, true);
       await qaScreenshot(page, "phase2-desktop-sidebar-screen");
       await closeScreen(page);
@@ -290,8 +300,8 @@ test.describe("Plugin sidebar items", () => {
       await entry.click();
       await expect(page).toHaveURL(new RegExp(`/plugin/${LEGACY_PLUGIN_ID}/sidebar/entry$`));
       await expect(page.getByText("Legacy screen body", { exact: true })).toBeVisible();
-      await expect(page.getByTestId("plugin-surface-close")).toBeVisible();
-      await expect(screenTitle(page)).toHaveText("Legacy entry");
+      await expect(page.getByTestId("plugin-surface-close")).toHaveCount(0);
+      await expect(screenTitle(page)).toHaveCount(0);
       await expectRowActive(entry, true);
       await closeScreen(page);
     });
@@ -310,10 +320,10 @@ test.describe("Plugin sidebar items", () => {
       await expect(page.getByText("Bot screen: bot-2", { exact: true })).toBeVisible({
         timeout: 30_000,
       });
-      await expect(screenTitle(page)).toHaveText("Bot 2");
+      await expect(screenTitle(page)).toHaveCount(0);
       await page.goto(`/h/${host}/plugin/${BOTS_PLUGIN_ID}/bot`);
       await expect(page).toHaveURL(new RegExp(`/plugin/${BOTS_PLUGIN_ID}/sidebar/bot$`));
-      await expect(screenTitle(page)).toHaveText("Bot");
+      await expect(screenTitle(page)).toHaveCount(0);
     });
 
     await test.step("settings shows a legacy row's own icon and one generic icon for the rest", async () => {
@@ -408,7 +418,7 @@ test.describe("Plugin sidebar items", () => {
       await expect(page.getByText("Bot screen: bot-3", { exact: true })).toBeVisible();
       await expect(page.getByText("serverId param: x", { exact: true })).toBeVisible();
       // No bot named bot-3, so the title function returns its own fallback.
-      await expect(screenTitle(page)).toHaveText("Bot");
+      await expect(screenTitle(page)).toHaveCount(0);
       await page.reload();
       await expect(page.getByText("serverId param: x", { exact: true })).toBeVisible();
     });

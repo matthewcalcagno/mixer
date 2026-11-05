@@ -9,7 +9,11 @@ import { getIsElectron } from "@/constants/platform";
 import { useDesktopWindowTitle } from "@/desktop/window-title";
 import { TitlebarDragRegion } from "./titlebar-drag-region";
 import { ToolbarButton } from "@/components/ui/pane-content-toolbar";
-import { buildSettingsRoute } from "@/utils/host-routes";
+import {
+  buildSettingsRoute,
+  parseHostWorkspaceRouteFromPathname,
+  parseHostAgentRouteFromPathname,
+} from "@/utils/host-routes";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { useCustomDesktopWindowControls } from "@/utils/desktop-window";
 import { getDesktopWindowControlsWidth } from "@/desktop/window-chrome-presentation";
@@ -27,12 +31,10 @@ export function useHasDesktopTitlebar(): boolean {
 export function DesktopWindowTitlebar({ visible }: { visible: boolean }) {
   const pathname = usePathname();
   const title = useDesktopWindowTitle((state) => state.title);
-  const hasStandalonePageHeading = pathname.split("/").some((segment) => segment === "settings");
-  const showTitle =
-    title.length > 0 &&
-    pathname !== "/new" &&
-    pathname !== "/open-project" &&
-    !hasStandalonePageHeading;
+  const isProjectPage =
+    parseHostWorkspaceRouteFromPathname(pathname) !== null ||
+    parseHostAgentRouteFromPathname(pathname) !== null;
+  const showTitle = title.length > 0 && isProjectPage;
   const { t } = useTranslation();
   const shortcut = useShortcutKeys("toggle-settings");
   const controls = useCustomDesktopWindowControls();
