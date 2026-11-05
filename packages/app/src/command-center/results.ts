@@ -29,8 +29,8 @@ export interface CommandCenterScore {
  * the keyword match is.
  *
  * Scoring purely by tier is not enough: "aut" is a string-prefix of both "Auto mode" and
- * Schedules' hidden keyword "automation", so the tiers tie and the order falls back to group
- * rank, which puts Schedules first. It only came out right at the full word "auto". Order that
+ * Tasks' hidden keyword "automation", so the tiers tie and the order falls back to group
+ * rank, which puts Tasks first. It only came out right at the full word "auto". Order that
  * flips mid-word as you type is worse than order that is merely wrong.
  *
  * The cost is deliberate: an exact hidden-keyword match now loses to any visible match. No

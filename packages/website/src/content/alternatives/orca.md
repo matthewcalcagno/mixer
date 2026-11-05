@@ -59,11 +59,11 @@ Orca has an experimental plugin system that is off by default. Orca plugins can 
 
 Orca includes many tools in the core app: a Monaco code editor, Design Mode for sending page elements from its browser to an agent, computer use, Linear and Jira boards, agent account switching with usage tracking, and per-workspace cloud VM recipes. If you want these in one app without extensions, Orca provides them.
 
-Mixer includes an editor, terminals, diff review with comments that go to the agent, pull requests on GitHub, GitLab, Gitea, Forgejo, and Codeberg, a browser with an element picker and agent browser tools, plan usage, schedules, and heartbeats. Boards and cloud VMs are what a plugin adds.
+Mixer includes an editor, terminals, diff review with comments that go to the agent, pull requests on GitHub, GitLab, Gitea, Forgejo, and Codeberg, a browser with an element picker and agent browser tools, plan usage. Boards and cloud VMs are what a plugin adds.
 
 ## Workspaces and review
 
-Both tools provide Git worktrees, split panes, terminals, diff review, an in-app browser, pull-request workflows, and scheduled agent runs.
+Both tools provide Git worktrees, split panes, terminals, diff review, an in-app browser, and pull-request workflows.
 
 Mixer has diff review with comments that go to the agent and opens pull requests on GitHub, GitLab, Gitea, Forgejo, and Codeberg. It also gives each worktree its own service URL, such as `web--fix-auth--my-app.localhost`, so parallel development servers do not compete for ports. Orca has port forwarding for SSH worktrees and pull requests on GitLab, Bitbucket, Azure DevOps, and Gitea as well as GitHub.
 
@@ -76,7 +76,6 @@ mixer run --provider codex "implement OAuth"
 mixer --host ssh://user@devbox run --cwd /srv/app "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
 Orca's CLI creates worktrees, drives its browser, and manages automations. Orca installs skills so agents can call the same commands.
@@ -110,7 +109,6 @@ Orca does not require an account for local use. Orca Relay and shared artifacts 
 | Pull requests in app         | GitHub, GitLab, Gitea, Forgejo, Codeberg                                                           | GitHub, GitLab, Bitbucket, Azure DevOps, Gitea          |
 | In-app browser               | Yes (element picker, agent browser tools)                                                          | Yes (Design Mode)                                       |
 | Per-worktree dev server URLs | Yes (`web--fix-auth--my-app.localhost`)                                                            | Port forwarding for SSH worktrees                       |
-| Schedules and heartbeats     | Yes                                                                                                | Yes (scheduled agent runs)                              |
 | Plan usage                   | Yes                                                                                                | Yes (usage tracking, account switching)                 |
 | Plugins                      | Yes (new screens, panels, agent hooks, and providers, one plugin runs on desktop, web, and mobile) | Experimental, desktop only                              |
 | Voice                        | Yes (local dictation, realtime voice)                                                              | Dictation                                               |

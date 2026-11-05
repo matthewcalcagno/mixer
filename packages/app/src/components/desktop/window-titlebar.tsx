@@ -27,9 +27,7 @@ export function useHasDesktopTitlebar(): boolean {
 export function DesktopWindowTitlebar({ visible }: { visible: boolean }) {
   const pathname = usePathname();
   const title = useDesktopWindowTitle((state) => state.title);
-  const hasStandalonePageHeading = pathname
-    .split("/")
-    .some((segment) => segment === "settings" || segment === "schedules");
+  const hasStandalonePageHeading = pathname.split("/").some((segment) => segment === "settings");
   const showTitle =
     title.length > 0 &&
     pathname !== "/new" &&

@@ -1306,7 +1306,6 @@ export const es: TranslationResources = {
     sections: {
       sessions: "Historial",
       search: "Buscar",
-      schedules: "Horarios",
     },
     worktreeSetup: {
       title: "Configurar secuencias de comandos del árbol de trabajo",
@@ -2897,7 +2896,7 @@ export const es: TranslationResources = {
         unavailable: "Conéctese a este host para administrar la orquestación",
         enableTools: {
           title: "Habilitar herramientasMixer",
-          hint: "Los agentes podrán gestionar árboles de trabajo, agentes y horarios.",
+          hint: "Los agentes podrán gestionar árboles de trabajo y agentes.",
           accessibilityLabel: "Inyectar herramientasMixer",
         },
         systemPrompt: {

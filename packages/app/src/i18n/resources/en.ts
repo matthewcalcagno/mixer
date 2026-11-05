@@ -1277,7 +1277,6 @@ export const en = {
     sections: {
       sessions: "History",
       search: "Search",
-      schedules: "Schedules",
     },
     worktreeSetup: {
       title: "Set up worktree scripts",
@@ -2965,7 +2964,7 @@ export const en = {
         unavailable: "Connect to this host to manage orchestration",
         enableTools: {
           title: "Enable Mixer tools",
-          hint: "Agents will be able to manage worktrees, agents and schedules",
+          hint: "Agents will be able to manage worktrees and agents",
           accessibilityLabel: "Inject Mixer tools",
         },
         systemPrompt: {

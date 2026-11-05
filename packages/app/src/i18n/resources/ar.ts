@@ -1269,7 +1269,6 @@ export const ar: TranslationResources = {
     sections: {
       sessions: "السجل",
       search: "بحث",
-      schedules: "الجداول",
     },
     worktreeSetup: {
       title: "إعداد البرامج النصية لشجرة العمل",
@@ -2873,7 +2872,7 @@ export const ar: TranslationResources = {
         unavailable: "اتصل بهذا المضيف لإدارة التنسيق",
         enableTools: {
           title: "تمكين أدوات Mixer",
-          hint: "سيتمكن الوكلاء من إدارة أشجار العمل والوكلاء والجداول الزمنية",
+          hint: "سيتمكن الوكلاء من إدارة أشجار العمل والوكلاء",
           accessibilityLabel: "حقن أدوات Mixer",
         },
         systemPrompt: {

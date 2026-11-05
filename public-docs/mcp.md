@@ -1,6 +1,6 @@
 ---
 title: MCP reference
-description: Reference for the Mixer tools agents use to manage agents, workspaces, scripts, terminals, and schedules.
+description: Reference for the Mixer tools agents use to manage agents, workspaces, scripts, and terminals.
 nav: MCP reference
 order: 34
 category: Orchestration
@@ -134,28 +134,6 @@ See [Git worktrees](/docs/worktrees#scripts-and-services) for `mixer.json` confi
 | `kill_terminal`      | Kill a terminal session.                                                     |
 | `capture_terminal`   | Capture plain-text output from a terminal session.                           |
 | `send_terminal_keys` | Send text or special key tokens to a terminal session.                       |
-
-### Schedules and heartbeats
-
-Both use the same cron engine, but they have deliberately different interfaces.
-
-| Tool                | Function                                                                     |
-| ------------------- | ---------------------------------------------------------------------------- |
-| `create_schedule`   | Create a cron schedule that starts a new agent for each run.                 |
-| `list_schedules`    | List new-agent schedules managed by the daemon.                              |
-| `inspect_schedule`  | Inspect a schedule and its run history.                                      |
-| `pause_schedule`    | Pause an active schedule.                                                    |
-| `resume_schedule`   | Resume a paused schedule.                                                    |
-| `update_schedule`   | Change a schedule's cron, prompt, agent settings, limits, or other settings. |
-| `schedule_logs`     | Return recent runs and output for a schedule.                                |
-| `run_schedule_once` | Start one new-agent schedule run without changing its cron.                  |
-| `delete_schedule`   | Delete a new-agent schedule permanently.                                     |
-| `create_heartbeat`  | Send a recurring cron-backed prompt into the current agent.                  |
-| `delete_heartbeat`  | Delete one of the current agent's heartbeats.                                |
-
-MCP heartbeats are ephemeral: create or delete them. To change one, delete it and create a replacement. Pause, resume, update, inspect, logs, and run-once apply to new-agent schedules only.
-
-New-agent run workspaces are archived when each run ends by default. `create_schedule` and `update_schedule` do not expose **Archive on finish** (`archiveOnFinish`); [change the option in the app](/docs/schedules#keep-run-workspaces) to keep subsequent run workspaces active.
 
 ### Agent profiles
 

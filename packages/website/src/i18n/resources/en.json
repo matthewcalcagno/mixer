@@ -67,7 +67,6 @@
       "Providers": "Providers",
       "Orchestration": "Orchestration",
       "Browser": "Browser",
-      "Schedules": "Schedules",
       "Configuration": "Configuration",
       "Plugins": "Plugins",
       "TypeScript SDK": "TypeScript SDK",
@@ -454,7 +453,6 @@
       "app": {
         "newWorkspace": "New workspace",
         "history": "History",
-        "schedules": "Schedules",
         "pinned": "Pinned",
         "readyToReview": "Ready to review",
         "working": "Working",

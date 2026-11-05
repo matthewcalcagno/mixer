@@ -1261,7 +1261,6 @@ export const zhCN: TranslationResources = {
     sections: {
       sessions: "历史",
       search: "搜索",
-      schedules: "计划",
     },
     worktreeSetup: {
       title: "设置 worktree scripts",
@@ -2807,7 +2806,7 @@ export const zhCN: TranslationResources = {
         unavailable: "连接到这个 Host 以管理编排",
         enableTools: {
           title: "启用 Mixer tools",
-          hint: "Agent 将能够管理 worktree、Agent 和计划",
+          hint: "Agent 将能够管理 worktree 和 Agent",
           accessibilityLabel: "注入 Mixer tools",
         },
         systemPrompt: {

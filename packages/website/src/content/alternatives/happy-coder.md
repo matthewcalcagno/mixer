@@ -66,12 +66,9 @@ mixer run --provider codex "implement OAuth"
 mixer run --host devbox:6767 "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
-`mixer run --host` connects to a remote daemon. `mixer schedule` runs an agent on a cron.
-
-Happy Coder has CLIs for launching wrapped sessions and for creating, sending to, monitoring, and stopping remote sessions. It does not document schedules or loops.
+`mixer run --host` connects to a remote daemon. Happy Coder has CLIs for launching wrapped sessions and for creating, sending to, monitoring, and stopping remote sessions. It does not document schedules or loops.
 
 ## Voice
 
@@ -100,7 +97,6 @@ Both products support voice interaction. Mixer can run speech-to-text and text-t
 | Pull requests in app         | GitHub, GitLab, Gitea, Forgejo, Codeberg                                                           | -                                               |
 | In-app browser               | Yes (element picker, agent browser tools)                                                          | Yes (previews)                                  |
 | Per-worktree dev server URLs | Yes (`web--fix-auth--my-app.localhost`)                                                            | -                                               |
-| Schedules and heartbeats     | Yes                                                                                                | -                                               |
 | Plan usage                   | Yes                                                                                                | -                                               |
 | Plugins                      | Yes (new screens, panels, agent hooks, and providers, one plugin runs on desktop, web, and mobile) | No                                              |
 | Voice                        | Yes (local dictation, realtime voice)                                                              | Yes                                             |

@@ -59,7 +59,7 @@ Orca 有一个默认关闭的实验性插件系统。Orca 插件可以添加在�
 
 Orca 在核心应用中包含了许多工具：Monaco 代码编辑器、用于把浏览器中的页面元素发送给 Agent 的 Design Mode、computer use、Linear 和 Jira 看板、带用量跟踪的 Agent 账号切换，以及每个工作区的云端虚拟机配方。如果你希望在一个应用中直接获得这些功能而无需扩展，Orca 提供了它们。
 
-Mixer 包含编辑器、终端、评论会发送给 Agent 的 diff 审查、GitHub、GitLab、Gitea、Forgejo 和 Codeberg 上的拉取请求、带元素选择器和 Agent 浏览器工具的浏览器、套餐用量、定时任务和 heartbeat。看板和云端虚拟机则由插件添加。
+Mixer 包含编辑器、终端、评论会发送给 Agent 的 diff 审查、GitHub、GitLab、Gitea、Forgejo 和 Codeberg 上的拉取请求、带元素选择器和 Agent 浏览器工具的浏览器、套餐用量。看板和云端虚拟机则由插件添加。
 
 ## 工作区与审查 {#workspaces-and-review}
 
@@ -76,7 +76,6 @@ mixer run --provider codex "implement OAuth"
 mixer --host ssh://user@devbox run --cwd /srv/app "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
 Orca 的 CLI 可以创建 worktree、驱动它的浏览器并管理自动化。Orca 会安装技能，让 Agent 可以调用同样的命令。
@@ -110,7 +109,6 @@ Mixer 不需要账号，也不收集遥测数据。
 | 应用内拉取请求                 | GitHub、GitLab、Gitea、Forgejo、Codeberg                                           | GitHub、GitLab、Bitbucket、Azure DevOps、Gitea |
 | 应用内浏览器                   | 是（元素选择器、Agent 浏览器工具）                                                 | 是（Design Mode）                              |
 | 每个 worktree 的开发服务器 URL | 是（`web--fix-auth--my-app.localhost`）                                            | SSH worktree 的端口转发                        |
-| 定时任务与 heartbeat           | 是                                                                                 | 是（定时运行 Agent）                           |
 | 套餐用量                       | 是                                                                                 | 是（用量跟踪、账号切换）                       |
 | 插件                           | 是（新界面、面板、Agent hook 和 Provider，同一个插件可在桌面端、Web 和移动端运行） | 实验性，仅限桌面端                             |
 | 语音                           | 是（本地语音输入、实时语音）                                                       | 语音输入                                       |

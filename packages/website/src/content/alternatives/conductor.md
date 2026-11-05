@@ -56,12 +56,9 @@ mixer run --provider codex "implement OAuth"
 mixer run --host devbox:6767 "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
-`mixer run --host` connects to a remote daemon. `mixer schedule` runs an agent on a cron.
-
-Conductor lists its API as a Pro feature but does not document a user-facing CLI comparable to Mixer's.
+`mixer run --host` connects to a remote daemon. Conductor lists its API as a Pro feature but does not document a user-facing CLI comparable to Mixer's.
 
 ## Worktrees and services
 
@@ -100,7 +97,6 @@ Mixer supports local speech-to-text and text-to-speech. Conductor does not curre
 | Pull requests in app         | GitHub, GitLab, Gitea, Forgejo, Codeberg                                                           | GitHub                                  |
 | In-app browser               | Yes (element picker, agent browser tools)                                                          | -                                       |
 | Per-worktree dev server URLs | Yes (`web--fix-auth--my-app.localhost`)                                                            | -                                       |
-| Schedules and heartbeats     | Yes                                                                                                | -                                       |
 | Plan usage                   | Yes                                                                                                | -                                       |
 | Plugins                      | Yes (new screens, panels, agent hooks, and providers, one plugin runs on desktop, web, and mobile) | No                                      |
 | Voice                        | Yes (local dictation, realtime voice)                                                              | -                                       |

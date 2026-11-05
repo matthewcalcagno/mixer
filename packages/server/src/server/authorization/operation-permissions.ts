@@ -171,6 +171,7 @@ const INBOUND_PERMISSION = {
   register_push_token: "workspace.read",
   restart_server_request: "daemon.manage",
   resume_agent_request: "workspace.write",
+  // COMPAT(retiredSchedules): authorize retired wire requests before returning removal errors.
   "schedule/create": "automation.manage",
   "schedule/delete": "automation.manage",
   "schedule/inspect": "automation.manage",

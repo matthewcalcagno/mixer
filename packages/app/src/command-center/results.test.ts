@@ -79,15 +79,15 @@ function choice(input: {
   };
 }
 
-/** The real Actions › Schedules contribution, shape-for-shape (root-registration.tsx). */
-function schedulesAction(): CommandCenterContribution {
+/** The real Actions › Tasks contribution, shape-for-shape (root-registration.tsx). */
+function tasksAction(): CommandCenterContribution {
   return action({
-    id: "schedules",
+    id: "tasks",
     group: "actions",
     groupRank: 0,
     rank: 4,
-    title: "Schedules",
-    keywords: ["schedules", "scheduled", "automation", "recurring"],
+    title: "Tasks",
+    keywords: ["tasks", "scheduled", "automation", "recurring"],
   });
 }
 
@@ -228,17 +228,17 @@ describe("Command Center result projection", () => {
 
 describe("Command Center relevance ordering", () => {
   it("ranks a label match above a hidden-keyword match at every prefix", () => {
-    // Reported bug: "Schedules" matched only via its hidden keyword "automation" yet outranked
-    // "Auto mode", so Enter navigated to Schedules instead of switching permission mode.
+    // Reported bug: "Tasks" matched only via its hidden keyword "automation" yet outranked
+    // "Auto mode", so Enter navigated to Tasks instead of switching permission mode.
     // Every prefix counts, not just the full word — you read the list while you type, and "aut"
     // is a string-prefix of both "Auto mode" and "automation", so match quality alone ties them.
     for (const query of ["a", "au", "aut", "auto"]) {
-      const sections = buildContributionSections([schedulesAction(), autoModeChoice()], query);
+      const sections = buildContributionSections([tasksAction(), autoModeChoice()], query);
       expect(
         sections.map((section) => section.id),
         `query ${query}`,
       ).toEqual(["modes", "actions"]);
-      expect(sectionResultIds(sections), `query ${query}`).toEqual(["mode:auto", "schedules"]);
+      expect(sectionResultIds(sections), `query ${query}`).toEqual(["mode:auto", "tasks"]);
     }
   });
 
@@ -246,11 +246,11 @@ describe("Command Center relevance ordering", () => {
     const sections = buildContributionSections(
       [
         action({
-          id: "schedules",
+          id: "tasks",
           group: "actions",
           groupRank: 0,
           rank: 0,
-          title: "Schedules",
+          title: "Tasks",
           keywords: ["automation"],
         }),
         action({
@@ -264,42 +264,39 @@ describe("Command Center relevance ordering", () => {
       "automation",
     );
 
-    // "automation" is an exact keyword on Schedules and only a prefix of the other label.
+    // "automation" is an exact keyword on Tasks and only a prefix of the other label.
     // The visible match still wins — the deliberate trade-off of ranking by field role first.
-    expect(sectionResultIds(sections)).toEqual(["automation-hub", "schedules"]);
+    expect(sectionResultIds(sections)).toEqual(["automation-hub", "tasks"]);
   });
 
   it("keeps registry order when the query is empty", () => {
     const shuffled = [
       choice({ id: "mode:auto", group: "modes", groupRank: 1.2, path: ["Mode", "Auto mode"] }),
-      schedulesAction(),
+      tasksAction(),
       action({ id: "new-agent", group: "workspace", groupRank: -1, title: "New agent" }),
     ];
     const projection = projectCommandCenterRows(buildContributionSections(shuffled, ""), metrics);
 
     // Query-gated choices stay hidden; the rest fall back to groupRank, unchanged by this feature.
-    expect(projection.selectableResults.map((result) => result.id)).toEqual([
-      "new-agent",
-      "schedules",
-    ]);
+    expect(projection.selectableResults.map((result) => result.id)).toEqual(["new-agent", "tasks"]);
   });
 
-  it("still ranks Schedules first for 'sched'", () => {
+  it("still ranks Tasks first for 'task'", () => {
     const sections = buildContributionSections(
       [
-        schedulesAction(),
+        tasksAction(),
         choice({
           id: "mode:auto",
           group: "modes",
           groupRank: 1.2,
           path: ["Mode", "Auto mode"],
-          keywords: ["rescheduled"],
+          keywords: ["tasked"],
         }),
       ],
-      "sched",
+      "task",
     );
 
-    expect(sectionResultIds(sections)).toEqual(["schedules", "mode:auto"]);
+    expect(sectionResultIds(sections)).toEqual(["tasks", "mode:auto"]);
   });
 
   it("orders rows within a section by match quality", () => {
@@ -330,7 +327,7 @@ describe("Command Center relevance ordering", () => {
   it("keeps Workspaces below contributions even on a perfect match", () => {
     const projection = projectCommandCenterRows(
       [
-        ...buildContributionSections([schedulesAction()], "auto"),
+        ...buildContributionSections([tasksAction()], "auto"),
         {
           id: "workspaces",
           band: PINNED_SECTION_BAND,
@@ -342,11 +339,11 @@ describe("Command Center relevance ordering", () => {
       metrics,
     );
 
-    expect(projection.selectableResults.map((result) => result.id)).toEqual(["schedules", "auto"]);
+    expect(projection.selectableResults.map((result) => result.id)).toEqual(["tasks", "auto"]);
   });
 
   it("sorts sections handed to it out of order", () => {
-    const sections = buildContributionSections([schedulesAction(), autoModeChoice()], "auto");
+    const sections = buildContributionSections([tasksAction(), autoModeChoice()], "auto");
     const workspaces = {
       id: "workspaces",
       band: PINNED_SECTION_BAND,
@@ -358,7 +355,7 @@ describe("Command Center relevance ordering", () => {
 
     expect(projection.selectableResults.map((result) => result.id)).toEqual([
       "mode:auto",
-      "schedules",
+      "tasks",
       "auto",
     ]);
   });
@@ -418,7 +415,7 @@ describe("Command Center query tokenization", () => {
   it("never drops a row that the old substring filter would have matched", () => {
     // Tokens hold no whitespace and the old haystack joined fields with a space, so any token
     // found in that haystack lay entirely within one field. Tokenizing can only widen.
-    const rows = [labelAsDesign(), schedulesAction(), autoModeChoice()];
+    const rows = [labelAsDesign(), tasksAction(), autoModeChoice()];
     const haystack = (row: CommandCenterContribution): string =>
       [
         ...(row.presentation.kind === "action"
@@ -429,7 +426,7 @@ describe("Command Center query tokenization", () => {
         .join(" ")
         .toLowerCase();
 
-    for (const query of ["design", "sched", "auto mode", "label as", "recurring", "mode"]) {
+    for (const query of ["design", "task", "auto mode", "label as", "recurring", "mode"]) {
       const substringMatches = rows
         .filter((row) => haystack(row).includes(query.toLowerCase()))
         .map((row) => row.id);
@@ -479,9 +476,9 @@ describe("Command Center query tokenization", () => {
   it("returns everything for an empty or whitespace-only query", () => {
     for (const query of ["", "   "]) {
       expect(
-        sectionResultIds(buildContributionSections([labelAsDesign(), schedulesAction()], query)),
+        sectionResultIds(buildContributionSections([labelAsDesign(), tasksAction()], query)),
         JSON.stringify(query),
-      ).toEqual(["label:design", "schedules"]);
+      ).toEqual(["label:design", "tasks"]);
     }
   });
 });
