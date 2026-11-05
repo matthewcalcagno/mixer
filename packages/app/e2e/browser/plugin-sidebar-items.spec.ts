@@ -43,21 +43,34 @@ async function qaScreenshot(page: Page, name: string, area?: Locator) {
   else await page.screenshot({ path: file });
 }
 
-/** Footer rows sit above the fixed bottom line, spanning it from Add project to Settings. */
+/** Footer contributions span the padded footer rows and stay above its icon line when present. */
 async function expectFooterRow(page: Page, row: Locator) {
-  // Polled: on compact the drawer is still sliding in when the row first shows.
   await expect
     .poll(async () => {
-      const addProject = (await visibleTestId(page, "sidebar-add-project").boundingBox())!;
-      const settings = (await visibleTestId(page, "sidebar-settings").boundingBox())!;
+      const rows = visibleTestId(page, "sidebar-footer-rows");
+      const rails = await rows.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          left: box.left + Number.parseFloat(style.paddingLeft),
+          right: box.right - Number.parseFloat(style.paddingRight),
+          top: box.top,
+          bottom: box.bottom,
+        };
+      });
       const box = (await row.boundingBox())!;
+      const iconLine = await page
+        .locator('[data-testid="sidebar-footer-bottom-line"]:visible')
+        .first()
+        .boundingBox();
       return {
-        aboveBottomLine: box.y + box.height <= addProject.y,
-        alignedLeft: Math.abs(box.x - addProject.x) < 1,
-        alignedRight: Math.abs(box.x + box.width - (settings.x + settings.width)) < 1,
+        withinFooter: box.y >= rails.top && box.y + box.height <= rails.bottom,
+        aboveIconLine: !iconLine || box.y + box.height <= iconLine.y,
+        alignedLeft: Math.abs(box.x - rails.left) < 1,
+        alignedRight: Math.abs(box.x + box.width - rails.right) < 1,
       };
     })
-    .toEqual({ aboveBottomLine: true, alignedLeft: true, alignedRight: true });
+    .toEqual({ withinFooter: true, aboveIconLine: true, alignedLeft: true, alignedRight: true });
 }
 
 function botRow(page: Page, rowId: string): Locator {
@@ -130,7 +143,7 @@ async function nextAlertsObservation(page: Page, previous: string | null): Promi
 }
 
 function sidebarFooter(page: Page): Locator {
-  return visibleTestId(page, "sidebar-add-project").locator("xpath=..");
+  return visibleTestId(page, "sidebar-footer");
 }
 
 test.describe("Plugin sidebar items", () => {
@@ -257,7 +270,7 @@ test.describe("Plugin sidebar items", () => {
     const newWorkspace = visibleTestId(page, "sidebar-global-new-workspace");
     await expect(newWorkspace).toBeVisible({ timeout: 30_000 });
     await newWorkspace.hover();
-    const hint = page.getByText("Ctrl+N", { exact: true }).locator("visible=true");
+    const hint = page.getByText(/^(?:⌥⌘N|Ctrl\+Alt\+N)$/).locator("visible=true");
     await expect(hint).toBeVisible();
     await qaScreenshot(page, "phase7-header-row-hint", newWorkspace.locator("xpath=../.."));
     await hint.click();
