@@ -393,6 +393,39 @@ try {
   browser("find", "label", "Commit message", "fill", "commit via keyboard");
   browser("press", "Control+Enter");
   browser("wait", "--fn", "window.fixtureActions.some(action=>action.kind==='commit')");
+  evaluate(
+    "window.resetCommitFixture();window.setSourceControlFiles([]);window.setSourceControlBehind(4)",
+  );
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Pull incoming commits\"]')");
+  evaluate("window.deferStatus=true");
+  browser("wait", "--fn", "typeof window.completeStatus === 'function'");
+  assert.notEqual(
+    evaluate(
+      "document.querySelector('[aria-label=\"Pull incoming commits\"]').getAttribute('aria-disabled')",
+    ),
+    "true",
+    "Background polling must keep Pull enabled",
+  );
+  evaluate(
+    "window.deferStatus=false;window.completeStatus();delete window.completeStatus;window.deferRemote=true",
+  );
+  browser("find", "role", "button", "click", "--name", "Pull incoming commits", "--exact");
+  browser("wait", "--fn", "typeof window.completeRemote === 'function'");
+  browser(
+    "wait",
+    "--fn",
+    "document.querySelector('[aria-label=\"Pull incoming commits\"]')?.getAttribute('aria-disabled') === 'true'",
+  );
+  assert.equal(
+    evaluate(
+      "document.querySelector('[aria-label=\"Pull incoming commits\"]').getAttribute('aria-disabled')",
+    ),
+    "true",
+    "An actual Pull must disable the action until it completes",
+  );
+  evaluate("window.completeRemote()");
+  browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Commit staged changes\"]')");
   console.log(
     "PASS: SCM sidebar, commit flows and shortcut, conflict gating, filtering, tree view, and scoped folder actions.",
   );

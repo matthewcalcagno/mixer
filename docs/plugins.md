@@ -362,7 +362,10 @@ not interrupt host teardown. Client installation retention and disposal follow t
 [hosts and lifecycle contract](../public-docs/plugins/reference.md#hosts-and-lifecycle).
 
 Mixer owns the route, main island frame, theme DTO, layout facts, host selection, and render
-error boundary. Plugin screens render their content directly inside that frame, including
+error boundary. Screens default to a single island. Register `presentation: "workspace"` and use
+`WorkspaceLayout` with `WorkspaceIsland` from the client UI SDK for separate main and sidebar
+islands; these host components own the shared frame, sidebar surface, and gutter.
+Plugin screens render their content directly inside the selected layout, including
 legacy sidebar surfaces. Screens provide their own visible headings when needed. Host selection
 appears as a standalone control only when the contribution is available on multiple hosts.
 Workspace, Explorer, file, and settings contributions stay inside their existing host panels.

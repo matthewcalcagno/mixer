@@ -1,0 +1,5 @@
+{
+  "id": "api-client",
+  "name": "API Client",
+  "requirements": { "mixer": ">=0.1.0" }
+}

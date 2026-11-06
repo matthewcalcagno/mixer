@@ -148,7 +148,7 @@ export function PluginSurfaceScreen() {
   );
 
   return (
-    <MainPanelIsland testID="plugin-main-island">
+    <MainPanelIsland testID="plugin-main-island" framed={surface?.presentation !== "workspace"}>
       <View style={styles.body}>
         {hostFilter ? <View style={styles.hostControls}>{hostFilter}</View> : null}
         {plugin && surface && client ? (

@@ -1,3 +1,11 @@
+import { Icon } from "../icons";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Fragment, useCallback, useState } from "react";
 import type { ContextMenuProps } from "@mixer/plugin/client/ui";
 import {
@@ -49,5 +57,55 @@ function ContextAction({
         {action.label}
       </ContextMenuItem>
     </Fragment>
+  );
+}
+
+const actionTriggerStyle = {
+  width: 24,
+  height: 24,
+  alignItems: "center",
+  justifyContent: "center",
+} as const;
+export function ActionMenu({
+  label,
+  actions,
+  onSelect,
+}: {
+  label: string;
+  actions: readonly ContextMenuProps["actions"][number][];
+  onSelect(id: string): void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={actionTriggerStyle}
+      >
+        <Icon name="Ellipsis" size={14} color="currentColor" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        {actions.map((action) => (
+          <Fragment key={action.id}>
+            {action.separatorBefore && <DropdownMenuSeparator />}
+            <DropdownAction action={action} onSelect={onSelect} />
+          </Fragment>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+function DropdownAction({
+  action,
+  onSelect,
+}: {
+  action: ContextMenuProps["actions"][number];
+  onSelect(id: string): void;
+}) {
+  const select = useCallback(() => onSelect(action.id), [action.id, onSelect]);
+  return (
+    <DropdownMenuItem disabled={action.disabled} onSelect={select}>
+      {action.label}
+    </DropdownMenuItem>
   );
 }

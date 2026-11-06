@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { ContextMenu } from "./context-menu.electron";
+import { ActionMenu, ContextMenu } from "./context-menu.electron";
 import { createElement, useRef } from "react";
 import { useNativeTabContextMenu } from "@/screens/workspace/use-native-tab-context-menu.electron";
 import type { NativeTabContextMenuInput } from "@/screens/workspace/tab-native-menu-types";
@@ -12,6 +12,43 @@ vi.mock("@/desktop/host", () => ({
 }));
 vi.mock("@/contexts/toast-context", () => ({ useToast: () => ({ error: bridge.error }) }));
 vi.mock("@/constants/platform", () => ({ isWeb: true }));
+vi.mock("./pane-header-action", () => ({
+  PaneHeaderAction: ({ label, onPress }: { label: string; onPress: () => void }) => (
+    <button type="button" onClick={onPress}>
+      {label}
+    </button>
+  ),
+}));
+
+it("exports the desktop resource action menu and preserves its native action snapshot", async () => {
+  const pending = Promise.withResolvers<string | null>();
+  bridge.show.mockReturnValueOnce(pending.promise);
+  const selected = vi.fn();
+  const replacement = vi.fn();
+  const view = render(
+    <ActionMenu
+      label="Collection actions"
+      actions={[{ id: "add-folder", label: "Add folder" }]}
+      onSelect={selected}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Collection actions" }));
+  expect(bridge.show).toHaveBeenCalledWith({
+    kind: "actions",
+    items: [{ id: "add-folder", label: "Add folder" }],
+  });
+  view.rerender(
+    <ActionMenu
+      label="Collection actions"
+      actions={[{ id: "delete", label: "Delete" }]}
+      onSelect={replacement}
+    />,
+  );
+  pending.resolve("add-folder");
+  await waitFor(() => expect(selected).toHaveBeenCalledWith("add-folder"));
+  expect(replacement).not.toHaveBeenCalled();
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
