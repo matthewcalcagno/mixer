@@ -99,7 +99,6 @@ workspace for a directory clears it. The store lives in memory and resets on dae
 | `server/agent/mcp-server.ts`    | Thin MCP adapter that registers the Mixer tool catalog with the MCP SDK       |
 | `server/agent/providers/`       | Provider adapters (see "Agent providers" below)                               |
 | `server/relay-transport.ts`     | Outbound relay connection with E2E encryption                                 |
-| `server/schedule/`              | Cron-based scheduled agents                                                   |
 
 ### `packages/protocol` — Wire schemas and shared protocol types
 
@@ -169,8 +168,6 @@ Commander.js CLI with Docker-style commands. Common agent operations are also ex
 - `mixer daemon start/run/stop/restart/status/reload/config/pair/set-password`
 - `mixer terminal ls/create/capture/send-keys/kill`
 - `mixer script ls/start/stop`
-- `mixer schedule create/ls/inspect/update/pause/resume/run-once/logs/delete`
-- `mixer heartbeat create/update/delete`
 - `mixer project create/ls/rename/delete`
 - `mixer workspace create/ls/rename/archive`
 - `mixer permit allow/deny/ls`
@@ -480,7 +477,6 @@ $MIXER_HOME/
 ├── projects/projects.json                      # Project registry
 ├── projects/workspaces.json                    # Workspace registry
 ├── projects/icons/                             # Custom project icon images
-├── schedules/                                  # Scheduled-agent definitions and runs
 ├── config.json                                 # Daemon config (mutable)
 ├── daemon-keypair.json                         # Daemon identity for relay/E2EE
 ├── mixer.pid                                   # Supervisor identity and published bound endpoint

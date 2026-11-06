@@ -254,7 +254,7 @@ export async function runCommand(page: Page, title: string): Promise<void> {
 }
 
 export async function closeScreen(page: Page): Promise<void> {
-  await page.getByTestId("plugin-surface-close").click();
+  await page.goBack();
   await expect(page).not.toHaveURL(/\/plugin\//);
 }
 

@@ -6,7 +6,6 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { ChevronLeft, Import } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { MenuHeader } from "@/components/headers/menu-header";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AgentList } from "@/components/agent-list";
@@ -153,7 +152,6 @@ function SessionsScreenContent() {
 
   return (
     <MainPanelIsland testID="history-main-island">
-      <MenuHeader title={t("sessions.title")} />
       {showFilterRow ? (
         <View style={styles.filterContainer}>
           {isSearchSupported ? (

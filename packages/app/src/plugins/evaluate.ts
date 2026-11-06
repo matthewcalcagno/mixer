@@ -41,6 +41,20 @@ import type { ComponentType } from "react";
 import { parsePluginIcon, parseSerializablePluginIcon } from "./icons";
 import { parsePluginThemeContribution } from "./themes";
 
+// Plugin bundles can be newer than the renderer supplying their UI imports.
+// Fail at the missing import, before React reports an undefined element deep in a tree.
+const checkedPluginUiRuntime = new Proxy(pluginUiRuntime, {
+  get(target, key, receiver) {
+    const value = Reflect.get(target, key, receiver);
+    if (typeof key === "string" && key !== "__esModule" && value === undefined) {
+      throw new Error(
+        `Mixer UI component "${key}" is unavailable in this running app. Reload the Mixer window to load updated UI components. If this persists, update Mixer.`,
+      );
+    }
+    return value;
+  },
+});
+
 const CONTRIBUTION_ID = /^[a-z][a-z0-9-]*$/;
 const PANEL_LOCATIONS = ["workspace", "explorer"] as const;
 const TIMELINE_ITEM_TYPES = new Set([
@@ -213,7 +227,11 @@ export function runPluginClientBundle(
     ids.add(normalizedId);
     return register(
       collector.sidebarItems[section],
-      { id: normalizedId, title, Component: contribution.Component },
+      {
+        id: normalizedId,
+        title,
+        Component: contribution.Component,
+      },
       () => ids.delete(normalizedId),
     );
   }
@@ -270,13 +288,23 @@ export function runPluginClientBundle(
       const normalizedId = requireId(contribution.id, "screen id");
       if (surfaceIds.has(normalizedId)) throw new Error(`Duplicate screen: ${normalizedId}`);
       const title = requireScreenTitle(normalizedId, contribution.title);
+      if (
+        contribution.presentation !== undefined &&
+        !["island", "workspace"].includes(contribution.presentation)
+      )
+        throw new Error(`Invalid screen presentation: ${contribution.presentation}`);
       if (!isComponentType(contribution.Component)) {
         throw new Error(`Screen ${normalizedId} is not a component`);
       }
       surfaceIds.add(normalizedId);
       return register(
         collector.surfaces,
-        { id: normalizedId, title, Component: contribution.Component },
+        {
+          id: normalizedId,
+          title,
+          Component: contribution.Component,
+          ...(contribution.presentation ? { presentation: contribution.presentation } : {}),
+        },
         () => surfaceIds.delete(normalizedId),
       );
     },
@@ -524,7 +552,7 @@ export function runPluginClientBundle(
   const runtimeRequire = (name: string): unknown => {
     // COMPAT(pluginReactNativeEntrypoint): added in v0.13.0, remove after 2027-04-20
     if (name === "@mixer/plugin/client/react-native") return pluginReactNativeCompatRuntime;
-    if (name === "@mixer/plugin/client/ui") return pluginUiRuntime;
+    if (name === "@mixer/plugin/client/ui") return checkedPluginUiRuntime;
     if (name === "react") return React;
     if (name === "react/jsx-runtime") return ReactJsxRuntime;
     if (name === "react-native") return ReactNative;

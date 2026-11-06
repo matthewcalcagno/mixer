@@ -195,7 +195,7 @@ describe("evaluatePluginClientBundle", () => {
         function Screen() { return null; }
         const Item = require("react").memo(function Item() { return null; });
         plugin.addScreen({ id: "main", title: " Main ", Component: Screen });
-        plugin.addScreen({ id: "bot", title: (params) => params.botId, Component: Screen });
+        plugin.addScreen({ id: "bot", title: (params) => params.botId, Component: Screen, presentation: "workspace" });
         plugin.addSidebarHeaderItem({ id: "main", title: " Example ", Component: Item });
         plugin.addSidebarFooterItem({ id: "main", title: "Status", Component: Item });
       `),
@@ -205,6 +205,7 @@ describe("evaluatePluginClientBundle", () => {
     expect(plugin.surfaces.map((surface) => surface.id)).toEqual(["main", "bot"]);
     expect(plugin.surfaces[0]?.title).toBe("Main");
     expect(plugin.surfaces[1]?.title).toBeTypeOf("function");
+    expect(plugin.surfaces[1]?.presentation).toBe("workspace");
     expect(plugin.sidebarItems.header.map(({ id, title }) => ({ id, title }))).toEqual([
       { id: "main", title: "Example" },
     ]);
@@ -215,6 +216,10 @@ describe("evaluatePluginClientBundle", () => {
   });
 
   it.each([
+    [
+      `plugin.addScreen({ id: "main", title: "Main", Component: Screen, presentation: "invalid" });`,
+      "Invalid screen presentation: invalid",
+    ],
     [`plugin.addScreen("main", Screen);`, "addScreen takes { id, title, Component }"],
     [`plugin.addScreen({ id: "main", Component: Screen });`, "Screen main needs a title"],
     [
@@ -711,14 +716,28 @@ describe("evaluatePluginClientBundle", () => {
     expect(element).toMatchObject({ props: { size: 18, color: "#123456" } });
   });
 
+  it("identifies a missing Mixer UI export before rendering a plugin", () => {
+    expect(() =>
+      evaluatePluginClientBundle(
+        "newer-plugin",
+        bundle(`
+      const { MissingWidget } = require("@mixer/plugin/client/ui");
+      plugin.addScreen({ id: "main", title: "Main", Component: MissingWidget });
+    `),
+      ),
+    ).toThrow(
+      'Mixer UI component "MissingWidget" is unavailable in this running app. Reload the Mixer window',
+    );
+  });
+
   it("provides Mixer UI through @mixer/plugin/client/ui", () => {
     const plugin = evaluatePluginClientBundle(
       "example",
       `(function(require) {
-        const { Icon, FileIcon, PaneHeader, PaneHeaderAction, Modal, useToast, SettingsSection, SidebarRow, StreamedText } = require("@mixer/plugin/client/ui");
+        const { HoverCard, HoverCardTrigger, HoverCardContent, ActionMenu, WorkspaceSidebar, WorkspaceIsland, WorkspaceLayout, CodeEditor, confirmDialog, Button, Icon, FileIcon, PaneHeader, PaneHeaderAction, Modal, useToast, SettingsSection, SidebarRow, StreamedText } = require("@mixer/plugin/client/ui");
         const module = { exports: {} };
         module.exports.default = function(plugin) {
-          if (typeof Icon !== "function" || typeof FileIcon !== "function" || typeof PaneHeader !== "function" || typeof PaneHeaderAction !== "function" || typeof Modal !== "function" || typeof Modal.Content !== "function" || typeof useToast !== "function" || typeof SettingsSection !== "function" || typeof SidebarRow !== "function" || typeof StreamedText !== "function") {
+          if (typeof HoverCard !== "function" || typeof HoverCardTrigger !== "function" || typeof HoverCardContent !== "function" || typeof ActionMenu !== "function" || typeof WorkspaceSidebar !== "function" || typeof WorkspaceIsland !== "function" || typeof WorkspaceLayout !== "function" || typeof CodeEditor !== "function" || typeof confirmDialog !== "function" || typeof Button !== "function" || typeof Icon !== "function" || typeof FileIcon !== "function" || typeof PaneHeader !== "function" || typeof PaneHeaderAction !== "function" || typeof Modal !== "function" || typeof Modal.Content !== "function" || typeof useToast !== "function" || typeof SettingsSection !== "function" || typeof SidebarRow !== "function" || typeof StreamedText !== "function") {
             throw new Error("React Native plugin UI is incomplete");
           }
           plugin.addSurface("main", function Surface() { return null; });

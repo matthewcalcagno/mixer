@@ -177,7 +177,6 @@ import {
   createAgentStructuredTextGeneration,
   createGitMetadataGenerator,
 } from "./session/checkout/git-metadata-generator.js";
-import { ScheduleSession } from "./session/schedule/schedule-session.js";
 import { ProviderCatalogSession } from "./session/provider/provider-catalog-session.js";
 import { UsageSession } from "./session/usage/usage-session.js";
 import {
@@ -228,7 +227,6 @@ import type { CheckoutDiffManager } from "./checkout-diff-manager.js";
 import type { Resolvable } from "./speech/provider-resolver.js";
 import type { SpeechReadinessSnapshot } from "./speech/speech-runtime.js";
 import type pino from "pino";
-import { ScheduleService } from "./schedule/service.js";
 import {
   createGitHubService,
   GitHubAuthenticationError,
@@ -477,7 +475,6 @@ export interface SessionOptions {
   directorySync?: DirectorySyncService;
   workspaceLabelService?: WorkspaceLabelService;
   filesystem?: SessionFileSystem;
-  scheduleService: ScheduleService;
   checkoutDiffManager: CheckoutDiffManager;
   github?: ForgeService;
   createAgentMcpTransport?: AgentMcpTransportFactory;
@@ -818,7 +815,6 @@ export class Session {
   private readonly workspaceDirectory: WorkspaceDirectory;
   private readonly voiceSessions: VoiceSessions;
   private readonly checkoutSession: CheckoutSession;
-  private readonly scheduleSession: ScheduleSession;
   private readonly providerCatalogSession: ProviderCatalogSession;
   private readonly usageSession: UsageSession;
   private readonly speechModelsSession: SpeechModelsSession;
@@ -860,7 +856,6 @@ export class Session {
       directorySync,
       workspaceLabelService,
       filesystem,
-      scheduleService,
       checkoutDiffManager,
       github,
       renameCurrentBranch,
@@ -1016,11 +1011,6 @@ export class Session {
       emitWorkspaceUpdateForCwd: (cwd) => this.emitWorkspaceUpdateForCwd(cwd),
       emitStatusUpdate: (cwd, snapshot) => this.checkoutSession.emitStatusUpdate(cwd, snapshot),
       onBranchChanged,
-      logger: this.sessionLogger,
-    });
-    this.scheduleSession = new ScheduleSession({
-      host: { emit: (msg) => this.emit(msg) },
-      scheduleService,
       logger: this.sessionLogger,
     });
     this.providerCatalogSession = new ProviderCatalogSession({
@@ -2438,11 +2428,24 @@ export class Session {
     );
   }
   private dispatchHostServiceMessage(msg: SessionInboundMessage): Promise<void> | undefined {
-    return (
-      this.dispatchTerminalMessage(msg) ??
-      this.dispatchScheduleMessage(msg) ??
-      this.speechModelsSession.dispatch(msg)
-    );
+    // COMPAT(retiredSchedules): removed in v0.4.x, retain wire parsing for older clients.
+    if (
+      msg.type.startsWith("schedule/") &&
+      "requestId" in msg &&
+      typeof msg.requestId === "string"
+    ) {
+      this.emit({
+        type: "rpc_error",
+        payload: {
+          requestId: msg.requestId,
+          requestType: msg.type,
+          code: "schedule_removed",
+          error: "Schedule has been removed from Mixer.",
+        },
+      });
+      return Promise.resolve();
+    }
+    return this.dispatchTerminalMessage(msg) ?? this.speechModelsSession.dispatch(msg);
   }
   private dispatchWorkspaceLifecycleMessage(msg: SessionInboundMessage): Promise<void> | undefined {
     return (
@@ -3203,30 +3206,6 @@ export class Session {
         return this.handleWorkspaceScriptStopRequest(msg);
       default:
         return this.terminalController.dispatch(msg, this.delivery);
-    }
-  }
-  private dispatchScheduleMessage(msg: SessionInboundMessage): Promise<void> | undefined {
-    switch (msg.type) {
-      case "schedule/create":
-        return this.scheduleSession.handleScheduleCreateRequest(msg);
-      case "schedule/list":
-        return this.scheduleSession.handleScheduleListRequest(msg);
-      case "schedule/inspect":
-        return this.scheduleSession.handleScheduleInspectRequest(msg);
-      case "schedule/logs":
-        return this.scheduleSession.handleScheduleLogsRequest(msg);
-      case "schedule/pause":
-        return this.scheduleSession.handleSchedulePauseRequest(msg);
-      case "schedule/resume":
-        return this.scheduleSession.handleScheduleResumeRequest(msg);
-      case "schedule/delete":
-        return this.scheduleSession.handleScheduleDeleteRequest(msg);
-      case "schedule/run-once":
-        return this.scheduleSession.handleScheduleRunOnceRequest(msg);
-      case "schedule/update":
-        return this.scheduleSession.handleScheduleUpdateRequest(msg);
-      default:
-        return undefined;
     }
   }
   private async dispatchMiscMessage(msg: SessionInboundMessage): Promise<void> {

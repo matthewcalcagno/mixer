@@ -1,17 +1,6 @@
 # Forms
 
-The paved road for building forms in the app. The schedule form is the golden
-example; when building or fixing any form, copy its shape, not the shape of
-whatever screen you happen to be near.
-
-Golden example files:
-
-- `packages/app/src/schedules/schedule-form-model.ts` (+ `.test.ts`) — the model
-- `packages/app/src/schedules/use-schedule-form-model.ts` — model lifetime adapter
-- `packages/app/src/schedules/use-schedule-form-provider-snapshot.ts` — async input adapter
-- `packages/app/src/components/schedules/schedule-form-sheet.tsx` — render + intent dispatch
-- `packages/app/src/schedules/aggregated-schedules.ts` / `hooks/use-schedules.ts` — load-state gating
-- `packages/app/e2e/schedules-*.spec.ts` — the behavioral contract
+Use plain TypeScript form models with a thin React lifetime adapter.
 
 ## The form model
 
@@ -37,7 +26,7 @@ The component renders state and dispatches intent. That is all it does.
 2. **Construct the model ONCE per mount** — `useState(() => openXxxForm(snapshot))`.
    NEVER `useMemo(() => open(...), [snapshot])`: the snapshot's identity depends
    on live data (projects, hosts, preferences), and any background churn — e.g.
-   a scheduled run creating a workspace — would reconstruct the model and wipe
+   another action creating a workspace — would reconstruct the model and wipe
    the user's in-progress input.
 3. **Late data is an explicit model input, not a reconstruction.**
    `applyProviderSnapshot(serverId, …)`, `applyProjectTargets(…)`,

@@ -1,6 +1,6 @@
 ---
 title: CLI 参考
-description: "Mixer CLI 参考：在终端中管理项目、工作区、Agent、插件、脚本、定时任务、daemon 和权限。"
+description: "Mixer CLI 参考：在终端中管理项目、工作区、Agent、插件、脚本、daemon 和权限。"
 nav: CLI 参考
 ---
 
@@ -320,16 +320,6 @@ mixer wait <id> --timeout 60   # 60 second timeout
 ```
 
 适用于脚本中，或一个 Agent 需要等待另一个 Agent 的情况。
-
-## 定时任务 {#schedules}
-
-按 cron 定时任务运行 Agent。CLI 也接受简单的节奏预设，并把它们编译为 cron。完整参考见[在 CLI 中使用定时任务](/docs/schedules-cli)。
-
-```bash
-mixer schedule create --every 30m --cwd ~/dev/my-app "Continue the refactor and leave a note."
-mixer schedule ls
-mixer schedule pause <id>
-```
 
 ## 权限 {#permissions}
 

@@ -1300,7 +1300,6 @@ export const fr: TranslationResources = {
     sections: {
       sessions: "Historique",
       search: "Recherche",
-      schedules: "Planifications",
     },
     worktreeSetup: {
       title: "Configurer les scripts de worktree",
@@ -2900,7 +2899,7 @@ export const fr: TranslationResources = {
         unavailable: "Connectez-vous à cet hôte pour gérer l’orchestration",
         enableTools: {
           title: "Activer les outils Mixer",
-          hint: "Les agents pourront gérer les worktrees, les agents et les planifications",
+          hint: "Les agents pourront gérer les worktrees et les agents",
           accessibilityLabel: "Injecter les outils Mixer",
         },
         systemPrompt: {

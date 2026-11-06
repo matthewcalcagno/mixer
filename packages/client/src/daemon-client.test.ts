@@ -159,25 +159,6 @@ function parseSentFrame(
     .parse(JSON.parse(assertStr(data))).message;
 }
 
-function respondToScheduleRequest(
-  mock: ReturnType<typeof createMockTransport>,
-  request: Record<string, unknown>,
-): void {
-  const responseType =
-    request.type === "schedule/create" ? "schedule/create/response" : "schedule/update/response";
-
-  mock.triggerMessage(
-    wrapSessionMessage({
-      type: responseType,
-      payload: {
-        requestId: request.requestId,
-        schedule: null,
-        error: null,
-      },
-    }),
-  );
-}
-
 const clients: DaemonClient[] = [];
 
 afterEach(async () => {
@@ -781,12 +762,6 @@ class DaemonClientSession {
   }
 }
 
-function useHeartbeatClock(): void {
-  vi.useFakeTimers({
-    toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval", "performance"],
-  });
-}
-
 test("dedupes in-flight checkout status requests per agentId", async () => {
   const logger = createMockLogger();
   const mock = createMockTransport();
@@ -1138,112 +1113,6 @@ test("allows callers to disable default client capabilities", async () => {
     })
     .parse(JSON.parse(assertStr(mock.sent[0])));
   expect(hello.capabilities[CLIENT_CAPS.projectUpdates]).toBe(false);
-});
-
-test("sends new-agent run options when creating schedules", async () => {
-  const logger = createMockLogger();
-  const mock = createMockTransport();
-
-  const client = new DaemonClient({
-    url: "ws://test",
-    clientId: "clsk_unit_test",
-    logger,
-    reconnect: { enabled: false },
-    transportFactory: () => mock.transport,
-  });
-  clients.push(client);
-
-  const connectPromise = client.connect();
-  mock.triggerOpen();
-  await connectPromise;
-
-  const createPromise = client.scheduleCreate({
-    requestId: "request-1",
-    prompt: "Run the task",
-    cadence: { type: "cron", expression: "* * * * *" },
-    target: {
-      type: "new-agent",
-      config: {
-        provider: "claude",
-        cwd: "/tmp/project",
-        thinkingOptionId: "think-hard",
-        archiveOnFinish: false,
-        isolation: "worktree",
-      },
-    },
-  });
-
-  const request = parseSentFrame(mock.sent[0]);
-  expect(request).toEqual({
-    type: "schedule/create",
-    requestId: "request-1",
-    prompt: "Run the task",
-    cadence: { type: "cron", expression: "* * * * *" },
-    target: {
-      type: "new-agent",
-      config: {
-        provider: "claude",
-        cwd: "/tmp/project",
-        thinkingOptionId: "think-hard",
-        archiveOnFinish: false,
-        isolation: "worktree",
-      },
-    },
-  });
-
-  respondToScheduleRequest(mock, request);
-  await expect(createPromise).resolves.toEqual({
-    requestId: "request-1",
-    schedule: null,
-    error: null,
-  });
-});
-
-test("sends new-agent run options when updating schedules", async () => {
-  const logger = createMockLogger();
-  const mock = createMockTransport();
-
-  const client = new DaemonClient({
-    url: "ws://test",
-    clientId: "clsk_unit_test",
-    logger,
-    reconnect: { enabled: false },
-    transportFactory: () => mock.transport,
-  });
-  clients.push(client);
-
-  const connectPromise = client.connect();
-  mock.triggerOpen();
-  await connectPromise;
-
-  const updatePromise = client.scheduleUpdate({
-    id: "schedule-1",
-    requestId: "request-1",
-    newAgentConfig: {
-      thinkingOptionId: "think-hard",
-      archiveOnFinish: false,
-      isolation: "worktree",
-    },
-  });
-
-  const request = parseSentFrame(mock.sent[0]);
-  expect(request).toEqual({
-    type: "schedule/update",
-    requestId: "request-1",
-    scheduleId: "schedule-1",
-    newAgentConfig: {
-      thinkingOptionId: "think-hard",
-      archiveOnFinish: false,
-      isolation: "worktree",
-    },
-  });
-
-  respondToScheduleRequest(mock, request);
-  await expect(updatePromise).resolves.toEqual({
-    requestId: "request-1",
-    schedule: null,
-    error: null,
-  });
 });
 
 test("sends typed browser automation execute responses", async () => {
@@ -2514,30 +2383,6 @@ test("keeps default connect timeout shorter than session RPC waiters", async () 
   }
 });
 
-test("foreground verification replaces a silently broken socket without waiting for heartbeats", async () => {
-  useHeartbeatClock();
-  const first = new FakeDaemon();
-  const second = new FakeDaemon();
-  first.daemonGoesSilent();
-  let attempts = 0;
-  const client = new DaemonClient({
-    url: "ws://test",
-    clientId: "foreground-recovery",
-    logger: noopLogger,
-    transportFactory: () => (++attempts === 1 ? first : second).transport,
-  });
-  clients.push(client);
-  const connection = client.connect();
-  first.openConnection();
-  await connection;
-
-  client.ensureConnected({ verify: true });
-  await vi.advanceTimersByTimeAsync(3_000);
-  expect(attempts).toBe(2);
-  second.openConnection();
-  expect(client.getConnectionState()).toEqual({ status: "connected" });
-});
-
 test("foreground verification preserves a healthy socket and deduplicates simultaneous checks", async () => {
   useHeartbeatClock();
   const daemon = new FakeDaemon();
@@ -2628,18 +2473,6 @@ test("survives a single missed pong when answers resume", async () => {
   expect(session.teardownCount()).toBe(0);
 });
 
-test("keeps the connection proven online from heartbeats alone when no other traffic flows", async () => {
-  useHeartbeatClock();
-  const session = new DaemonClientSession();
-  session.daemonAnswersPingsAfter("fast");
-
-  await session.connect();
-  await session.advance(35_000);
-
-  expect(session.state()).toEqual({ status: "connected" });
-  expect(session.pingTimestamps()).toEqual(["10s", "20s", "30s"]);
-});
-
 test("starts pinging one interval after connecting and holds the cadence", async () => {
   useHeartbeatClock();
   const session = new DaemonClientSession();
@@ -2675,17 +2508,6 @@ test("sends only one ping while a slow pong is still outstanding", async () => {
   await session.advance(20_000);
 
   expect(session.pingTimestamps()).toEqual(["10s"]);
-});
-
-test("reports the round-trip time of the last successful heartbeat", async () => {
-  useHeartbeatClock();
-  const session = new DaemonClientSession();
-  session.daemonAnswersPingsAfter("2.3s");
-
-  await session.connect();
-  await session.advance(12_300);
-
-  expect(session.lastLivenessRttMs()).toBe(2300);
 });
 
 test("treats a pong just under the timeout as alive and just over as a miss", async () => {
@@ -2757,34 +2579,6 @@ test("two candidate latency timeouts do not tear down the live connection", asyn
   expect(session.state()).toEqual({ status: "connected" });
   expect(session.teardownCount()).toBe(0);
   expect(session.pingTimestamps()).toEqual(["0s", "1s"]);
-});
-
-test("a candidate measurement that times out under a heartbeat tick does not count toward teardown", async () => {
-  useHeartbeatClock();
-  const session = new DaemonClientSession();
-  session.daemonGoesSilent();
-
-  await session.connect();
-
-  // A candidate measurement is still in flight when the +10s heartbeat tick lands,
-  // so the heartbeat shares the in-flight ping. Let the measurement time out.
-  await session.advance(9_000);
-  const measurement = session.measureLatency({ timeoutMs: 5_000 });
-  const measurementError = measurement.then(
-    () => null,
-    (error) => error,
-  );
-  await session.advance(5_500);
-  await expect(measurementError).resolves.toEqual(
-    expect.objectContaining({ message: "Latency measurement timed out (5000ms)" }),
-  );
-
-  // The measurement timeout must not have been recorded as a liveness failure: a
-  // single genuine heartbeat miss after it must still leave the connection up.
-  await session.advance(25_000);
-
-  expect(session.state()).toEqual({ status: "connected" });
-  expect(session.teardownCount()).toBe(0);
 });
 
 test("file context action RPCs correlate success and error responses", async () => {

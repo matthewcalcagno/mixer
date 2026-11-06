@@ -510,7 +510,12 @@ function SidebarFooterRows({ onBeforeNavigate }: { onBeforeNavigate?: () => void
   if (visibleItems.length === 0) return null;
   return (
     <>
-      <View ref={rowsRef} collapsable={false} style={styles.footerRows}>
+      <View
+        ref={rowsRef}
+        collapsable={false}
+        style={styles.footerRows}
+        testID="sidebar-footer-rows"
+      >
         {visibleItems.map((item) =>
           item.kind === "plugin" ? (
             <PluginSidebarItem

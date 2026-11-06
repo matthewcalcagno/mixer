@@ -47,7 +47,7 @@ Superset does not document an application extension API for adding both server b
 
 ## Workspaces and review
 
-Both tools provide Git worktrees, split panes, terminals, diff review, an in-app browser, GitHub workflows, schedules, and remote hosts.
+Both tools provide Git worktrees, split panes, terminals, diff review, an in-app browser, GitHub workflows, and remote hosts.
 
 Mixer gives supported providers a structured chat interface with modes, slash commands, tool calls, and file attachments. Superset can run any CLI agent in terminal panes and adds lifecycle status for supported agents.
 
@@ -55,7 +55,7 @@ Mixer also gives each worktree its own service URL, such as `web--fix-auth--my-a
 
 ## Automation
 
-Both tools expose workspace and agent operations through a CLI, TypeScript SDK, and MCP server. They can create workspaces, launch agents, follow progress, and manage scheduled work.
+Both tools expose workspace and agent operations through a CLI, TypeScript SDK, and MCP server. They can create workspaces, launch agents, follow progress, and send messages.
 
 ## Pricing
 
@@ -86,7 +86,6 @@ Superset has a free individual tier. Team features, remote access, and integrati
 | Pull requests in app         | GitHub, GitLab, Gitea, Forgejo, Codeberg                                                           | GitHub                                                                |
 | In-app browser               | Yes (element picker, agent browser tools)                                                          | Yes                                                                   |
 | Per-worktree dev server URLs | Yes (`web--fix-auth--my-app.localhost`)                                                            | Port detection                                                        |
-| Schedules and heartbeats     | Yes                                                                                                | Yes (schedules)                                                       |
 | Plan usage                   | Yes                                                                                                | -                                                                     |
 | Plugins                      | Yes (new screens, panels, agent hooks, and providers, one plugin runs on desktop, web, and mobile) | No                                                                    |
 | Voice                        | Yes (local dictation, realtime voice)                                                              | -                                                                     |

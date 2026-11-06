@@ -46,12 +46,19 @@ it("hides an unavailable workspace's empty title without removing window control
 });
 
 it.each([
+  "/",
+  "/new",
+  "/open-project",
+  "/sessions",
+  "/h/server",
+  "/h/server/sessions",
   "/settings",
   "/settings/about",
   "/settings/host/server/agents",
   "/h/server/settings",
-  "/schedules",
-  "/schedules/new",
+  "/sidebar/custom",
+  "/h/server/plugin/custom/dashboard",
+  "/h/server/plugin/custom/sidebar/main",
 ])("hides the centered title on %s without removing window chrome", (pathname) => {
   route.pathname = pathname;
   const view = render(<DesktopWindowTitlebar visible />);
@@ -60,11 +67,14 @@ it.each([
   expect(view.getByRole("button", { name: "Settings" })).toBeTruthy();
 });
 
-it("keeps the title on workspace routes", () => {
-  route.pathname = "/h/server/workspace/one";
-  const view = render(<DesktopWindowTitlebar visible />);
-  expect(view.getByTestId("desktop-window-title").textContent).toBe("Mixer");
-});
+it.each(["/h/server/workspace/one", "/h/server/agent/one"])(
+  "keeps the title on project route %s",
+  (pathname) => {
+    route.pathname = pathname;
+    const view = render(<DesktopWindowTitlebar visible />);
+    expect(view.getByTestId("desktop-window-title").textContent).toBe("Mixer");
+  },
+);
 
 it("keeps the native Help menu registered when the compact window hides its titlebar", () => {
   const view = render(<DesktopWindowTitlebar visible={false} />);

@@ -15,7 +15,7 @@ import { parser as rustParser } from "@lezer/rust";
 import { parser as xmlParser } from "@lezer/xml";
 import { parser as yamlParser } from "@lezer/yaml";
 import { parser as elixirParser } from "lezer-elixir";
-import type { Parser } from "@lezer/common";
+import { parseMixed, type Parser } from "@lezer/common";
 import { csharpLanguage } from "./csharp/language.js";
 import { astroParser } from "./astro/parser.js";
 import { vueParser } from "./vue/parser.js";
@@ -26,6 +26,14 @@ import { configureNesting, defaultNesting } from "./svelte/nesting.js";
 function language(parser: Parser): Language {
   return new Language(defineLanguageFacet(), parser);
 }
+
+const mixedHtmlParser = htmlParser.configure({
+  wrap: parseMixed((node) => {
+    if (node.name === "StyleText") return { parser: cssParser };
+    if (node.name === "ScriptText") return { parser: jsParser };
+    return null;
+  }),
+});
 
 const languagesByExtension: Record<string, Language> = {
   // JavaScript/TypeScript
@@ -51,8 +59,8 @@ const languagesByExtension: Record<string, Language> = {
   css: language(cssParser),
   scss: language(cssParser),
   // HTML
-  html: language(htmlParser),
-  htm: language(htmlParser),
+  html: language(mixedHtmlParser),
+  htm: language(mixedHtmlParser),
   // Svelte
   svelte: language(svelteBaseParser.configure({ wrap: configureNesting(defaultNesting) })),
   // Astro

@@ -39,6 +39,9 @@ async function expectVisibleTitles(page: Page, titles: string[]): Promise<void> 
 }
 
 async function verifyChronologicalFiltering(page: Page): Promise<void> {
+  await expect(
+    page.getByTestId("history-main-island").getByText("History", { exact: true }),
+  ).toHaveCount(0);
   await test.step("narrows history while preserving chronological grouping", async () => {
     await expectVisibleTitles(page, [TITLES.unbilled, TITLES.billing, TITLES.terminal]);
     await expect(page.getByText("Today", { exact: true })).toHaveCount(1, {

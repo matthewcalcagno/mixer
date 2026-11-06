@@ -79,14 +79,6 @@ The CLI can target another Mixer host. First [connect it to the remote daemon](/
 
 The worker runs on the remote machine. Use the CLI's global `--host` option for that destination; injected Mixer tools operate on the main agent's own host.
 
-## Keep an agent working with a heartbeat
-
-A heartbeat prompts the same agent periodically, preserving its conversation:
-
-> Use Mixer to create a heartbeat every 10 minutes. Continue this migration in small steps, run the focused checks after each step, and delete the heartbeat when the migration is complete. Set it to expire after two hours.
-
-The agent resumes the task on that cadence. For a fresh agent on each run, [create a schedule](/docs/schedules) instead.
-
 ## Where the work appears
 
 Open the **Subagents track** near the composer to inspect delegated work.

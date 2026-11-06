@@ -1288,7 +1288,6 @@ export const ru: TranslationResources = {
     sections: {
       sessions: "История",
       search: "Поиск",
-      schedules: "Расписания",
     },
     worktreeSetup: {
       title: "Настроить скрипты worktree",
@@ -2888,7 +2887,7 @@ export const ru: TranslationResources = {
         unavailable: "Подключитесь к этому хосту, чтобы управлять оркестрацией.",
         enableTools: {
           title: "Включить инструменты Mixer",
-          hint: "Агенты смогут управлять worktree, агентами и расписаниями.",
+          hint: "Агенты смогут управлять worktree и агентами.",
           accessibilityLabel: "Добавить инструменты Mixer",
         },
         systemPrompt: {

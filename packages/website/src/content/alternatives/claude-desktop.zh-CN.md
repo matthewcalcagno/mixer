@@ -75,10 +75,9 @@ mixer run --provider codex --worktree refactor-auth "refactor auth"
 mixer run --host devbox:6767 "run the test suite"
 mixer ls
 mixer send <agent-id> "add tests"
-mixer schedule create --cron "0 9 * * 1" "audit the codebase"
 ```
 
-`mixer run --host` 连接到远程 daemon。`mixer schedule` 按 cron 运行 Agent。MCP 服务器让其他 Agent 能够创建 worktree、启动 Agent、打开终端和发送提示词。
+`mixer run --host` 连接到远程 daemon。MCP 服务器让其他 Agent 能够创建 worktree、启动 Agent、打开终端和发送提示词。
 
 ## Worktree 与服务 {#worktrees-and-services}
 
@@ -115,7 +114,6 @@ Claude 在其自己的移动端和应用界面中支持语音。Claude Code 本�
 | 应用内拉取请求                 | GitHub、GitLab、Gitea、Forgejo、Codeberg                                           | PR 监控和合并工作流                      |
 | 应用内浏览器                   | 是（元素选择器、Agent 浏览器工具）                                                 | 是（应用实时预览）                       |
 | 每个 worktree 的开发服务器 URL | 是（`web--fix-auth--my-app.localhost`）                                            | 否                                       |
-| 定时任务与 heartbeat           | 是                                                                                 | 是（定时任务）                           |
 | 套餐用量                       | 是                                                                                 | -                                        |
 | 插件                           | 是（新界面、面板、Agent hook 和 Provider，同一个插件可在桌面端、Web 和移动端运行） | 否                                       |
 | 语音                           | 是（本地语音输入、实时语音）                                                       | 是（在 Claude 的移动端和应用界面中）     |

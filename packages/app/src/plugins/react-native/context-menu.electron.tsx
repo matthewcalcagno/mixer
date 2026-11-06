@@ -1,3 +1,4 @@
+import { PaneHeaderAction } from "./pane-header-action";
 import { useCallback } from "react";
 import type { ContextMenuProps } from "@mixer/plugin/client/ui";
 import { getDesktopHost } from "@/desktop/host";
@@ -7,20 +8,7 @@ export function ContextMenu({ children, actions, onOpen, onSelect }: ContextMenu
   const toast = useToast();
   const open = useCallback(async () => {
     onOpen();
-    try {
-      const show = getDesktopHost()?.menu?.showContextMenu;
-      if (!show) throw new Error("Restart the desktop app to enable native context menus.");
-      const selected = await show({ kind: "actions", items: [...actions] });
-      if (selected === undefined)
-        throw new Error("Restart the desktop app to enable native context menus.");
-      if (
-        typeof selected === "string" &&
-        actions.some((action) => action.id === selected && !action.disabled)
-      )
-        onSelect(selected);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to open context menu");
-    }
+    await showNativeActions(actions, onSelect, toast.error);
   }, [actions, onOpen, onSelect, toast]);
   const context = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -44,4 +32,41 @@ export function ContextMenu({ children, actions, onOpen, onSelect }: ContextMenu
       {children}
     </div>
   );
+}
+
+async function showNativeActions(
+  actions: ContextMenuProps["actions"],
+  onSelect: ContextMenuProps["onSelect"],
+  onError: (message: string) => void,
+) {
+  try {
+    const show = getDesktopHost()?.menu?.showContextMenu;
+    if (!show) throw new Error("Restart the desktop app to enable native context menus.");
+    const selected = await show({ kind: "actions", items: [...actions] });
+    if (selected === undefined)
+      throw new Error("Restart the desktop app to enable native context menus.");
+    if (
+      typeof selected === "string" &&
+      actions.some((action) => action.id === selected && !action.disabled)
+    )
+      onSelect(selected);
+  } catch (error) {
+    onError(error instanceof Error ? error.message : "Unable to open context menu");
+  }
+}
+
+export function ActionMenu({
+  label,
+  actions,
+  onSelect,
+}: {
+  label: string;
+  actions: ContextMenuProps["actions"];
+  onSelect: ContextMenuProps["onSelect"];
+}) {
+  const toast = useToast();
+  const open = useCallback(() => {
+    void showNativeActions(actions, onSelect, toast.error);
+  }, [actions, onSelect, toast]);
+  return <PaneHeaderAction icon="Ellipsis" label={label} onPress={open} />;
 }

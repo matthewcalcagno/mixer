@@ -1,6 +1,6 @@
 ---
 title: Orchestration
-description: Coordinate agents across providers and machines, delegate work, and keep tasks moving with schedules and heartbeats.
+description: Coordinate agents across providers and machines, delegate work, and keep tasks moving.
 nav: Overview
 order: 30
 category: Orchestration
@@ -21,8 +21,6 @@ You can also start and supervise each task yourself in the desktop app. [Run par
 - **Create workspaces and worktrees:** give independent changes their own [working directories](/docs/worktrees).
 - **Work across machines:** use the [CLI](/docs/cli#connecting-to-a-remote-daemon) to launch and manage agents on another reachable Mixer host.
 - **Choose by specialty:** use [agent profiles](/docs/agent-profiles) and their notes to select settings for UI work, planning, or reviews.
-- **Create schedules:** run a prompt in a new agent at [specified times](/docs/schedules).
-- **Create heartbeats:** prompt the same agent periodically to [continue its task](/docs/orchestration-workflows#keep-an-agent-working-with-a-heartbeat).
 
 ## Get started
 
@@ -68,4 +66,3 @@ Add **When to use** notes so an orchestrating agent can choose a profile for the
 - [Delegate implementation and get an independent review](/docs/orchestration-workflows#implement-then-review).
 - [Run parallel changes in separate worktrees](/docs/orchestration-workflows#parallelize-edits-without-collisions).
 - [Coordinate work on another machine](/docs/orchestration-workflows#work-on-another-machine).
-- [Create recurring jobs](/docs/schedules) or [continue a task with a heartbeat](/docs/orchestration-workflows#keep-an-agent-working-with-a-heartbeat).

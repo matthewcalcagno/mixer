@@ -77,14 +77,6 @@ CLI 可以以另一台 Mixer 主机为目标。先[把它连接到远程 daemon]
 
 执行者在远程机器上运行。请用 CLI 的全局 `--host` 选项指定目标；注入的 Mixer 工具作用于主 Agent 自己的主机。
 
-## 用 heartbeat 让 Agent 持续工作 {#keep-an-agent-working-with-a-heartbeat}
-
-heartbeat 会定期提示同一个 Agent，并保留它的对话：
-
-> 用 Mixer 创建一个每 10 分钟一次的 heartbeat。以小步推进这次迁移，每一步之后运行相关检查，迁移完成后删除这个 heartbeat。设置它在两小时后过期。
-
-Agent 会按这个节奏继续任务。如果希望每次运行都使用新的 Agent，请改为[创建定时任务](/docs/schedules)。
-
 ## 工作出现在哪里 {#where-the-work-appears}
 
 打开 Composer 附近的 **Subagent** 面板查看委派出去的工作。

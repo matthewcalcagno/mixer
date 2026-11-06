@@ -47,9 +47,6 @@ export function asAgentStorage(stub: {
 export function asDownloadTokenStore(): SessionOptions["downloadTokenStore"] {
   return createStub<SessionOptions["downloadTokenStore"]>({});
 }
-export function asScheduleService(): SessionOptions["scheduleService"] {
-  return createStub<SessionOptions["scheduleService"]>({});
-}
 export function asCheckoutDiffManager(stub: {
   [K in keyof SessionOptions["checkoutDiffManager"]]?: unknown;
 }): SessionOptions["checkoutDiffManager"] {

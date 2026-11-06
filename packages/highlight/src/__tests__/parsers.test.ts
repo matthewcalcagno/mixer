@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { highlightTree } from "@lezer/highlight";
+import { staticSyntaxHighlighter } from "../syntax-roles.js";
 import {
   isLanguageSupported,
   getSupportedExtensions,
@@ -97,4 +99,19 @@ describe("getParserForFile", () => {
     expect(getParserForFile("test.JS")).not.toBeNull();
     expect(getParserForFile("test.Py")).not.toBeNull();
   });
+});
+
+it("parses CSS and JavaScript inside HTML response bodies", () => {
+  const parser = getParserForFile("response.html")!;
+  const source =
+    "<html><style>body { color: #1a73e8; }</style><script>const value = 42;</script></html>";
+  const tree = parser.parse(source);
+  expect(tree.resolveInner(source.indexOf("#1a73e8") + 1).name).toBe("ColorLiteral");
+  expect(tree.resolveInner(source.indexOf("42") + 1).name).toBe("Number");
+  const tokens: { text: string; role: string }[] = [];
+  highlightTree(tree, staticSyntaxHighlighter, (from, to, role) =>
+    tokens.push({ text: source.slice(from, to), role }),
+  );
+  expect(tokens).toContainEqual({ text: "#1a73e8", role: "literal" });
+  expect(tokens).toContainEqual({ text: "42", role: "number" });
 });
