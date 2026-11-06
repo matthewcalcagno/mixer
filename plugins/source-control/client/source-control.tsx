@@ -544,7 +544,7 @@ export function SourceControlPanel({
           showRemoteAction={remoteAction !== null}
           remoteIcon={remoteAction?.icon ?? "ArrowUp"}
           remoteAccessibilityLabel={remoteAction?.accessibilityLabel ?? ""}
-          remoteEnabled={!pending && !state.isFetching}
+          remoteEnabled={!pending}
           primaryBusy={primaryBusy}
           primaryLabel={primaryLabel}
           onMessage={saveMessage}

@@ -18,6 +18,8 @@ export const syntaxRoleTags: ReadonlyArray<{ tag: Tag; role: HighlightStyle }> =
   { tag: tags.integer, role: "number" },
   { tag: tags.float, role: "number" },
   { tag: tags.bool, role: "literal" },
+  { tag: tags.color, role: "literal" },
+  { tag: tags.unit, role: "number" },
   { tag: tags.null, role: "literal" },
   { tag: tags.function(tags.variableName), role: "function" },
   { tag: tags.function(tags.propertyName), role: "function" },

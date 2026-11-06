@@ -261,6 +261,8 @@ export type PluginScreenTitle<Text extends PluginText = string> =
   | ((params: PluginScreenParams) => Text);
 
 export interface PluginScreenContribution<Text extends PluginText = string> {
+  /** Workspace screens compose host WorkspaceIsland frames instead of one enclosing island. */
+  presentation?: "island" | "workspace";
   id: string;
   title: PluginScreenTitle<Text>;
   Component: ComponentType<PluginScreenProps>;

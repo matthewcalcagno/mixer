@@ -746,6 +746,17 @@ Mixer owns the route, island frame, host picker, error boundary, and query clien
 display text. Invalid or empty literal titles are rejected. Mixer does not render a separate
 header for the screen.
 
+For separate main and sidebar islands, add `presentation: "workspace"` to the screen registration.
+Wrap the content in `WorkspaceLayout` from `@mixer/plugin/client/ui`, then place each pane in a
+`WorkspaceIsland`. Use `variant="sidebar"` for the sidebar surface. These components follow
+Mixer’s theme, rounded frames, and workspace gutter. The default `presentation: "island"`
+keeps the single host frame.
+
+Use `WorkspaceSidebar` inside `WorkspaceLayout` for an Explorer-style right dock. Pass `open`,
+`onOpenChange`, `compact`, and a stable `persistenceKey` scoped to the plugin and host. It supplies
+the sidebar island, persisted width, resize handle, and the user’s configured right/both-sidebar
+shortcuts. Keep it mounted when closed so its shortcut handler can reopen it.
+
 `openScreen({ screenId, params })` opens a screen with params, such as the bot a bot screen shows.
 Params live in the screen's URL query, so a reload, back and forward, and a link to the screen keep
 them. Any string key works; values must be strings, and anything else throws. Opening the same
@@ -1268,7 +1279,10 @@ advertise `server_info.features.pluginTimelineItems`.
 
 Plugin UI runs on desktop, browser, iOS, and Android, across every Mixer theme. `theme` is a typed `PluginTheme` mapped from the active host theme. Color and spacing must come from those props. Hardcoded colors and unstyled `Text` break when the host theme changes.
 
-Recreate styles when `theme` or `layout.compact` changes.
+Recreate styles when `theme` or `layout.compact` changes. `theme.typography` supplies the host's
+interface and monospace font families, `base`, `chrome`, and `small` sizes, and control `radius`.
+Use these values for custom desktop controls so Appearance settings also apply to your screen.
+The field is absent on older hosts.
 
 | Key                             | Required for               | Use it for                          |
 | ------------------------------- | -------------------------- | ----------------------------------- |
@@ -1361,6 +1375,30 @@ A disabled or removed plugin leaves an unavailable screen with working Back navi
 
 ### Named UI components
 
+Use `confirmDialog({ title, message, confirmLabel?, cancelLabel?, destructive? })` from
+`@mixer/plugin/client/ui` for confirmations. It returns `Promise<boolean>` and uses the
+same desktop dialog backend as Mixer workspace actions. Use `Modal` for editable forms.
+
+Use `ActionMenu` for a resource’s overflow button. Pass `label`, `actions`, and `onSelect`, using
+the same action records as `ContextMenu`. It opens Mixer’s shared dropdown or native desktop menu.
+
+`HoverCard`, `HoverCardTrigger`, and `HoverCardContent` expose Mixer’s shared interactive hover
+surface. Keep the content under the plugin runtime provider so portaled controls retain their context.
+
+Use `CodeEditor` for in-memory text rather than a workspace file. Pass `value`, `language`
+(`text`, `json`, `html`, `xml`, `javascript`, or `css`), `label`, and `onChange(text)`.
+`readOnly`, `wrap`, `search`, and `onDiagnostics([{ message, line }])` are optional. It uses
+host editor fonts, syntax colors, undo, find, and JSON diagnostics; Shift+Alt+F formats JSON.
+The buffer stays owned by your plugin and never writes files. Give its container a bounded height.
+Pass `variables` with `{ name, resolved, value, source }` records to enable template completion and
+`{{variable}}` decorations. `onInspectVariable(name)` handles the tooltip’s edit action. Style
+`.cm-variable-resolved` and `.cm-variable-missing` in the plugin’s themed content.
+
+Import `Button` from `@mixer/plugin/client/ui` for host-styled actions. It accepts `onPress`,
+`children`, an optional Lucide `icon`, `disabled`, `loading`, `accessibilityLabel`, and `testID`.
+Use `size="xs"` in toolbars. Variants are `default`, `secondary`, `outline`, `ghost`, and
+`destructive`; sizes are `xs`, `sm`, `md`, and `lg`. It uses Mixer's shared Button component.
+
 Import settings components from `@mixer/plugin/client/ui`. They work with your own state and RPCs;
 no form wrapper or storage binding is required.
 
@@ -1380,15 +1418,15 @@ export function DisplaySettings() {
 }
 ```
 
-| Component         | Props and behavior                                                                                                                       |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `SettingsSection` | Required `title`, `children`; optional `info` tooltip, `trailing` content, `testID`. Own section spacing and headings.                   |
-| `SettingsCard`    | `children`, optional `testID`. Owns the card surface and dividers between direct children. Give mapped rows stable React keys.           |
-| `SettingsRow`     | Required `label`; optional `hint`, `error`, `children`, `testID`. Wrap any custom control or content.                                    |
-| `SettingsSwitch`  | Row props plus required `value: boolean`, `onValueChange`; optional `disabled`.                                                          |
-| `SettingsSelect`  | Row props plus required string `value`, `options: { label, value }[]`, `onValueChange`; optional `disabled`. Uses Mixer's adaptive menu. |
-| `SettingsInput`   | Row props plus required `onChangeText`; optional `initialValue`, `placeholder`, `disabled`, `secureTextEntry`, `ref`.                    |
-| `SettingsAction`  | Row props plus required `actionLabel`, `onPress`; optional `disabled`.                                                                   |
+| Component         | Props and behavior                                                                                                                                                                     |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SettingsSection` | Required `title`, `children`; optional `info` tooltip, `trailing` content, `testID`. Own section spacing and headings.                                                                 |
+| `SettingsCard`    | `children`, optional `testID` and `variant="flat"` for transparent, divider-only rows. Owns the card surface and dividers between direct children. Give mapped rows stable React keys. |
+| `SettingsRow`     | Required `label`; optional `hint`, `error`, `children`, `testID`. Wrap any custom control or content.                                                                                  |
+| `SettingsSwitch`  | Row props plus required `value: boolean`, `onValueChange`; optional `disabled`.                                                                                                        |
+| `SettingsSelect`  | Row props plus required string `value`, `options: { label, value }[]`, `onValueChange`; optional `disabled`. Uses Mixer's adaptive menu.                                               |
+| `SettingsInput`   | Row props plus required `onChangeText`; optional `initialValue`, `placeholder`, `disabled`, `secureTextEntry`, `ref`.                                                                  |
+| `SettingsAction`  | Row props plus required `actionLabel`, `onPress`; optional `disabled`.                                                                                                                 |
 
 `SettingsInput` owns in-progress text. `initialValue` seeds it when mounted. Its ref exposes
 `focus()`, `blur()`, `getText()`, and `replaceText(text)` for explicit programmatic changes.

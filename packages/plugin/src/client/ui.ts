@@ -21,6 +21,63 @@ import type {
 import type { PluginIconProps } from "../icons.js";
 import type { PluginIcon } from "./contracts.js";
 
+/** Host-owned frames and gutter for screens registered with presentation: "workspace". */
+export declare const WorkspaceIsland: ComponentType<{
+  children: ReactNode;
+  testID?: string;
+  variant?: "main" | "sidebar";
+}>;
+export declare const WorkspaceLayout: ComponentType<{ children: ReactNode; testID?: string }>;
+
+/** Resizable Explorer-style island; participates in the user's sidebar shortcut bindings. */
+export declare const WorkspaceSidebar: ComponentType<{
+  children: ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  compact?: boolean;
+  persistenceKey: string;
+  testID?: string;
+}>;
+
+export interface CodeEditorProps {
+  variables?: readonly { name: string; resolved: boolean; value: string; source: string }[];
+  onInspectVariable?: (name: string) => void;
+  value: string;
+  language: "text" | "json" | "html" | "xml" | "javascript" | "css";
+  label: string;
+  readOnly?: boolean;
+  search?: string;
+  wrap?: boolean;
+  onChange?: (value: string) => void;
+  onDiagnostics?: (diagnostics: readonly { message: string; line: number }[]) => void;
+}
+/** In-memory code buffer with host syntax colors, editor preferences, search, and JSON linting. */
+export declare const CodeEditor: ComponentType<CodeEditorProps>;
+
+export interface ButtonProps {
+  children?: ReactNode;
+  icon?: string;
+  onPress?: () => void;
+  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive";
+  size?: "xs" | "sm" | "md" | "lg";
+  disabled?: boolean;
+  loading?: boolean;
+  accessibilityLabel?: string;
+  testID?: string;
+}
+/** Host Button: shared typography, control sizing, interaction states, and theme colors. */
+export declare const Button: ComponentType<ButtonProps>;
+
+export interface ConfirmDialogOptions {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+}
+/** Uses the same desktop confirmation backend as workspace and host actions. */
+export declare function confirmDialog(options: ConfirmDialogOptions): Promise<boolean>;
+
 export interface ModalProps {
   title: string;
   icon?: ReactNode;
@@ -163,7 +220,11 @@ export interface SettingsActionProps extends SettingsRowProps {
 /** @deprecated Use SettingsSection for plugin settings headings. */
 export declare const SettingsGroup: ComponentType<SettingsSectionProps>;
 export declare const SettingsSection: ComponentType<SettingsSectionProps>;
-export declare const SettingsCard: ComponentType<{ children: ReactNode; testID?: string }>;
+export declare const SettingsCard: ComponentType<{
+  children: ReactNode;
+  testID?: string;
+  variant?: "card" | "flat";
+}>;
 export declare const SettingsRow: ComponentType<SettingsRowProps>;
 export declare const SettingsSwitch: ComponentType<SettingsSwitchProps>;
 export declare function SettingsSelect<Value extends string>(
@@ -224,8 +285,26 @@ export interface ContextMenuProps {
   onOpen(): void;
   onSelect(id: string): void;
 }
+export declare const ActionMenu: ComponentType<{
+  label: string;
+  actions: readonly ContextMenuAction[];
+  onSelect(id: string): void;
+}>;
+
 /** Native Electron context menu on desktop; the shared host menu on browser and native clients. */
 export declare const ContextMenu: ComponentType<ContextMenuProps>;
 
 /** Renders Markdown using Mixer’s theme, selection, and link behavior. */
 export declare const Markdown: ComponentType<MarkdownProps>;
+
+export declare const HoverCard: ComponentType<{ children: ReactNode; disabled?: boolean }>;
+export declare const HoverCardTrigger: ComponentType<{
+  children: ReactNode;
+  focusable?: boolean;
+  accessibilityLabel?: string;
+}>;
+export declare const HoverCardContent: ComponentType<{
+  children: ReactNode;
+  placement: "top" | "bottom" | "left" | "right";
+  alignment?: "start" | "center" | "end";
+}>;

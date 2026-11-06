@@ -41,9 +41,21 @@ interface AppSettingsRowProps extends Omit<SettingsRowProps, "hint">, AppRowExtr
   hint?: ReactNode;
 }
 
-export function SettingsCard({ children, testID }: { children: ReactNode; testID?: string }) {
+export function SettingsCard({
+  children,
+  testID,
+  variant = "card",
+}: {
+  children: ReactNode;
+  testID?: string;
+  variant?: "card" | "flat";
+}) {
+  const cardStyle = useMemo(
+    () => (variant === "flat" ? styles.flatCard : settingsStyles.card),
+    [variant],
+  );
   return (
-    <View style={settingsStyles.card} testID={testID}>
+    <View style={cardStyle} testID={testID}>
       {Children.toArray(children).map((child, index) => (
         <View
           key={isValidElement(child) ? child.key : index}
@@ -207,6 +219,7 @@ export function SettingsAction({ actionLabel, onPress, disabled, ...row }: Setti
 }
 
 const styles = StyleSheet.create((theme) => ({
+  flatCard: { backgroundColor: "transparent", overflow: "hidden" },
   compactRow: { flexWrap: "wrap", gap: theme.spacing[3] },
   label: { flexGrow: 1, flexShrink: 1, flexBasis: 160, marginRight: theme.spacing[3] },
   labelRow: {

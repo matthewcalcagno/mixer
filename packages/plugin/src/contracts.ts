@@ -4,6 +4,16 @@ import type { PluginSerializableIcon } from "./icons.js";
 import type { PluginRpcContract } from "./rpc.js";
 
 export interface PluginTheme {
+  readonly colorScheme?: "light" | "dark";
+  /** Host interface sizing and fonts; absent on hosts predating design-token support. */
+  readonly typography?: {
+    readonly fontFamily: string;
+    readonly monoFontFamily: string;
+    readonly base: number;
+    readonly chrome: number;
+    readonly small: number;
+    readonly radius: number;
+  };
   readonly colors: {
     readonly surface0: string;
     readonly surface1: string;

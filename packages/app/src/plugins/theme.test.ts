@@ -72,8 +72,17 @@ function installed(serverId: string, themes: PluginThemeContribution[]): Install
 }
 
 describe("toPluginTheme", () => {
-  it("maps the app theme into the plugin color tokens", () => {
+  it("maps host colors, interface sizing, and fonts into plugin tokens", () => {
     expect(toPluginTheme(lightTheme)).toEqual({
+      colorScheme: "light",
+      typography: {
+        fontFamily: lightTheme.fontFamily.ui,
+        monoFontFamily: lightTheme.fontFamily.mono,
+        base: lightTheme.fontSize.base,
+        chrome: lightTheme.fontSize.chrome,
+        small: lightTheme.fontSize.sm,
+        radius: lightTheme.borderRadius.lg,
+      },
       colors: {
         surface0: lightTheme.colors.surface0,
         surface1: lightTheme.colors.surface1,

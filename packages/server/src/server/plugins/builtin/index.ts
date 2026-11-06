@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const builtinPlugins = [
+  "api-client",
   "antigravity-provider",
   "claude-usage-source",
   "codex-usage-source",
