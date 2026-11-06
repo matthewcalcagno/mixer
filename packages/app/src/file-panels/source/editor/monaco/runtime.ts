@@ -538,6 +538,10 @@ function startProjectLanguageService({
     extendedFeatures: extendedLanguageFeatures,
     restart,
     onError: (message) => emit({ type: "language-error", message }),
+    onProgress: (message, cancel) => {
+      cancelLanguageProgress = cancel;
+      emit({ type: "language-progress", message, cancellable: !!cancel });
+    },
     openLocation: (targetUri, lineStart, lineEnd) =>
       emit({ type: "open-location", uri: targetUri, lineStart, lineEnd }),
   })
@@ -596,12 +600,18 @@ async function drainConfiguration() {
   }
 }
 
+let cancelLanguageProgress: (() => void) | undefined;
+
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
   if (event.source !== window.parent || event.origin !== window.location.origin) return;
   const parsed = editorCommandSchema.safeParse(event.data);
   if (!parsed.success) return;
   const command = parsed.data;
   switch (command.type) {
+    case "cancel-language-progress":
+      cancelLanguageProgress?.();
+      cancelLanguageProgress = undefined;
+      break;
     case "focus":
       editor?.focus();
       break;

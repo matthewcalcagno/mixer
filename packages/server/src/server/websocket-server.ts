@@ -1943,6 +1943,7 @@ export class VoiceAssistantWebSocketServer {
         fileByteWrites: true,
         languageServers: true,
         languageProviders: true,
+        languageServerExtensions: true,
         editorGitAnnotations: true,
         workspaceRefactoring: true,
         // COMPAT(providerUsageList): added in v0.1.98, drop the gate when daemon floor >= v0.1.98.

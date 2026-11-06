@@ -12,6 +12,37 @@ import {
 } from "./messages.js";
 
 describe("workspace file editing messages", () => {
+  test("keeps language extensions optional and accepts correlated extension requests", () => {
+    expect(
+      ServerInfoStatusPayloadSchema.parse({ status: "server_info", serverId: "host", features: {} })
+        .features?.languageServerExtensions,
+    ).toBeUndefined();
+    expect(
+      ServerInfoStatusPayloadSchema.parse({
+        status: "server_info",
+        serverId: "host",
+        features: { languageServerExtensions: true },
+      }).features?.languageServerExtensions,
+    ).toBe(true);
+    for (const method of [
+      "workspace/languageExtension",
+      "$/workDoneProgress/cancel",
+      "textDocument/diagnostic",
+    ]) {
+      expect(
+        SessionInboundMessageSchema.parse({
+          type: "workspace.language.query.request",
+          requestId: "extension",
+          notification: false,
+          workspaceId: "workspace",
+          language: "java",
+          channelId: "editor",
+          method,
+          params: {},
+        }).type,
+      ).toBe("workspace.language.query.request");
+    }
+  });
   test("accepts language provider discovery and keeps new capability fields optional", () => {
     expect(
       ServerInfoStatusPayloadSchema.parse({ status: "server_info", serverId: "host", features: {} })

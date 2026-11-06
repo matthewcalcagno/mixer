@@ -1372,6 +1372,47 @@ test.describe("Monaco Electron file editing", () => {
     await page.keyboard.press("Control+Space");
     await expect(frame.locator(".suggest-widget.visible")).toContainText("preserved");
   });
+  test("shows cancellable language import progress without replacing the editor", async ({
+    page,
+    withWorkspace,
+  }) => {
+    const workspace = await withWorkspace({ prefix: "editor-import-progress-" });
+    await writeFile(path.join(workspace.repoPath, "progress.txt"), "Keep this editor alive\n");
+    await workspace.navigateTo();
+    await openFileExplorer(page);
+    await openFileFromExplorer(page, "progress.txt");
+    const surface = page.getByTestId("file-source-editor").filter({ visible: true });
+    const frame = surface.frameLocator("iframe");
+    await expect(frame.locator(".view-lines")).toContainText("Keep this editor alive");
+    const origin = await frame.locator("#editor").evaluate(() => performance.timeOrigin);
+    await frame.locator("#editor").evaluate(() => {
+      function recordCancellation(event: MessageEvent) {
+        if (event.data?.type === "cancel-language-progress")
+          document.body.setAttribute("data-import-cancelled", "true");
+      }
+      window.addEventListener("message", recordCancellation);
+      window.parent.postMessage(
+        { type: "language-progress", message: "Importing Java project · 25%", cancellable: true },
+        window.location.origin,
+      );
+    });
+    await expect(surface.getByRole("status")).toContainText("Importing Java project · 25%");
+    await surface.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(frame.locator("body")).toHaveAttribute("data-import-cancelled", "true");
+    await expect(surface.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
+    await frame
+      .locator("#editor")
+      .evaluate(() =>
+        window.parent.postMessage(
+          { type: "language-progress", message: "", cancellable: false },
+          window.location.origin,
+        ),
+      );
+    await expect(surface.getByText("Importing Java project · 25%")).toHaveCount(0);
+    expect(await frame.locator("#editor").evaluate(() => performance.timeOrigin)).toBe(origin);
+    await expect(frame.locator(".view-lines")).toContainText("Keep this editor alive");
+  });
+
   test("uses a discovered C language server for project-aware completion without replacing the editor", async ({
     page,
     withWorkspace,

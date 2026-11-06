@@ -142,6 +142,8 @@ export function FileEditorView(props: FileEditorViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [rejectedDraft, setRejectedDraft] = useState<string | null>(null);
   const [languageError, setLanguageError] = useState<string | null>(null);
+  const [languageProgress, setLanguageProgress] = useState("");
+  const [languageProgressCancellable, setLanguageProgressCancellable] = useState(false);
   const [viewStateError, setViewStateError] = useState<string | null>(null);
   const viewState = useRef<EditorViewState | null>(null);
   const viewSession = useMemo(
@@ -259,6 +261,13 @@ export function FileEditorView(props: FileEditorViewProps) {
       void observation.release().catch(() => undefined);
     };
   }, [client, configuration]);
+  const cancelProgress = useCallback(() => {
+    frame.current?.contentWindow?.postMessage(
+      { type: "cancel-language-progress" },
+      window.location.origin,
+    );
+    setLanguageProgressCancellable(false);
+  }, []);
   function send(command: EditorCommand) {
     frame.current?.contentWindow?.postMessage(command, window.location.origin);
   }
@@ -427,6 +436,10 @@ export function FileEditorView(props: FileEditorViewProps) {
           connectLanguage(event, message);
           break;
         }
+        case "language-progress":
+          setLanguageProgress(message.message);
+          setLanguageProgressCancellable(message.cancellable);
+          break;
         case "language-error":
           setLanguageError(message.message);
           break;
@@ -596,6 +609,16 @@ export function FileEditorView(props: FileEditorViewProps) {
           </button>
         </div>
       )}
+      {languageProgress && !languageError && !viewStateError && !error ? (
+        <div role="status" style={languageErrorStyle}>
+          {languageProgress}
+          {languageProgressCancellable ? (
+            <button type="button" onClick={cancelProgress}>
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {(viewStateError || languageError) && !error ? (
         <div role="status" style={languageErrorStyle}>
           {viewStateError ?? languageError}{" "}

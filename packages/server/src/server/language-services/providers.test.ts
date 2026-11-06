@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import path from "node:path";
-import { languageForDocument, providerForDocument } from "@mixer/protocol/language-services";
+import {
+  languageForDocument,
+  providerForDocument,
+  LanguageServerRegistrationSchema,
+} from "@mixer/protocol/language-services";
 import { LanguageServerRegistry } from "./providers.js";
 import { pluginLanguageServer } from "../plugins/language-server.js";
 
@@ -57,6 +61,36 @@ describe("language server registry", () => {
         directory,
       ),
     ).toThrow("absolute directories");
+  });
+  it("validates extension declarations without changing legacy registrations", () => {
+    const registration = {
+      id: "java",
+      label: "Java",
+      command: ["jdtls"],
+      documents: [{ languageId: "java", extensions: [".java"] }],
+    };
+    expect(LanguageServerRegistrationSchema.parse(registration).extensions).toBeUndefined();
+    const extensions = {
+      requests: ["java/projectConfiguration"],
+      commands: ["java.edit"],
+      virtualDocuments: [{ scheme: "jdt", method: "java/classFileContents" }],
+    };
+    expect(
+      LanguageServerRegistrationSchema.parse({
+        ...registration,
+        initializationTimeoutMs: 180_000,
+        extensions,
+      }).extensions,
+    ).toEqual(extensions);
+    expect(() =>
+      LanguageServerRegistrationSchema.parse({ ...registration, initializationTimeoutMs: 300_001 }),
+    ).toThrow();
+    expect(() =>
+      LanguageServerRegistrationSchema.parse({
+        ...registration,
+        extensions: { virtualDocuments: [{ scheme: "file", method: "override" }] },
+      }),
+    ).toThrow();
   });
   it("selects language IDs with filename and longest-extension matching", () => {
     const selectors = [

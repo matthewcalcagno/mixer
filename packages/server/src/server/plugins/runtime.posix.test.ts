@@ -270,7 +270,10 @@ describe("PluginRuntime", () => {
     );
     await writeFile(
       path.join(directory, "mixer-plugin.json"),
-      JSON.stringify({ id: "language-pack", requirements: { mixer: ">=0.14.0-0" } }),
+      JSON.stringify({
+        id: "language-pack",
+        requirements: { mixer: `>=${resolveDaemonVersion()}` },
+      }),
     );
     const runtime = createTestRuntime({}, pino({ level: "silent" }), resolveDaemonVersion());
     try {
