@@ -936,6 +936,7 @@ export class Session {
       () => this.pluginRuntime?.listLanguageServers?.() ?? [],
     );
     this.workspaceLanguages = new WorkspaceLanguageTransport({
+      storageRoot: join(this.mixerHome, "language-services"),
       registry: this.languageRegistry,
       getWorkspaceRoot: async (id) => (await this.workspaceRegistry.get(id))?.cwd ?? null,
       emit: (message, source) => this.emitForSource(message, source),

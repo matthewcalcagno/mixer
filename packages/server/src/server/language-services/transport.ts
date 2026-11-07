@@ -6,6 +6,7 @@ import { WorkspaceLanguageSession } from "./session.js";
 import { LanguageServerRegistry } from "./providers.js";
 
 interface LanguageTransportOptions {
+  storageRoot?: string;
   registry?: LanguageServerRegistry;
   getWorkspaceRoot(workspaceId: string): Promise<string | null>;
   emit(message: SessionOutboundMessage, source?: object): void;
@@ -52,6 +53,7 @@ export class WorkspaceLanguageTransport {
         const notifications = new Map<string, LanguageChannel>();
         const manager = new WorkspaceLanguageSession({
           registry: this.options.registry,
+          storageRoot: this.options.storageRoot,
           getWorkspaceRoot: this.options.getWorkspaceRoot,
           logger: this.options.logger,
           emit: (message) => {

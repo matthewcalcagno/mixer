@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  providerForDocument,
+  languageForDocument,
+  type LanguageProvider,
+} from "@mixer/protocol/language-services";
+import {
   EXTRA_EXTENSIONS,
   languageForFile,
   grammarForFile,
@@ -121,6 +126,7 @@ export function resolveLanguageMode(input: {
   associations: Record<string, string>;
   modes: LanguageMode[];
   registrations: LanguageRegistration[];
+  providers?: readonly LanguageProvider[];
 }): LanguageMode {
   const { filename, modes } = input;
   const explicit = modes.find((mode) => mode.id === input.override);
@@ -133,6 +139,10 @@ export function resolveLanguageMode(input: {
     (mode) => mode.id === (input.associations[name] ?? input.associations[suffix ?? ""]),
   );
   if (associated) return associated;
+  const provider = providerForDocument(filename, input.providers ?? []);
+  const provided =
+    provider && modes.find((mode) => mode.id === languageForDocument(filename, provider.documents));
+  if (provided) return provided;
   const detected = languageForFile(filename, input.registrations);
   const grammar = grammarForFile(filename, detected);
   const id = detected === "plaintext" ? shebangLanguage(input.content) : languageServiceId(grammar);

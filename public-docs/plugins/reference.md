@@ -427,8 +427,16 @@ export default function contribute(server: PluginServerContext) {
 }
 ```
 
+For a complete language pack, copy
+[`plugin-examples/language-servers`](../../plugin-examples/language-servers/README.md).
+It includes Java (Eclipse JDT LS), Rust (rust-analyzer), and C/C++ (clangd) registrations.
+
 `LanguageServerRegistration` is exported from `@mixer/plugin/server`.
 `documents` accepts `languageId`, `extensions`, and optional exact `filenames`.
+You do not need to add the language to Mixer's built-in registry. Plugin selectors
+also work for extra file patterns of existing languages. Explicit language choices
+and user file associations take precedence. A new language ID can use LSP features
+without a bundled syntax grammar; highlighting is separate.
 `command` is an executable followed by arguments; no shell is used. Bare executables
 resolve on the host PATH. Relative executable paths resolve from the plugin directory.
 Explicit PATH overrides must contain absolute directories.
@@ -440,8 +448,44 @@ The host qualifies the ID with the installation ID and stops its servers when th
 plugin is disabled or removed. Plugin registrations take precedence over built-ins
 for matching files. The process has the daemon user's host access.
 
-This API uses static LSP capabilities. Arbitrary server commands, dynamic
-registrations, non-file virtual documents, and custom grammar loading are not supported.
+Processes start when a matching editor opens and stop when its last channel closes.
+Use `initializationTimeoutMs` (1,000–300,000 ms, default 20,000) for servers that
+import large projects. `${workspaceFolder}`, `${workspaceUri}`, and `${serverData}`
+expand in arguments, environment, settings, and initialization options. `serverData`
+is a persistent directory scoped to the workspace and provider; use it for indexes,
+not a shared global Java workspace.
+
+Mixer handles dynamically registered file watches, configuration changes, pull
+diagnostics, and work-done progress with cancellation. File watches can cover
+project and dependency-library directories; whole-home/filesystem watches are
+rejected. `watchIgnoredDirectories` overrides the default exclusions (`.git`,
+`node_modules`, `.gradle`, `build`, `target`). Change these deliberately when a
+server needs generated sources. Other editor features use static capabilities;
+unsupported dynamic registrations return an error.
+
+Declare server-specific extensions explicitly:
+
+```ts
+extensions: {
+  requests: ["example/projectInfo"],
+  notifications: ["example/projectState"],
+  commands: ["example.organizeImports"],
+  virtualDocuments: [{ scheme: "jdt", method: "java/classFileContents" }],
+}
+```
+
+These declarations permit requests through Mixer's language-service bridge; they
+do not add editor UI or implement a server-specific client workflow. Declared
+commands can be used by code actions. Their workspace edits use the editor's review
+flow and cannot escape the workspace. The server still has the daemon user's host
+access, so this review does not sandbox the server process. Virtual documents are
+read-only dependency previews, limited to 1 MiB each. Custom grammar loading and
+automatic language-server/toolchain installation remain separate work.
+
+This API supports LSP over stdin/stdout. A server offering only TCP or another
+transport needs a stdio adapter. A Java or Kotlin plugin must supply its executable,
+initialization options, and any required server-specific behavior. Registering a command alone does not guarantee
+compatibility with every language server.
 
 ### Providers
 

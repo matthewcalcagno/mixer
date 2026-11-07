@@ -108,6 +108,7 @@ interface ProjectLanguageClientOptions {
   language: string;
   extendedFeatures?: boolean;
   onError(message: string): void;
+  onProgress(message: string, cancel?: () => void): void;
   openLocation(uri: string, lineStart: number, lineEnd: number): void;
   restart?: boolean;
 }
@@ -138,10 +139,54 @@ export function disableStandaloneTypeScriptServices(): void {
   }
 }
 
+function openReferencePreview(
+  editor: monaco.editor.IStandaloneCodeEditor,
+  resource: monaco.Uri,
+  line: number,
+): (() => void) | null {
+  const reference = monaco.editor.getModel(resource);
+  const parent = editor.getDomNode()?.parentElement;
+  if (!reference || !parent) return null;
+  const container = document.createElement("div");
+  container.setAttribute("role", "dialog");
+  container.setAttribute("aria-label", "Dependency source preview");
+  Object.assign(container.style, {
+    position: "absolute",
+    inset: "0",
+    zIndex: "5",
+    display: "flex",
+    flexDirection: "column",
+    background: getComputedStyle(parent).backgroundColor,
+  });
+  const back = document.createElement("button");
+  back.textContent = "Back to source";
+  const body = document.createElement("div");
+  Object.assign(body.style, { flex: "1", minHeight: "0" });
+  container.append(back, body);
+  parent.append(container);
+  const preview = monaco.editor.create(body, {
+    model: reference,
+    readOnly: true,
+    automaticLayout: true,
+    minimap: { enabled: false },
+  });
+  preview.revealLineInCenter(line);
+  const close = () => {
+    preview.dispose();
+    container.remove();
+  };
+  back.addEventListener("click", () => {
+    close();
+    editor.focus();
+  });
+  back.focus();
+  return close;
+}
+
 export async function connectProjectLanguageService(
   options: ProjectLanguageClientOptions,
 ): Promise<monaco.IDisposable> {
-  const { model, editor, language, onError } = options;
+  const { model, editor, language, onError, onProgress: reportProgress } = options;
   const ports = new MessageChannel();
   const connection = createProtocolConnection(
     new BrowserMessageReader(ports.port1),
@@ -163,6 +208,7 @@ export async function connectProjectLanguageService(
   let diagnostics: Diagnostic[] = [];
   let disposed = false;
   let readBytes = 0;
+  let closeReference: (() => void) | null = null;
   const fail = (error: unknown) => {
     if (error instanceof ResponseError && [-32800, -32801, -32802].includes(error.code)) return;
     if (!disposed) onError(error instanceof Error ? error.message : String(error));
@@ -184,8 +230,7 @@ export async function connectProjectLanguageService(
   async function loadReference(target: string) {
     if (target === model.uri.toString()) return;
     const reference = monaco.Uri.parse(target);
-    if (reference.scheme !== "file")
-      throw new Error("Language-service navigation requires a workspace file");
+
     const data = z
       .object({ content: z.string() })
       .parse(await connection.sendRequest("workspace/readFile", { uri: target }));
@@ -224,6 +269,45 @@ export async function connectProjectLanguageService(
       })),
     );
   });
+  const progress = new Map<
+    string | number,
+    { title?: string; message?: string; percentage?: number; cancellable?: boolean }
+  >();
+  connection.onNotification("$/progress", (params: unknown) => {
+    const update = z
+      .object({
+        token: z.union([z.string(), z.number()]),
+        value: z.object({
+          kind: z.enum(["begin", "report", "end"]),
+          title: z.string().optional(),
+          cancellable: z.boolean().optional(),
+          message: z.string().optional(),
+          percentage: z.number().optional(),
+        }),
+      })
+      .safeParse(params);
+    if (!update.success || disposed) return;
+    const { token, value: updateValue } = update.data;
+    if (updateValue.kind === "end") progress.delete(token);
+    else progress.set(token, { ...progress.get(token), ...updateValue });
+    const cancellable = [...progress].find(([, value]) => value.cancellable);
+    reportProgress(
+      [...progress.values()]
+        .map((value) =>
+          [value.title, value.message, value.percentage === undefined ? "" : `${value.percentage}%`]
+            .filter(Boolean)
+            .join(" · "),
+        )
+        .join("; "),
+      cancellable
+        ? () => {
+            void connection.sendNotification("$/workDoneProgress/cancel", {
+              token: cancellable[0],
+            });
+          }
+        : undefined,
+    );
+  });
   connection.onNotification("window/logMessage", (value: unknown) => {
     const message = z.object({ type: z.number(), message: z.string() }).safeParse(value);
     if (message.success && message.data.type === 1) onError(message.data.message);
@@ -237,6 +321,10 @@ export async function connectProjectLanguageService(
       ])
       .parse(value);
     if (disposed) return;
+    if (state.state !== "ready") {
+      progress.clear();
+      reportProgress("");
+    }
     const surface = document.getElementById("editor");
     surface?.setAttribute("data-language-service-state", state.state);
     if (surface && state.state === "restarting") {
@@ -289,6 +377,9 @@ export async function connectProjectLanguageService(
     throw error;
   }
   const capabilities = initialized.capabilities;
+  const approvedCommands = new Set(
+    z.object({ editCommands: z.array(z.string()).default([]) }).parse(initialized).editCommands,
+  );
   const selector = model.getLanguageId();
   registrations.push(
     ...registerProjectLanguageFeatures({
@@ -329,6 +420,11 @@ export async function connectProjectLanguageService(
         } else if (selection) {
           start = selection.lineNumber;
           end = selection.lineNumber;
+        }
+        if (resource.scheme !== "file") {
+          closeReference?.();
+          closeReference = openReferencePreview(editor, resource, start);
+          return true;
         }
         options.openLocation(resource.toString(), start, end);
         return true;
@@ -717,7 +813,9 @@ export async function connectProjectLanguageService(
                 actions.set(id, { original, version: model.getVersionId() });
                 const serverCommand = Command.is(original) ? original : original.command;
                 const unsupported =
-                  serverCommand && !LanguageEditCommandSchema.safeParse(serverCommand).success;
+                  serverCommand &&
+                  !LanguageEditCommandSchema.safeParse(serverCommand).success &&
+                  !approvedCommands.has(serverCommand.command);
                 let disabled = Command.is(original) ? undefined : original.disabled?.reason;
                 if (unsupported)
                   disabled = "This server command is not approved for reviewed edits";
@@ -766,6 +864,8 @@ export async function connectProjectLanguageService(
   return {
     dispose() {
       disposed = true;
+      closeReference?.();
+      reportProgress("");
       window.parent.postMessage({ type: "language-disconnect", channelId }, window.location.origin);
       document.getElementById("editor")?.removeAttribute("data-language-service");
       for (const registration of registrations) registration.dispose();

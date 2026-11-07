@@ -28,6 +28,8 @@ import { ServerInfoStatusPayloadSchema } from "../../../protocol/src/messages";
 import type { Locator } from "@playwright/test";
 import { installDesktopRuntime } from "../../../desktop/e2e/support/runtime";
 import { getE2EDaemonPort } from "../support/helpers/daemon-port";
+import { connectNewWorkspaceDaemonClient } from "../support/helpers/new-workspace";
+import { pluginRequirements } from "../support/helpers/plugin-fixture";
 
 for (const startupPlatform of ["darwin", "linux"] as const) {
   test(`desktop startup skips unused Monaco and restores the active editor before revealing the IDE on ${startupPlatform}`, async ({
@@ -1372,6 +1374,47 @@ test.describe("Monaco Electron file editing", () => {
     await page.keyboard.press("Control+Space");
     await expect(frame.locator(".suggest-widget.visible")).toContainText("preserved");
   });
+  test("shows cancellable language import progress without replacing the editor", async ({
+    page,
+    withWorkspace,
+  }) => {
+    const workspace = await withWorkspace({ prefix: "editor-import-progress-" });
+    await writeFile(path.join(workspace.repoPath, "progress.txt"), "Keep this editor alive\n");
+    await workspace.navigateTo();
+    await openFileExplorer(page);
+    await openFileFromExplorer(page, "progress.txt");
+    const surface = page.getByTestId("file-source-editor").filter({ visible: true });
+    const frame = surface.frameLocator("iframe");
+    await expect(frame.locator(".view-lines")).toContainText("Keep this editor alive");
+    const origin = await frame.locator("#editor").evaluate(() => performance.timeOrigin);
+    await frame.locator("#editor").evaluate(() => {
+      function recordCancellation(event: MessageEvent) {
+        if (event.data?.type === "cancel-language-progress")
+          document.body.setAttribute("data-import-cancelled", "true");
+      }
+      window.addEventListener("message", recordCancellation);
+      window.parent.postMessage(
+        { type: "language-progress", message: "Importing Java project · 25%", cancellable: true },
+        window.location.origin,
+      );
+    });
+    await expect(surface.getByRole("status")).toContainText("Importing Java project · 25%");
+    await surface.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(frame.locator("body")).toHaveAttribute("data-import-cancelled", "true");
+    await expect(surface.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
+    await frame
+      .locator("#editor")
+      .evaluate(() =>
+        window.parent.postMessage(
+          { type: "language-progress", message: "", cancellable: false },
+          window.location.origin,
+        ),
+      );
+    await expect(surface.getByText("Importing Java project · 25%")).toHaveCount(0);
+    expect(await frame.locator("#editor").evaluate(() => performance.timeOrigin)).toBe(origin);
+    await expect(frame.locator(".view-lines")).toContainText("Keep this editor alive");
+  });
+
   test("uses a discovered C language server for project-aware completion without replacing the editor", async ({
     page,
     withWorkspace,
@@ -1406,6 +1449,73 @@ test.describe("Monaco Electron file editing", () => {
     });
     expect(await frame.locator("#editor").evaluate(() => performance.timeOrigin)).toBe(origin);
   });
+  for (const languageId of ["c", "mixer-custom-c"]) {
+    test(`uses a custom plugin language server for ${languageId} in the desktop editor`, async ({
+      page,
+      withWorkspace,
+    }) => {
+      test.skip(!existsSync("/usr/bin/clangd"), "Requires the host's clangd toolchain");
+      test.setTimeout(120_000);
+      const workspace = await withWorkspace({ prefix: "editor-plugin-lsp-" });
+      const directory = path.join(workspace.repoPath, ".language-plugin");
+      await mkdir(directory);
+      await writeFile(
+        path.join(directory, "mixer-plugin.json"),
+        JSON.stringify({ id: "custom-language", requirements: pluginRequirements }),
+      );
+      await writeFile(
+        path.join(directory, "index.server.ts"),
+        `import type { PluginServerContext } from "@mixer/plugin/server"; export default function contribute(server: PluginServerContext) { server.registerLanguageServer({ id: "c", label: "Custom C", documents: [{ languageId: ${JSON.stringify(languageId)}, extensions: [".mixerc"] }], command: ["/usr/bin/clangd"] }); return () => {}; }`,
+      );
+      await writeFile(path.join(workspace.repoPath, ".clangd"), "CompileFlags:\n  Add: [-xc]\n");
+      await writeFile(
+        path.join(workspace.repoPath, "main.mixerc"),
+        "struct User { int pluginLoyaltyPoints; };\nint main(void) {\n  struct User user;\n  user.\n}\n",
+      );
+      const client = await connectNewWorkspaceDaemonClient({ ownProjects: false });
+      const previous = await client.getDaemonConfig();
+      let installed = false;
+      try {
+        await client.patchDaemonConfig({ pluginsEnabled: true });
+        await client.installPluginSource({ source: directory });
+        installed = true;
+        await workspace.navigateTo();
+        await openFileExplorer(page);
+        await openFileFromExplorer(page, "main.mixerc");
+        const frame = page
+          .getByTestId("file-source-editor")
+          .filter({ visible: true })
+          .frameLocator("iframe");
+        await expect(frame.locator("#editor")).toHaveAttribute(
+          "data-language-service",
+          "custom-language/c",
+          { timeout: 30_000 },
+        );
+        await frame.getByRole("textbox").focus();
+        await page.keyboard.press("Control+Home");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("End");
+        await page.keyboard.press("Control+Space");
+        await expect(frame.locator(".suggest-widget.visible")).toContainText(
+          "pluginLoyaltyPoints",
+          {
+            timeout: 30_000,
+          },
+        );
+      } finally {
+        try {
+          if (installed) await client.removePlugin("custom-language");
+          await client.patchDaemonConfig({
+            pluginsEnabled: previous.config.pluginsEnabled ?? false,
+          });
+        } finally {
+          await client.close();
+        }
+      }
+    });
+  }
   for (const colorScheme of ["dark", "light"] as const) {
     test(`shows GitLens-style authorship, current-line blame and commit hover in ${colorScheme} without losing unsaved edits`, async ({
       page,

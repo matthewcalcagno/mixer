@@ -1,5 +1,7 @@
 import path from "node:path";
-import { realpath } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { realpath, mkdir } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   CancellationTokenSource,
@@ -7,6 +9,7 @@ import {
   StreamMessageReader,
   StreamMessageWriter,
   ResponseError,
+  ProgressType,
   type MessageConnection,
 } from "vscode-jsonrpc/node.js";
 import { z } from "zod";
@@ -16,12 +19,18 @@ import type {
   WorkspaceLanguageRequest,
   WorkspaceLanguageNotification,
 } from "@mixer/protocol/messages";
-import { LanguageEditCommandSchema } from "@mixer/protocol/messages";
+import {
+  WorkspaceLanguageRequestSchema,
+  LanguageEditCommandSchema,
+} from "@mixer/protocol/messages";
 import { spawnProcess } from "../../utils/spawn.js";
 import { terminateWithTreeKill } from "../../utils/tree-kill.js";
 import { readExplorerFile } from "../file-explorer/service.js";
 import { LanguageServerRegistry } from "./providers.js";
 import type { LanguageServerRegistration } from "@mixer/protocol/language-services";
+import { createFileObserver } from "../file-observer/index.js";
+import type { FileObserver } from "../file-observer/index.js";
+import { LanguageWatchedFiles } from "./watched-files.js";
 import { moveWorkspaceFile } from "./move.js";
 
 const documentParams = z.object({ textDocument: z.object({ uri: z.string() }) });
@@ -82,6 +91,7 @@ const reviewableEdit = z
 type Language = WorkspaceLanguageRequest["language"];
 
 interface LanguageSessionOptions {
+  storageRoot?: string;
   registry?: LanguageServerRegistry;
   getWorkspaceRoot(workspaceId: string): Promise<string | null>;
   emit(message: WorkspaceLanguageNotification): void;
@@ -107,6 +117,7 @@ export class WorkspaceLanguageSession {
   >();
   private disposed = false;
   private readonly registry: LanguageServerRegistry;
+  private readonly fileObserver = createFileObserver();
 
   constructor(private readonly options: LanguageSessionOptions) {
     this.registry = options.registry ?? new LanguageServerRegistry();
@@ -142,6 +153,9 @@ export class WorkspaceLanguageSession {
     if (input.method === "initialize") entry.lease.channels.add(input.channelId);
     if (!entry.lease.channels.has(input.channelId))
       throw new ResponseError(-32802, "Language-service channel is closed.");
+    // Progress may arrive during initialize; waiting for initialization here would deadlock cancellation.
+    if (input.method === "$/workDoneProgress/cancel" && entry.lease.server)
+      return entry.lease.server.request(input);
     const server = await entry.pending;
     if (this.disposed) throw new Error("Language service session is closed");
     if (entry.lease.controller.signal.aborted)
@@ -166,13 +180,26 @@ export class WorkspaceLanguageSession {
     if (!directory) throw new Error("Workspace directory is unavailable");
     const root = await realpath(directory);
     const registration = lease.registration;
+    const serverData = path.join(
+      this.options.storageRoot ?? path.join(tmpdir(), "mixer-language-services"),
+      createHash("sha256").update(`${root}\0${registration.id}`).digest("hex"),
+    );
+    const launch = JSON.stringify(registration);
+    if (launch.includes("${serverData}")) await mkdir(serverData, { recursive: true });
+    const expanded = JSON.parse(
+      launch
+        .replaceAll("${workspaceFolder}", JSON.stringify(root).slice(1, -1))
+        .replaceAll("${workspaceUri}", pathToFileURL(root).href)
+        .replaceAll("${serverData}", JSON.stringify(serverData).slice(1, -1)),
+    ) as LanguageServerRegistration;
     if (this.disposed || lease.controller.signal.aborted)
       throw new Error("Language service session is closed");
     const server = new WorkspaceLanguageServer(
       root,
       path.resolve(directory),
       language,
-      registration,
+      expanded,
+      this.fileObserver,
       (method, params) => {
         if (!this.disposed && !lease.controller.signal.aborted)
           this.options.emit({
@@ -205,8 +232,13 @@ export class WorkspaceLanguageSession {
         server.initialize(),
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(
-            () => reject(new Error(`${registration.label} did not initialize within 20 seconds.`)),
-            20_000,
+            () =>
+              reject(
+                new Error(
+                  `${registration.label} did not initialize within ${(registration.initializationTimeoutMs ?? 20_000) / 1000} seconds.`,
+                ),
+              ),
+            registration.initializationTimeoutMs ?? 20_000,
           );
           timer.unref();
         }),
@@ -232,6 +264,7 @@ export class WorkspaceLanguageSession {
       }),
     );
     this.servers.clear();
+    await this.fileObserver.close();
   }
 
   async refreshProviders(): Promise<void> {
@@ -293,16 +326,52 @@ class WorkspaceLanguageServer {
   private commandQueue: Promise<unknown> = Promise.resolve();
   private capturedEdit: unknown = null;
   private collectingEdit = false;
+  private readonly watchedFiles: LanguageWatchedFiles;
+  private capabilityQueue: Promise<unknown> = Promise.resolve();
+  private readonly progress = new Map<string | number, { dispose(): void }>();
+  private diagnosticOptions: Record<string, unknown> | null = null;
+  private staticDiagnosticOptions: Record<string, unknown> | null = null;
+  private readonly diagnosticRegistrations = new Map<string, Record<string, unknown>>();
+  private readonly diagnosticTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly diagnosticRequests = new Map<string, CancellationTokenSource>();
+  private readonly diagnosticIds = new Map<string, string>();
 
   constructor(
     private readonly root: string,
     private readonly clientRoot: string,
     private readonly language: Language,
     private readonly registration: LanguageServerRegistration,
+    observer: FileObserver,
     private readonly notify: (method: string, params: unknown) => void,
     logger: pino.Logger,
     private readonly onStopped: () => void,
   ) {
+    this.watchedFiles = new LanguageWatchedFiles(
+      root,
+      observer,
+      registration.watchIgnoredDirectories ?? [
+        ".git",
+        "node_modules",
+        ".gradle",
+        "build",
+        "target",
+      ],
+      (changes) => {
+        void this.connection
+          .sendNotification("workspace/didChangeWatchedFiles", { changes })
+          .then(() => {
+            for (const uri of this.documents.keys()) this.scheduleDiagnostics(uri);
+            return undefined;
+          })
+          .catch((error) =>
+            logger.warn({ err: error, language }, "Language file notification failed"),
+          );
+      },
+      (error) => {
+        logger.warn({ err: error, language }, "Language file observation failed");
+        this.notify("window/logMessage", { type: 2, message: error.message });
+      },
+    );
     const [executable, ...args] = registration.command;
     this.child = spawnProcess(executable, args, {
       cwd: root,
@@ -327,7 +396,7 @@ class WorkspaceLanguageServer {
         this.closed = true;
         this.onStopped();
       }
-      this.connection.dispose();
+      void this.dispose();
     });
     this.child.on("exit", (code, signal) => {
       if (process.platform !== "win32" && this.child.pid) {
@@ -341,12 +410,17 @@ class WorkspaceLanguageServer {
       const expected = this.closed;
       this.closed = true;
       if (!expected) this.onStopped();
-      this.connection.dispose();
+      void this.dispose();
       if (expected) return;
       logger.warn({ language, code, signal }, "Language server exited unexpectedly");
     });
     this.connection.onNotification((method, params) => {
-      if (method === "textDocument/publishDiagnostics" || method === "window/logMessage")
+      if (
+        method === "textDocument/publishDiagnostics" ||
+        method === "window/logMessage" ||
+        method === "window/showMessage" ||
+        this.registration.extensions?.notifications?.includes(method)
+      )
         this.notify(method, params);
     });
     this.connection.onRequest("workspace/configuration", (params: unknown) => {
@@ -363,13 +437,81 @@ class WorkspaceLanguageServer {
         return value;
       });
     });
-    this.connection.onRequest("client/registerCapability", () => {
-      throw new ResponseError(
-        -32601,
-        "Dynamic capability registration is not supported. This client negotiates static capabilities at initialization.",
-      );
+    this.connection.onRequest("client/registerCapability", (params: unknown) => {
+      const { registrations } = z
+        .object({
+          registrations: z
+            .array(
+              z.object({
+                id: z.string(),
+                method: z.string(),
+                registerOptions: z.unknown().optional(),
+              }),
+            )
+            .max(128),
+        })
+        .parse(params);
+      for (const entry of registrations)
+        if (
+          ![
+            "workspace/didChangeWatchedFiles",
+            "textDocument/diagnostic",
+            "workspace/didChangeConfiguration",
+          ].includes(entry.method)
+        )
+          throw new ResponseError(-32602, `Unsupported dynamic capability: ${entry.method}`);
+      const task = this.capabilityQueue.then(async () => {
+        for (const entry of registrations) {
+          if (entry.method === "workspace/didChangeWatchedFiles")
+            await this.watchedFiles.register(entry.id, entry.registerOptions);
+          else if (entry.method === "textDocument/diagnostic") {
+            this.diagnosticOptions = z
+              .record(z.string(), z.unknown())
+              .parse(entry.registerOptions ?? {});
+            this.diagnosticRegistrations.set(entry.id, this.diagnosticOptions);
+            for (const uri of this.documents.keys()) this.scheduleDiagnostics(uri);
+          } else if (entry.method !== "workspace/didChangeConfiguration")
+            throw new ResponseError(-32602, `Unsupported dynamic capability: ${entry.method}`);
+        }
+        return null;
+      });
+      this.capabilityQueue = task.catch(() => undefined);
+      return task;
     });
-    this.connection.onRequest("window/workDoneProgress/create", () => null);
+    this.connection.onRequest("client/unregisterCapability", (params: unknown) => {
+      const { unregisterations } = z
+        .object({
+          unregisterations: z.array(z.object({ id: z.string(), method: z.string() })).max(128),
+        })
+        .parse(params);
+      const task = this.capabilityQueue.then(async () => {
+        for (const entry of unregisterations) {
+          if (entry.method === "workspace/didChangeWatchedFiles")
+            await this.watchedFiles.unregister(entry.id);
+          if (
+            entry.method === "textDocument/diagnostic" &&
+            this.diagnosticRegistrations.delete(entry.id)
+          ) {
+            this.diagnosticOptions =
+              [...this.diagnosticRegistrations.values()].at(-1) ?? this.staticDiagnosticOptions;
+            this.clearDiagnostics();
+            for (const uri of this.documents.keys()) this.scheduleDiagnostics(uri);
+          }
+        }
+        return null;
+      });
+      this.capabilityQueue = task.catch(() => undefined);
+      return task;
+    });
+    this.connection.onRequest("window/workDoneProgress/create", (params: unknown) => {
+      const { token } = z.object({ token: z.union([z.string(), z.number()]) }).parse(params);
+      this.trackProgress(token);
+      return null;
+    });
+    this.connection.onRequest("workspace/diagnostic/refresh", () => {
+      for (const uri of this.documents.keys()) this.scheduleDiagnostics(uri);
+      return null;
+    });
     this.connection.onRequest("workspace/workspaceFolders", () => [
       { uri: pathToFileURL(root).href, name: path.basename(root) },
     ]);
@@ -391,12 +533,18 @@ class WorkspaceLanguageServer {
 
   async initialize(): Promise<void> {
     const uri = pathToFileURL(this.root).href;
+    this.trackProgress("mixer-initialize");
     const result = await this.connection.sendRequest("initialize", {
+      workDoneToken: "mixer-initialize",
       processId: process.pid,
       rootUri: uri,
       workspaceFolders: [{ uri, name: path.basename(this.root) }],
       capabilities: {
+        window: { workDoneProgress: true },
         workspace: {
+          didChangeWatchedFiles: { dynamicRegistration: true, relativePatternSupport: true },
+          didChangeConfiguration: { dynamicRegistration: true },
+          diagnostics: { refreshSupport: true },
           configuration: true,
           workspaceFolders: true,
           applyEdit: true,
@@ -470,6 +618,7 @@ class WorkspaceLanguageServer {
           },
           rename: { prepareSupport: true },
           publishDiagnostics: { versionSupport: true },
+          diagnostic: { dynamicRegistration: true, relatedDocumentSupport: false },
           documentSymbol: { hierarchicalDocumentSymbolSupport: true },
           codeAction: {
             codeActionLiteralSupport: {
@@ -481,8 +630,20 @@ class WorkspaceLanguageServer {
       },
       initializationOptions: this.registration.initializationOptions ?? {},
     });
+    const parsedResult = initializeResult.parse(result);
+    if (
+      parsedResult.capabilities.diagnosticProvider &&
+      typeof parsedResult.capabilities.diagnosticProvider === "object"
+    )
+      this.staticDiagnosticOptions = z
+        .record(z.string(), z.unknown())
+        .parse(parsedResult.capabilities.diagnosticProvider);
+    this.diagnosticOptions =
+      [...this.diagnosticRegistrations.values()].at(-1) ?? this.staticDiagnosticOptions;
     this.initialized = {
-      ...initializeResult.parse(result),
+      ...parsedResult,
+      extensionRequests: this.registration.extensions?.requests ?? [],
+      editCommands: this.registration.extensions?.commands ?? [],
       rootUri: uri,
       workspaceUri: pathToFileURL(this.clientRoot).href,
     };
@@ -497,39 +658,23 @@ class WorkspaceLanguageServer {
     if (this.closed) throw new Error("Language server stopped. Reopen the editor to reconnect.");
     if (input.method === "initialize") return this.initialized;
     if (input.method === "initialized") return null;
+    if (input.method === "workspace/languageExtension") return this.extensionRequest(input);
+    if (input.method === "$/workDoneProgress/cancel") return this.cancelProgress(input.params);
     if (input.method === "workspace/moveFile") return moveWorkspaceFile(this.root, input.params);
     if (input.method === "workspace/executeCommand") {
       const task = this.commandQueue.then(() => this.executeCommand(input));
       this.commandQueue = task.catch(() => undefined);
       return task;
     }
-    if (
-      input.method === "workspace/willRenameFiles" ||
-      input.method === "workspace/didRenameFiles"
-    ) {
-      const value = z
-        .object({ files: z.array(z.object({ oldUri: z.string(), newUri: z.string() })).length(1) })
-        .parse(input.params);
-      for (const file of value.files) {
-        await this.validateUri(file.oldUri);
-        await this.validateUri(file.newUri);
-      }
-      if (input.method === "workspace/didRenameFiles") {
-        await this.connection.sendNotification(input.method, value);
-        return null;
-      }
+    if (["workspace/willRenameFiles", "workspace/didRenameFiles"].includes(input.method)) {
+      await this.validateFileOperation(input);
+      if (input.notification) return null;
     }
     if (input.method === "workspace/readFile") {
       return this.readFile(input.params);
     }
-    if (input.method === "shutdown" || input.method === "exit") {
-      for (const [uri, owner] of this.documents) {
-        if (owner.channelId !== input.channelId) continue;
-        this.documents.delete(uri);
-        await this.connection.sendNotification("textDocument/didClose", { textDocument: { uri } });
-      }
-      return null;
-    }
+    if (input.method === "shutdown" || input.method === "exit")
+      return this.closeChannel(input.channelId);
     if (input.method === "$/cancelRequest") {
       const { id } = z.object({ id: z.union([z.string(), z.number()]) }).parse(input.params);
       this.requests.get(`${input.channelId}:${id}`)?.cancel();
@@ -538,17 +683,172 @@ class WorkspaceLanguageServer {
     if (!(await this.checkDocument(input))) return null;
     if (input.notification) {
       await this.connection.sendNotification(input.method, input.params);
+      const document = documentParams.safeParse(input.params);
+      if (
+        document.success &&
+        ["textDocument/didOpen", "textDocument/didChange", "textDocument/didSave"].includes(
+          input.method,
+        )
+      )
+        this.scheduleDiagnostics(document.data.textDocument.uri);
       return null;
     }
+    return this.sendRequest(input.method, input.params, input);
+  }
+
+  private async closeChannel(channelId: string): Promise<null> {
+    for (const [uri, owner] of this.documents) {
+      if (owner.channelId !== channelId) continue;
+      this.documents.delete(uri);
+      this.cancelDiagnostics(uri);
+      await this.connection.sendNotification("textDocument/didClose", { textDocument: { uri } });
+    }
+    return null;
+  }
+
+  private extensionRequest(input: WorkspaceLanguageRequest): Promise<unknown> {
+    const extension = z
+      .object({ method: z.string(), params: z.unknown().optional() })
+      .parse(input.params);
+    if (
+      WorkspaceLanguageRequestSchema.shape.method.safeParse(extension.method).success ||
+      !this.registration.extensions?.requests?.includes(extension.method)
+    )
+      throw new Error(
+        `Language-server request is not declared by this plugin: ${extension.method}`,
+      );
+    return this.sendRequest(extension.method, extension.params, input);
+  }
+
+  private async cancelProgress(params: unknown): Promise<null> {
+    const value = z.object({ token: z.union([z.string(), z.number()]) }).parse(params);
+    if (this.progress.has(value.token))
+      await this.connection.sendNotification("$/workDoneProgress/cancel", value);
+    return null;
+  }
+
+  private async validateFileOperation(input: WorkspaceLanguageRequest): Promise<void> {
+    const value = z
+      .object({ files: z.array(z.object({ oldUri: z.string(), newUri: z.string() })).length(1) })
+      .parse(input.params);
+    for (const file of value.files) {
+      await this.validateUri(file.oldUri);
+      await this.validateUri(file.newUri);
+    }
+    if (input.method === "workspace/didRenameFiles")
+      await this.connection.sendNotification(input.method, value);
+  }
+
+  private async sendRequest(
+    method: string,
+    params: unknown,
+    input: WorkspaceLanguageRequest,
+  ): Promise<unknown> {
     const token = new CancellationTokenSource();
     const key = `${input.channelId}:${input.messageId}`;
     this.requests.set(key, token);
     try {
-      return await this.connection.sendRequest(input.method, input.params, token.token);
+      return await this.connection.sendRequest(method, params, token.token);
     } finally {
       token.dispose();
       this.requests.delete(key);
     }
+  }
+
+  private trackProgress(token: string | number): void {
+    if (this.progress.has(token)) return;
+    if (this.progress.size >= 128) throw new Error("Too many language-server progress tokens");
+    const listener = this.connection.onProgress(new ProgressType<unknown>(), token, (value) => {
+      this.notify("$/progress", { token, value });
+      if (value && typeof value === "object" && "kind" in value && value.kind === "end") {
+        this.progress.get(token)?.dispose();
+        this.progress.delete(token);
+      }
+    });
+    this.progress.set(token, listener);
+  }
+
+  private cancelDiagnostics(uri: string): void {
+    const timer = this.diagnosticTimers.get(uri);
+    if (timer) clearTimeout(timer);
+    this.diagnosticTimers.delete(uri);
+    const token = this.diagnosticRequests.get(uri);
+    token?.cancel();
+    token?.dispose();
+    this.diagnosticRequests.delete(uri);
+    this.diagnosticIds.delete(uri);
+  }
+
+  private clearDiagnostics(): void {
+    for (const uri of new Set([...this.diagnosticTimers.keys(), ...this.diagnosticRequests.keys()]))
+      this.cancelDiagnostics(uri);
+    for (const uri of this.documents.keys())
+      this.notify("textDocument/publishDiagnostics", { uri, diagnostics: [] });
+  }
+
+  private scheduleDiagnostics(uri: string): void {
+    if (!this.diagnosticOptions || this.closed || !this.documents.has(uri)) return;
+    const previousResultId = this.diagnosticIds.get(uri);
+    this.cancelDiagnostics(uri);
+    if (previousResultId) this.diagnosticIds.set(uri, previousResultId);
+    this.diagnosticTimers.set(
+      uri,
+      setTimeout(() => {
+        this.diagnosticTimers.delete(uri);
+        const owner = this.documents.get(uri);
+        if (!owner || this.closed) return;
+        const version = owner.version;
+        const token = new CancellationTokenSource();
+        this.diagnosticRequests.set(uri, token);
+        void this.connection
+          .sendRequest(
+            "textDocument/diagnostic",
+            {
+              textDocument: { uri },
+              identifier: this.diagnosticOptions?.identifier,
+              previousResultId,
+            },
+            token.token,
+          )
+          .then((result: unknown) => {
+            if (
+              token.token.isCancellationRequested ||
+              this.closed ||
+              this.documents.get(uri)?.version !== version
+            )
+              return;
+            const report = z
+              .discriminatedUnion("kind", [
+                z.object({
+                  kind: z.literal("full"),
+                  items: z.array(z.unknown()),
+                  resultId: z.string().optional(),
+                }),
+                z.object({ kind: z.literal("unchanged"), resultId: z.string() }),
+              ])
+              .parse(result);
+            if (report.resultId) this.diagnosticIds.set(uri, report.resultId);
+            if (report.kind === "full")
+              this.notify("textDocument/publishDiagnostics", {
+                uri,
+                version,
+                diagnostics: report.items,
+              });
+            return undefined;
+          })
+          .catch((error: unknown) => {
+            if (!token.token.isCancellationRequested && !this.closed)
+              this.notify("window/logMessage", {
+                type: 2,
+                message: `Diagnostics failed: ${error instanceof Error ? error.message : String(error)}`,
+              });
+          })
+          .finally(() => {
+            if (this.diagnosticRequests.get(uri) === token) this.diagnosticRequests.delete(uri);
+            token.dispose();
+          });
+      }, 150),
+    );
   }
 
   private async checkDocument(input: WorkspaceLanguageRequest): Promise<boolean> {
@@ -575,28 +875,41 @@ class WorkspaceLanguageServer {
         if (change.textDocument.version <= owner.version) return false;
         owner.version = change.textDocument.version;
       }
-      if (input.method === "textDocument/didClose")
+      if (input.method === "textDocument/didClose") {
         this.documents.delete(document.data.textDocument.uri);
+        this.cancelDiagnostics(document.data.textDocument.uri);
+      }
     }
     return true;
   }
 
   private async executeCommand(input: WorkspaceLanguageRequest): Promise<unknown> {
     const parsed = LanguageEditCommandSchema.safeParse(input.params);
-    if (!parsed.success)
+    const extension = z
+      .object({ command: z.string(), arguments: z.array(z.unknown()).max(64).optional() })
+      .safeParse(input.params);
+    const declared =
+      extension.success && this.registration.extensions?.commands?.includes(extension.data.command);
+    if (!parsed.success && !declared)
       throw new Error("This language-server command or its arguments are not allowed");
-    const command = parsed.data;
+    const command = parsed.success ? parsed.data : extension.data!;
     const python = command.command === "pyright.organizeimports";
-    if (python !== (this.language === "python"))
+    if (!declared && python !== (this.language === "python"))
       throw new Error("The command is not allowed for this language server");
     let uri: string;
-    if (command.command === "pyright.organizeimports") uri = command.arguments[0];
-    else if (command.command === "_typescript.organizeImports")
-      uri = pathToFileURL(command.arguments[0]).href;
-    else uri = pathToFileURL(command.arguments[0].file).href;
-    await this.validateUri(uri);
-    if (this.documents.get(uri)?.channelId !== input.channelId)
-      throw new Error("The command's document is not open in this workspace session");
+    if (declared) {
+      if (![...this.documents.values()].some((owner) => owner.channelId === input.channelId))
+        throw new Error("Open a document before executing a language-server command");
+    } else {
+      const builtInCommand = LanguageEditCommandSchema.parse(input.params);
+      if (builtInCommand.command === "pyright.organizeimports") uri = builtInCommand.arguments[0];
+      else if (builtInCommand.command === "_typescript.organizeImports")
+        uri = pathToFileURL(builtInCommand.arguments[0]).href;
+      else uri = pathToFileURL(builtInCommand.arguments[0].file).href;
+      await this.validateUri(uri);
+      if (this.documents.get(uri)?.channelId !== input.channelId)
+        throw new Error("The command's document is not open in this workspace session");
+    }
     this.capturedEdit = null;
     this.collectingEdit = true;
     try {
@@ -624,6 +937,18 @@ class WorkspaceLanguageServer {
 
   private async readFile(params: unknown) {
     const { uri } = z.object({ uri: z.string() }).parse(params);
+    if (new URL(uri).protocol !== "file:") {
+      const definition = this.registration.extensions?.virtualDocuments?.find(
+        (item) => `${item.scheme}:` === new URL(uri).protocol,
+      );
+      if (!definition)
+        throw new Error("This virtual document scheme is not registered by the plugin");
+      const content = z
+        .string()
+        .max(1024 * 1024)
+        .parse(await this.connection.sendRequest(definition.method, { uri }));
+      return { content };
+    }
     await this.validateUri(uri);
     const file = await readExplorerFile({
       root: this.root,
@@ -657,11 +982,17 @@ class WorkspaceLanguageServer {
       token.dispose();
     }
     this.requests.clear();
+    this.clearDiagnostics();
+    for (const listener of this.progress.values()) listener.dispose();
+    this.progress.clear();
     this.connection.dispose();
-    this.disposing = terminateWithTreeKill(this.child, {
-      gracefulTimeoutMs: 1000,
-      forceTimeoutMs: 1000,
-    }).then(() => undefined);
+    this.disposing = Promise.allSettled([
+      this.capabilityQueue.then(() => this.watchedFiles.dispose()),
+      terminateWithTreeKill(this.child, {
+        gracefulTimeoutMs: 1000,
+        forceTimeoutMs: 1000,
+      }),
+    ]).then(() => undefined);
     return this.disposing;
   }
 }

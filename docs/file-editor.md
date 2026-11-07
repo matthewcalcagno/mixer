@@ -186,8 +186,8 @@ Intentional teardown must not emit a server-failure notification. Notifications 
 workspace-scoped, so a late exit from the previous process can otherwise mark its
 replacement editor as failed.
 The host admits at most eight active servers across physical clients and initializes
-at most two concurrently. A server has 20 seconds to initialize before its process
-tree is terminated. These are admission limits, not a memory sandbox or an RSS cap.
+at most two concurrently. A server has 20 seconds to initialize by default; provider registrations can
+raise this to five minutes for project imports before the process tree is terminated. These are admission limits, not a memory sandbox or an RSS cap.
 Unloading or replacing a provider invalidates its active processes. Do not retain
 an installed plugin's executable after that installation has been disabled.
 Reconnect replays the open buffers before further queries. Cancellation and
@@ -197,8 +197,19 @@ Shared buffers use incremental changes when the server negotiates incremental
 synchronization; full synchronization remains available for servers that require it.
 The editor uses static capabilities for type/implementation navigation, semantic
 tokens, inlay hints, and folding. It does not acknowledge unsupported dynamic
-registrations. Custom servers that require client-managed filesystem watching or
-non-file virtual documents need additional integration, not an arbitrary command bridge.
+registrations. File watches, configuration changes, and pull diagnostics support
+dynamic registration. Dependency-library watches are read-only observations; they
+do not widen workspace edit permissions. Work-done progress is shown by the editor,
+with cancellation when the server offers it. Keep the declared client capabilities
+aligned with implemented handlers: acknowledging an unsupported capability can
+silently suppress server features.
+
+Plugin extension declarations and initialization options are documented in the
+[plugin API reference](../public-docs/plugins/reference.md#language-servers).
+Virtual dependency documents stay in read-only previews; never route their URIs
+through ordinary file saves. Server-specific commands remain explicit and return
+workspace edits through the existing review path. Extension requests require the
+`languageServerExtensions` feature on the host.
 
 Unexpected process exits invalidate the host's channel lease. The client owns
 recovery because its shared buffers contain text that has not reached disk.

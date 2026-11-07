@@ -41,6 +41,7 @@ export const editorConfigurationSchema = z.object({
 });
 
 export const editorCommandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("cancel-language-progress") }),
   z.object({ type: z.literal("focus") }),
   z.object({
     type: z.literal("git-response"),
@@ -99,6 +100,7 @@ export const editorEventSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("language-disconnect"), channelId: z.string() }),
   z.object({ type: z.literal("language-error"), message: z.string() }),
+  z.object({ type: z.literal("language-progress"), message: z.string(), cancellable: z.boolean() }),
   z.object({
     type: z.literal("open-location"),
     uri: z.string(),

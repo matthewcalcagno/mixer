@@ -5183,7 +5183,13 @@ export class DaemonClient {
         "Update the host to enable project-aware TypeScript and Python language services",
       );
     }
+    if (
+      input.method === "workspace/languageExtension" &&
+      this.getLastServerInfoMessage()?.features?.languageServerExtensions !== true
+    )
+      throw new Error("Update the host to use language-server extensions");
     const payload = await this.sendCorrelatedSessionRequest({
+      timeout: input.method === "initialize" ? 310_000 : undefined,
       message: { type: "workspace.language.query.request", ...input },
       responseType: "workspace.language.query.response",
     });

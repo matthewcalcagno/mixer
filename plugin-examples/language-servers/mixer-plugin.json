@@ -1,0 +1,4 @@
+{
+  "id": "language-servers-example",
+  "requirements": { "mixer": ">=0.1.1" }
+}
