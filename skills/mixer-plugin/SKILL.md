@@ -15,6 +15,16 @@ or network access. Use the plugin project's typecheck and focused tests before
 installing it with `mixer plugin install /absolute/path/to/plugin`. Do not restart
 the daemon to load a plugin.
 
+## Add a language server
+
+Read the language-server section of `public-docs/plugins/reference.md` and copy
+`plugin-examples/language-servers` for Java, Rust, C/C++, or another stdio LSP.
+Register with `server.registerLanguageServer()` from `index.server.ts`; do not edit
+Mixer's built-in language registry or replace the source editor. Keep only the
+languages requested. The example README owns toolchain setup and launch details.
+Verify real completion through the plugin registration, not merely process startup.
+Do not claim support for a server's custom workflows without testing them.
+
 ## Add a composer pill
 
 Register the pill for an active agent and its workspace. Remove the registration

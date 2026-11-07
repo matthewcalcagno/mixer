@@ -247,6 +247,7 @@ async function configureProviderLanguage(configuration: EditorConfiguration): Pr
     filename: configuration.filename,
     content: configuration.content,
     override: configuration.languageMode ?? null,
+    providers: languageProviders,
     associations: configuration.preferences.fileAssociations,
     modes: languageModes,
     registrations: monaco.languages.getLanguages(),

@@ -427,8 +427,16 @@ export default function contribute(server: PluginServerContext) {
 }
 ```
 
+For a complete language pack, copy
+[`plugin-examples/language-servers`](../../plugin-examples/language-servers/README.md).
+It includes Java (Eclipse JDT LS), Rust (rust-analyzer), and C/C++ (clangd) registrations.
+
 `LanguageServerRegistration` is exported from `@mixer/plugin/server`.
 `documents` accepts `languageId`, `extensions`, and optional exact `filenames`.
+You do not need to add the language to Mixer's built-in registry. Plugin selectors
+also work for extra file patterns of existing languages. Explicit language choices
+and user file associations take precedence. A new language ID can use LSP features
+without a bundled syntax grammar; highlighting is separate.
 `command` is an executable followed by arguments; no shell is used. Bare executables
 resolve on the host PATH. Relative executable paths resolve from the plugin directory.
 Explicit PATH overrides must contain absolute directories.
@@ -474,8 +482,9 @@ access, so this review does not sandbox the server process. Virtual documents ar
 read-only dependency previews, limited to 1 MiB each. Custom grammar loading and
 automatic language-server/toolchain installation remain separate work.
 
-A Java or Kotlin plugin must supply its executable, initialization options, and any
-required server-specific behavior. Registering a command alone does not guarantee
+This API supports LSP over stdin/stdout. A server offering only TCP or another
+transport needs a stdio adapter. A Java or Kotlin plugin must supply its executable,
+initialization options, and any required server-specific behavior. Registering a command alone does not guarantee
 compatibility with every language server.
 
 ### Providers

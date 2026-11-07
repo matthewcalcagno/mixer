@@ -28,6 +28,8 @@ import { ServerInfoStatusPayloadSchema } from "../../../protocol/src/messages";
 import type { Locator } from "@playwright/test";
 import { installDesktopRuntime } from "../../../desktop/e2e/support/runtime";
 import { getE2EDaemonPort } from "../support/helpers/daemon-port";
+import { connectNewWorkspaceDaemonClient } from "../support/helpers/new-workspace";
+import { pluginRequirements } from "../support/helpers/plugin-fixture";
 
 for (const startupPlatform of ["darwin", "linux"] as const) {
   test(`desktop startup skips unused Monaco and restores the active editor before revealing the IDE on ${startupPlatform}`, async ({
@@ -1447,6 +1449,73 @@ test.describe("Monaco Electron file editing", () => {
     });
     expect(await frame.locator("#editor").evaluate(() => performance.timeOrigin)).toBe(origin);
   });
+  for (const languageId of ["c", "mixer-custom-c"]) {
+    test(`uses a custom plugin language server for ${languageId} in the desktop editor`, async ({
+      page,
+      withWorkspace,
+    }) => {
+      test.skip(!existsSync("/usr/bin/clangd"), "Requires the host's clangd toolchain");
+      test.setTimeout(120_000);
+      const workspace = await withWorkspace({ prefix: "editor-plugin-lsp-" });
+      const directory = path.join(workspace.repoPath, ".language-plugin");
+      await mkdir(directory);
+      await writeFile(
+        path.join(directory, "mixer-plugin.json"),
+        JSON.stringify({ id: "custom-language", requirements: pluginRequirements }),
+      );
+      await writeFile(
+        path.join(directory, "index.server.ts"),
+        `import type { PluginServerContext } from "@mixer/plugin/server"; export default function contribute(server: PluginServerContext) { server.registerLanguageServer({ id: "c", label: "Custom C", documents: [{ languageId: ${JSON.stringify(languageId)}, extensions: [".mixerc"] }], command: ["/usr/bin/clangd"] }); return () => {}; }`,
+      );
+      await writeFile(path.join(workspace.repoPath, ".clangd"), "CompileFlags:\n  Add: [-xc]\n");
+      await writeFile(
+        path.join(workspace.repoPath, "main.mixerc"),
+        "struct User { int pluginLoyaltyPoints; };\nint main(void) {\n  struct User user;\n  user.\n}\n",
+      );
+      const client = await connectNewWorkspaceDaemonClient({ ownProjects: false });
+      const previous = await client.getDaemonConfig();
+      let installed = false;
+      try {
+        await client.patchDaemonConfig({ pluginsEnabled: true });
+        await client.installPluginSource({ source: directory });
+        installed = true;
+        await workspace.navigateTo();
+        await openFileExplorer(page);
+        await openFileFromExplorer(page, "main.mixerc");
+        const frame = page
+          .getByTestId("file-source-editor")
+          .filter({ visible: true })
+          .frameLocator("iframe");
+        await expect(frame.locator("#editor")).toHaveAttribute(
+          "data-language-service",
+          "custom-language/c",
+          { timeout: 30_000 },
+        );
+        await frame.getByRole("textbox").focus();
+        await page.keyboard.press("Control+Home");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("End");
+        await page.keyboard.press("Control+Space");
+        await expect(frame.locator(".suggest-widget.visible")).toContainText(
+          "pluginLoyaltyPoints",
+          {
+            timeout: 30_000,
+          },
+        );
+      } finally {
+        try {
+          if (installed) await client.removePlugin("custom-language");
+          await client.patchDaemonConfig({
+            pluginsEnabled: previous.config.pluginsEnabled ?? false,
+          });
+        } finally {
+          await client.close();
+        }
+      }
+    });
+  }
   for (const colorScheme of ["dark", "light"] as const) {
     test(`shows GitLens-style authorship, current-line blame and commit hover in ${colorScheme} without losing unsaved edits`, async ({
       page,
