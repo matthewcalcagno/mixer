@@ -505,12 +505,13 @@ export async function checkoutResolvedBranch(
         return { source: "local" };
       }
 
-      await runGitCommand(["checkout", resolution.name], { cwd });
+      await runGitCommand(["checkout", resolution.name], { cwd, envOverlay: { LC_ALL: "C" } });
       return { source: "local" };
     }
     case "remote-only":
       await runGitCommand(["checkout", "-b", resolution.name, "--track", resolution.remoteRef], {
         cwd,
+        envOverlay: { LC_ALL: "C" },
       });
       return { source: "remote" };
     default:

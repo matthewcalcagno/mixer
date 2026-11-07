@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pino } from "pino";
@@ -146,21 +146,82 @@ describe("checkoutExistingBranch", () => {
     );
   });
 
-  test("rejects when the working tree is dirty", async () => {
-    const { service } = buildService({ resolution: { kind: "local", name: "x" }, isDirty: true });
-    await expect(service.checkoutExistingBranch("/tmp/nope", "x")).rejects.toThrow(
-      /uncommitted changes/,
-    );
+  test.each([false, true])(
+    "carries compatible local changes across branches (staged: %s)",
+    async (staged) => {
+      const dir = initRepo("feature");
+      execFileSync("git", ["checkout", "feature"], { cwd: dir });
+      writeFileSync(join(dir, "feature.txt"), "target branch file\n");
+      execFileSync("git", ["add", "feature.txt"], { cwd: dir });
+      execFileSync("git", ["commit", "-m", "feature"], { cwd: dir });
+      execFileSync("git", ["checkout", "main"], { cwd: dir });
+      writeFileSync(join(dir, "README.md"), "local edit\n");
+      writeFileSync(join(dir, "untracked.txt"), "local untracked\n");
+      if (staged) execFileSync("git", ["add", "README.md"], { cwd: dir });
+      const { service } = buildService({
+        resolution: { kind: "local", name: "feature" },
+        isDirty: true,
+      });
+      await service.checkoutExistingBranch(dir, "feature");
+      expect(headBranch(dir)).toBe("feature");
+      expect(readFileSync(join(dir, "README.md"), "utf8")).toBe("local edit\n");
+      expect(readFileSync(join(dir, "untracked.txt"), "utf8")).toBe("local untracked\n");
+      expect(readFileSync(join(dir, "feature.txt"), "utf8")).toBe("target branch file\n");
+      const cached = execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir })
+        .toString()
+        .trim();
+      expect(cached).toBe(staged ? "README.md" : "");
+      expect(execFileSync("git", ["stash", "list"], { cwd: dir }).toString()).toBe("");
+    },
+  );
+
+  test.each(["unstaged", "staged", "untracked"])(
+    "preserves %s changes when checkout would overwrite them",
+    async (state) => {
+      const dir = initRepo("feature");
+      const filename = state === "untracked" ? "collision.txt" : "README.md";
+      execFileSync("git", ["checkout", "feature"], { cwd: dir });
+      writeFileSync(join(dir, filename), "target edit\n");
+      execFileSync("git", ["add", "-A"], { cwd: dir });
+      execFileSync("git", ["commit", "-m", "feature"], { cwd: dir });
+      execFileSync("git", ["checkout", "main"], { cwd: dir });
+      writeFileSync(join(dir, filename), "local edit\n");
+      if (state === "staged") execFileSync("git", ["add", filename], { cwd: dir });
+      const { service, invalidateCalls } = buildService({
+        resolution: { kind: "local", name: "feature" },
+        isDirty: true,
+      });
+      await expect(service.checkoutExistingBranch(dir, "feature")).rejects.toThrow(
+        "would be overwritten by checkout",
+      );
+      expect(headBranch(dir)).toBe("main");
+      expect(readFileSync(join(dir, filename), "utf8")).toBe("local edit\n");
+      expect(execFileSync("git", ["stash", "list"], { cwd: dir }).toString()).toBe("");
+      expect(invalidateCalls).toEqual([]);
+    },
+  );
+
+  test("creates a remote tracking branch while preserving compatible local changes", async () => {
+    const dir = initClonedRepo();
+    writeFileSync(join(dir, "README.md"), "local edit\n");
+    const { service } = buildService({
+      resolution: { kind: "remote-only", name: "feature", remoteRef: "origin/main" },
+      isDirty: true,
+    });
+    await service.checkoutExistingBranch(dir, "feature");
+    expect(headBranch(dir)).toBe("feature");
+    expect(readFileSync(join(dir, "README.md"), "utf8")).toBe("local edit\n");
+    expect(upstreamOf(dir, "feature")).toBe("origin/main");
   });
 
-  test("wraps a git-status failure with the inspecting-status message", async () => {
+  test("a snapshot refresh failure does not prevent a valid checkout", async () => {
+    const dir = initRepo("feature");
     const { service } = buildService({
-      resolution: { kind: "local", name: "x" },
+      resolution: { kind: "local", name: "feature" },
       getSnapshotThrows: true,
     });
-    await expect(service.checkoutExistingBranch("/tmp/nope", "x")).rejects.toThrow(
-      /Unable to inspect git status/,
-    );
+    await service.checkoutExistingBranch(dir, "feature");
+    expect(headBranch(dir)).toBe("feature");
   });
 
   test("checks out the branch and invalidates github (real repo)", async () => {
@@ -205,15 +266,23 @@ describe("createBranchFromBase", () => {
     ).rejects.toThrow(/Branch already exists: feat/);
   });
 
-  test("rejects when the working tree is dirty", async () => {
+  test("creates a new branch while preserving staged and untracked changes", async () => {
+    const dir = initRepo();
+    writeFileSync(join(dir, "README.md"), "local edit\n");
+    execFileSync("git", ["add", "README.md"], { cwd: dir });
+    writeFileSync(join(dir, "untracked.txt"), "local untracked\n");
     const { service } = buildService({
       resolution: { kind: "local", name: "main" },
-      branchExists: false,
       isDirty: true,
     });
-    await expect(
-      service.createBranchFromBase({ cwd: "/tmp/nope", baseBranch: "main", newBranchName: "feat" }),
-    ).rejects.toThrow(/uncommitted changes/);
+    await service.createBranchFromBase({ cwd: dir, baseBranch: "main", newBranchName: "feature" });
+    expect(headBranch(dir)).toBe("feature");
+    expect(readFileSync(join(dir, "README.md"), "utf8")).toBe("local edit\n");
+    expect(readFileSync(join(dir, "untracked.txt"), "utf8")).toBe("local untracked\n");
+    expect(
+      execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir }).toString().trim(),
+    ).toBe("README.md");
+    expect(upstreamOf(dir, "feature")).toBe("");
   });
 
   test("creates the branch from base and refreshes without github invalidation (real repo)", async () => {
