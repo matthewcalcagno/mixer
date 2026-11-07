@@ -6,7 +6,6 @@ import {
   ArrowDown,
   ArrowUp,
   Blocks,
-  Gauge,
   History,
   Plus,
   Search,
@@ -42,7 +41,6 @@ const BUILTIN_ICONS: Record<BuiltinSidebarItemId, LucideIcon> = {
   "new-workspace": Plus,
   history: History,
   search: Search,
-  usage: Gauge,
 };
 
 /** Plugin items register no icon, so they share this one; a legacy `addSidebarItem` keeps its own. */
@@ -153,9 +151,10 @@ const SECTION_COPY = {
   },
 } as const satisfies Record<SidebarSection, { title: string; info: string }>;
 
-function SidebarItemsCard({ section }: { section: SidebarSection }): ReactElement {
+function SidebarItemsCard({ section }: { section: SidebarSection }): ReactElement | null {
   const { t } = useTranslation();
   const { items, setVisible, move } = useSidebarNavItems(section);
+  if (items.length === 0) return null;
 
   return (
     <SettingsSection

@@ -2167,8 +2167,6 @@ export const en = {
     displayAs: "Percentages",
     displayUsed: "Used",
     displayRemaining: "Remaining",
-    showInSidebar: "Summary in sidebar",
-    showInSidebarHint: "Pinned windows show in the sidebar footer",
     runToRefresh: "Run {{command}} to refresh it.",
     signInAgain: "Sign in again.",
     loginRejected: "Login rejected (HTTP {{status}}). {{remedy}}",

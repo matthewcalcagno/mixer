@@ -61,7 +61,7 @@ import { type SidebarGroupMode, useSidebarViewStore } from "@/stores/sidebar-vie
 import { useSidebarFoldersStore } from "@/stores/sidebar-folders-store";
 import { useHosts } from "@/runtime/host-runtime";
 import { PluginSidebarItem } from "@/plugins/sidebar-items";
-import { builtinSidebarNavLabelKey } from "@/sidebar-nav/model";
+import type { PluginSidebarNavItem } from "@/sidebar-nav/model";
 import { useSidebarNavItems } from "@/sidebar-nav/use-sidebar-nav-items";
 import { usePanelStore } from "@/stores/panel-store";
 import { useOwnsWindowChromeCorner, WindowChromeSafeArea } from "@/utils/desktop-window";
@@ -70,12 +70,7 @@ import { MobilePanelOverlay } from "@/mobile-panels/presentation";
 import { buildSettingsAddHostRoute, buildSettingsRoute } from "@/utils/host-routes";
 import { useHasDesktopTitlebar } from "@/components/desktop/window-titlebar";
 import { openHostOverview } from "@/navigation/settings-navigation";
-import {
-  UsageSidebarItem,
-  UsageSidebarRoot,
-  useHasUsageSummary,
-  useOpenSidebarUsage,
-} from "@/usage";
+import { UsageRoot, useOpenUsage } from "@/usage";
 import { SidebarAgentListSkeleton } from "./sidebar-agent-list-skeleton";
 import { SidebarCalloutSlot } from "./sidebar-callout-slot";
 import { SidebarWorkspaceList } from "./sidebar-workspace-list";
@@ -217,7 +212,7 @@ export const LeftSidebar = memo(function LeftSidebar({ active }: { active: boole
       hosts: t("sidebar.actions.hosts"),
       settings: t("sidebar.actions.settings"),
       searchHosts: t("sidebar.host.searchPlaceholder"),
-      usage: t(builtinSidebarNavLabelKey("usage")),
+      usage: t("sidebar.footer.usage"),
       closeSidebar: t("sidebar.actions.closeSidebar"),
     }),
     [t],
@@ -444,7 +439,7 @@ function SidebarFooter({
   const compact = useIsCompactFormFactor();
 
   return (
-    <UsageSidebarRoot>
+    <UsageRoot>
       <View style={styles.footerContainer} testID="sidebar-footer">
         <SidebarFooterRows onBeforeNavigate={onBeforeNavigate} />
         {(compact || !settingsInTitlebar) && (
@@ -480,12 +475,12 @@ function SidebarFooter({
           </View>
         )}
       </View>
-    </UsageSidebarRoot>
+    </UsageRoot>
   );
 }
 
 function SidebarUsageIcon({ label }: { label: string }) {
-  const openUsage = useOpenSidebarUsage();
+  const openUsage = useOpenUsage();
   return (
     <FooterIconButton
       onPress={openUsage}
@@ -497,15 +492,13 @@ function SidebarUsageIcon({ label }: { label: string }) {
 }
 
 /**
- * The footer rows in the user's `sidebarFooterItems` order: the Usage item and plugin rows. The
- * Usage item is left out while it has no summary to show.
+ * Plugin footer rows in the user's `sidebarFooterItems` order.
  */
 function SidebarFooterRows({ onBeforeNavigate }: { onBeforeNavigate?: () => void }) {
   const { items } = useSidebarNavItems("footer");
-  const hasUsageSummary = useHasUsageSummary();
   const rowsRef = useRef<View | null>(null);
   const visibleItems = items.filter(
-    (item) => item.visible && (item.kind === "plugin" || hasUsageSummary),
+    (item): item is PluginSidebarNavItem => item.visible && item.kind === "plugin",
   );
   if (visibleItems.length === 0) return null;
   return (
@@ -516,19 +509,15 @@ function SidebarFooterRows({ onBeforeNavigate }: { onBeforeNavigate?: () => void
         style={styles.footerRows}
         testID="sidebar-footer-rows"
       >
-        {visibleItems.map((item) =>
-          item.kind === "plugin" ? (
-            <PluginSidebarItem
-              key={item.key}
-              group={item.group}
-              section="footer"
-              fallbackAnchorRef={rowsRef}
-              onBeforeNavigate={onBeforeNavigate}
-            />
-          ) : (
-            <UsageSidebarItem key={item.key} />
-          ),
-        )}
+        {visibleItems.map((item) => (
+          <PluginSidebarItem
+            key={item.key}
+            group={item.group}
+            section="footer"
+            fallbackAnchorRef={rowsRef}
+            onBeforeNavigate={onBeforeNavigate}
+          />
+        ))}
       </View>
       <SidebarSeparator testID="sidebar-footer-separator" />
     </>

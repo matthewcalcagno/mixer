@@ -43,7 +43,7 @@ export function UsageCard({
   agentId?: string;
   entry: UsageReportEntry;
   display: UsageDisplay;
-  /** Whether each window row pins the window to the sidebar. */
+  /** Whether each window row pins the window to the status bar. */
   pinnable: boolean;
   /** Whether the header has a Refresh button. Without one the freshness shows on the card. */
   refreshable: boolean;

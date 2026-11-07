@@ -2177,8 +2177,6 @@ export const ptBR: TranslationResources = {
     displayAs: "Porcentagens",
     displayUsed: "Usado",
     displayRemaining: "Restante",
-    showInSidebar: "Resumo na barra lateral",
-    showInSidebarHint: "Os períodos fixados aparecem no rodapé da barra lateral",
     runToRefresh: "Execute {{command}} para atualizar.",
     signInAgain: "Entre novamente.",
     loginRejected: "Login rejeitado (HTTP {{status}}). {{remedy}}",

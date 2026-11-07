@@ -2119,8 +2119,6 @@ export const zhCN: TranslationResources = {
     displayAs: "百分比",
     displayUsed: "已使用",
     displayRemaining: "剩余",
-    showInSidebar: "在侧边栏显示摘要",
-    showInSidebarHint: "固定的时间窗口显示在侧边栏底部",
     runToRefresh: "运行 {{command}} 以刷新。",
     signInAgain: "请重新登录。",
     loginRejected: "登录被拒绝（HTTP {{status}}）。{{remedy}}",

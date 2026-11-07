@@ -2142,8 +2142,6 @@ export const ar: TranslationResources = {
     displayAs: "النسب المئوية",
     displayUsed: "المستخدم",
     displayRemaining: "المتبقي",
-    showInSidebar: "ملخص في الشريط الجانبي",
-    showInSidebarHint: "تظهر الفترات المثبتة في أسفل الشريط الجانبي",
     runToRefresh: "شغّل {{command}} للتحديث.",
     signInAgain: "سجّل الدخول مجددًا.",
     loginRejected: "تم رفض تسجيل الدخول (HTTP {{status}}). {{remedy}}",
