@@ -17,6 +17,30 @@ export const LanguageServerRegistrationSchema = z
     env: z.record(z.string(), z.string()).optional(),
     initializationOptions: z.record(z.string(), z.unknown()).optional(),
     settings: z.record(z.string(), z.unknown()).optional(),
+    initializationTimeoutMs: z.number().int().min(1000).max(300_000).optional(),
+    watchIgnoredDirectories: z.array(z.string().min(1)).max(64).optional(),
+    extensions: z
+      .object({
+        requests: z.array(z.string().min(1).max(160)).max(64).optional(),
+        notifications: z.array(z.string().min(1).max(160)).max(64).optional(),
+        commands: z.array(z.string().min(1).max(160)).max(64).optional(),
+        virtualDocuments: z
+          .array(
+            z
+              .object({
+                scheme: z
+                  .string()
+                  .regex(/^[a-z][a-z0-9+.-]*$/)
+                  .refine((value) => value !== "file"),
+                method: z.string().min(1).max(160),
+              })
+              .strict(),
+          )
+          .max(16)
+          .optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

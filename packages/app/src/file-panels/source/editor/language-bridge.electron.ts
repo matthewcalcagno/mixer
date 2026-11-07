@@ -388,7 +388,10 @@ export class SharedLanguageSession {
     await this.queue;
     await this.synchronize();
     if (this.disposed) throw new Error("Language service view closed");
-    if (method === "workspace/readFile") {
+    if (
+      method === "workspace/readFile" &&
+      z.object({ uri: z.string() }).parse(params).uri.startsWith("file:")
+    ) {
       const { uri } = z.object({ uri: z.string() }).parse(params);
       const document = this.options.documents.document(this.path(uri));
       await document.ready();
@@ -534,8 +537,24 @@ export function connectLanguagePort(options: BridgeOptions): () => void {
         if (message.method === "mixer/reviewEdit" || message.method === "mixer/execute") {
           result = await reviewRequest(message);
         } else {
-          const method = WorkspaceLanguageRequestSchema.shape.method.parse(message.method);
+          const parsedMethod = WorkspaceLanguageRequestSchema.shape.method.safeParse(
+            message.method,
+          );
+          if (!parsedMethod.success) {
+            if (message.id === undefined)
+              throw new Error("Custom language notifications are not supported");
+            result = await shared.request(
+              "workspace/languageExtension",
+              { method: message.method, params: message.params },
+              `${options.channelId}:${message.id}`,
+            );
+            if (!disposed) port.postMessage({ jsonrpc: "2.0", id: message.id, result });
+            return;
+          }
+          const method = parsedMethod.data;
           if (message.id === undefined) {
+            if (method === "$/workDoneProgress/cancel")
+              await shared.send(method, message.params, true);
             if (method === "$/cancelRequest") {
               const { id } = z
                 .object({ id: z.union([z.string(), z.number()]) })

@@ -1,8 +1,9 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, expect } from "playwright/test";
+import { transform } from "esbuild";
 
 const root = await mkdtemp(path.join(tmpdir(), "mixer-window-startup-"));
 const modulePath = fileURLToPath(new URL("../dist/window/show-when-ready.js", import.meta.url));
@@ -38,7 +39,18 @@ async function expectLoadedDesktopIsShown(desktop) {
   const page = await desktop.firstWindow();
   await page.waitForURL((url) => url.protocol === "data:");
   await page.waitForLoadState("domcontentloaded");
-  await page.evaluate(() => window.mixerDesktop.startup.ready());
+  const source = await readFile(
+    new URL("../../app/src/desktop/startup-reveal.ts", import.meta.url),
+    "utf8",
+  );
+  const { code } = await transform(source, { loader: "ts", format: "cjs" });
+  await page.evaluate((scheduler) => {
+    // Simulate a compositor withholding all frames until the hidden window is shown.
+    window.requestAnimationFrame = () => 0;
+    const module = { exports: {} };
+    new Function("module", scheduler)(module);
+    module.exports.scheduleStartupReveal(() => window.mixerDesktop.startup.ready());
+  }, code);
   await expect.poll(() => desktop.evaluate(() => global.mainWindow.isVisible())).toBe(true);
   await expect(page.getByRole("heading", { name: "Desktop ready" })).toBeVisible();
 }

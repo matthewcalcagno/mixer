@@ -91,6 +91,8 @@ never deletes it. The global `pluginsEnabled` switch remains available.
 Use `server.registerLanguageServer()` during server contribution setup to extend
 the built-in desktop source editor. The public contract and example are in
 [language servers](../public-docs/plugins/reference.md#language-servers).
+Copy [the Java/Rust/C example](../plugin-examples/language-servers/README.md) for a
+language pack; it uses the same registration path as any other language.
 Register data only. The daemon owns process creation, channel isolation, cancellation,
 recovery, and teardown. A registration must not launch its own server or install
 toolchains when a file opens. Relative executable paths resolve from the

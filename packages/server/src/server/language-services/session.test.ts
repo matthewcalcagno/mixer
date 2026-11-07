@@ -670,3 +670,301 @@ describe("workspace language services", () => {
     }
   }, 30_000);
 });
+
+it("supports watched build files, pull diagnostics, progress, virtual sources, and declared commands over stdio", async () => {
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), "mixer-lsp-extensions-")));
+  const file = path.join(root, "main.java");
+  const uri = pathToFileURL(file).href;
+  await writeFile(file, "class Main {}\n");
+  const script = path.join(root, "server.mjs");
+  await writeFile(
+    script,
+    `
+      import { createMessageConnection, StreamMessageReader, StreamMessageWriter } from ${JSON.stringify(import.meta.resolve("vscode-jsonrpc/node.js"))};
+      import { statSync } from 'node:fs';
+      const connection = createMessageConnection(new StreamMessageReader(process.stdin), new StreamMessageWriter(process.stdout));
+      let document;
+      connection.onRequest('initialize', () => ({ capabilities: { diagnosticProvider: { identifier: 'fixture', interFileDependencies: true, workspaceDiagnostics: false } } }));
+      connection.onNotification('initialized', async () => {
+        try {
+          await connection.sendRequest('window/workDoneProgress/create', { token: 'import' });
+          await connection.sendNotification('$/progress', { token: 'import', value: { kind: 'begin', title: 'Import project', cancellable: true } });
+          await connection.sendRequest('client/registerCapability', { registrations: [{ id: 'build-files', method: 'workspace/didChangeWatchedFiles', registerOptions: { watchers: [{ globPattern: { baseUri: ${JSON.stringify(pathToFileURL(root).href)}, pattern: '**/*.{java,kts,gradle}' } }] } }] });
+          await connection.sendNotification('example/ready', {});
+        } catch (error) { await connection.sendNotification('example/error', { message: error.message }); }
+      });
+      connection.onNotification('$/workDoneProgress/cancel', async ({ token }) => { await connection.sendNotification('$/progress', { token, value: { kind: 'end' } }); });
+      connection.onNotification('workspace/didChangeWatchedFiles', params => connection.sendNotification('example/watched', params));
+      connection.onNotification('textDocument/didOpen', params => { document = params.textDocument; });
+      connection.onNotification('textDocument/didChange', params => { document = { ...document, version: params.textDocument.version, text: params.contentChanges[0].text }; });
+      connection.onRequest('textDocument/diagnostic', async () => {
+        const current = { ...document };
+        await connection.sendNotification('example/diagnostic-start', { version: current.version });
+        if (current.text.includes('slow')) await new Promise(resolve => setTimeout(resolve, 300));
+      await connection.sendNotification('example/diagnostic-finished', { version: current.version });
+        return { kind: 'full', resultId: String(current.version), items: current.text.includes('broken') ? [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, severity: 1, message: 'Broken source' }] : [] };
+      });
+      connection.onRequest('example/source', () => 'class Dependency {}');
+      connection.onRequest('example/inspect', params => ({ params, cwd: process.cwd(), workspace: process.argv[2], cacheExists: statSync(process.argv[3]).isDirectory() }));
+      connection.onRequest('example/unwatch', async () => { await connection.sendRequest('client/unregisterCapability', { unregisterations: [{ id: 'build-files', method: 'workspace/didChangeWatchedFiles' }] }); return true; });
+      connection.onRequest('workspace/executeCommand', async () => { await connection.sendRequest('workspace/applyEdit', { edit: { changes: { [${JSON.stringify(uri)}]: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: '// reviewed\\n' }] } } }); return null; });
+      connection.listen();
+    `,
+  );
+  const messages: { method: string; params: unknown }[] = [];
+  const registry = new LanguageServerRegistry(() => [
+    {
+      id: "example/java",
+      label: "Example JVM server",
+      documents: [{ languageId: "java", extensions: [".java"] }],
+      command: [process.execPath, script, "${workspaceFolder}", "${serverData}"],
+      initializationTimeoutMs: 60_000,
+      extensions: {
+        requests: ["example/inspect", "example/unwatch"],
+        notifications: [
+          "example/ready",
+          "example/error",
+          "example/watched",
+          "example/diagnostic-start",
+          "example/diagnostic-finished",
+        ],
+        commands: ["example/edit"],
+        virtualDocuments: [{ scheme: "jdt", method: "example/source" }],
+      },
+    },
+  ]);
+  const session = new WorkspaceLanguageSession({
+    registry,
+    storageRoot: path.join(root, "cache"),
+    getWorkspaceRoot: async () => root,
+    logger: pino({ level: "silent" }),
+    emit: (message) => messages.push(message.payload),
+  });
+  const request = (
+    method: WorkspaceLanguageRequest["method"],
+    params: unknown,
+    notification = false,
+  ) =>
+    session.request({
+      type: "workspace.language.query.request",
+      requestId: crypto.randomUUID(),
+      workspaceId: "project",
+      language: "example/java",
+      channelId: "editor",
+      method,
+      params,
+      notification,
+    });
+  try {
+    await request("initialize", {});
+    await expect
+      .poll(() => messages.some((message) => message.method === "example/ready"))
+      .toBe(true);
+    expect(messages.filter((message) => message.method === "example/error")).toEqual([]);
+    await request("$/workDoneProgress/cancel", { token: "import" }, true);
+    await expect
+      .poll(() => messages.filter((message) => message.method === "$/progress"))
+      .toHaveLength(2);
+    expect(
+      await request("workspace/languageExtension", {
+        method: "example/inspect",
+        params: { probe: true },
+      }),
+    ).toMatchObject({ params: { probe: true }, cwd: root, workspace: root, cacheExists: true });
+    await expect(
+      request("workspace/languageExtension", { method: "not-declared" }),
+    ).rejects.toThrow("not declared");
+    expect(await request("workspace/readFile", { uri: "jdt://dependency/Foo.class" })).toEqual({
+      content: "class Dependency {}",
+    });
+    await expect(request("workspace/readFile", { uri: "unregistered://file" })).rejects.toThrow(
+      "not registered",
+    );
+    await writeFile(path.join(root, "build.gradle.kts"), "plugins {}\n");
+    await expect
+      .poll(() =>
+        JSON.stringify(messages.filter((message) => message.method === "example/watched")),
+      )
+      .toContain("build.gradle.kts");
+    await request(
+      "textDocument/didOpen",
+      { textDocument: { uri, languageId: "java", version: 1, text: "broken" } },
+      true,
+    );
+    await expect
+      .poll(() =>
+        messages
+          .filter((message) => message.method === "textDocument/publishDiagnostics")
+          .map((message) => message.params),
+      )
+      .toContainEqual(
+        expect.objectContaining({
+          uri,
+          version: 1,
+          diagnostics: [expect.objectContaining({ message: "Broken source" })],
+        }),
+      );
+    await request(
+      "textDocument/didChange",
+      { textDocument: { uri, version: 2 }, contentChanges: [{ text: "slow broken" }] },
+      true,
+    );
+    await expect
+      .poll(() =>
+        messages
+          .filter((message) => message.method === "example/diagnostic-start")
+          .map((message) => message.params),
+      )
+      .toContainEqual({ version: 2 });
+    await request(
+      "textDocument/didChange",
+      { textDocument: { uri, version: 3 }, contentChanges: [{ text: "clean" }] },
+      true,
+    );
+    await expect
+      .poll(() =>
+        messages
+          .filter((message) => message.method === "textDocument/publishDiagnostics")
+          .map((message) => message.params),
+      )
+      .toContainEqual({ uri, version: 3, diagnostics: [] });
+    await expect
+      .poll(() =>
+        messages
+          .filter((message) => message.method === "example/diagnostic-finished")
+          .map((message) => message.params),
+      )
+      .toContainEqual({ version: 2 });
+    expect(
+      messages
+        .filter((message) => message.method === "textDocument/publishDiagnostics")
+        .map((message) => message.params),
+    ).not.toContainEqual(expect.objectContaining({ version: 2 }));
+    const result = await request("workspace/executeCommand", {
+      command: "example/edit",
+      arguments: [],
+    });
+    expect(result).toMatchObject({
+      edit: { changes: { [uri]: [expect.objectContaining({ newText: "// reviewed\n" })] } },
+    });
+    expect(await readFile(file, "utf8")).toBe("class Main {}\n");
+    await expect(
+      request("workspace/executeCommand", { command: "not-declared", arguments: [] }),
+    ).rejects.toThrow("not allowed");
+    await request("workspace/languageExtension", { method: "example/unwatch" });
+    const count = messages.filter((message) => message.method === "example/watched").length;
+    await writeFile(path.join(root, "unwatched.gradle"), "unchanged");
+    // A request barrier plus the diagnostic debounce covers events queued before unregistration.
+    await request("workspace/languageExtension", { method: "example/inspect" });
+    expect(messages.filter((message) => message.method === "example/watched")).toHaveLength(count);
+  } finally {
+    await session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 15_000);
+
+it("bounds slow plugin initialization and releases its process on timeout", async () => {
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), "mixer-lsp-timeout-")));
+  const script = path.join(root, "server.mjs");
+  await writeFile(script, "setInterval(() => {}, 1000);");
+  const registry = new LanguageServerRegistry(() => [
+    {
+      id: "slow",
+      label: "Slow server",
+      documents: [{ languageId: "java", extensions: [".java"] }],
+      command: [process.execPath, script],
+      initializationTimeoutMs: 1000,
+    },
+  ]);
+  const session = new WorkspaceLanguageSession({
+    registry,
+    getWorkspaceRoot: async () => root,
+    emit: () => {},
+    logger: pino({ level: "silent" }),
+  });
+  try {
+    await expect(
+      session.request({
+        type: "workspace.language.query.request",
+        workspaceId: "project",
+        language: "slow",
+        channelId: "editor",
+        requestId: "slow",
+        method: "initialize",
+        notification: false,
+        params: {},
+      }),
+    ).rejects.toThrow("within 1 seconds");
+  } finally {
+    await session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 5000);
+
+it("cancels import progress before initialization has completed", async () => {
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), "mixer-lsp-import-")));
+  const script = path.join(root, "server.mjs");
+  await writeFile(
+    script,
+    `
+    import { createMessageConnection, StreamMessageReader, StreamMessageWriter } from ${JSON.stringify(import.meta.resolve("vscode-jsonrpc/node.js"))};
+    const connection = createMessageConnection(new StreamMessageReader(process.stdin), new StreamMessageWriter(process.stdout));
+    let finish;
+    connection.onRequest('initialize', async ({ workDoneToken }) => {
+      await connection.sendNotification('$/progress', { token: workDoneToken, value: { kind: 'begin', title: 'Import', cancellable: true } });
+      await new Promise(resolve => { finish = resolve; });
+      return { capabilities: {} };
+    });
+    connection.onNotification('$/workDoneProgress/cancel', async ({ token }) => {
+      await connection.sendNotification('$/progress', { token, value: { kind: 'end', message: 'Import cancelled' } });
+      finish();
+    });
+    connection.listen();
+  `,
+  );
+  const messages: unknown[] = [];
+  const session = new WorkspaceLanguageSession({
+    registry: new LanguageServerRegistry(() => [
+      {
+        id: "import",
+        label: "Import",
+        command: [process.execPath, script],
+        documents: [{ languageId: "java", extensions: [".java"] }],
+      },
+    ]),
+    getWorkspaceRoot: async () => root,
+    emit: (message) => messages.push(message.payload.params),
+    logger: pino({ level: "silent" }),
+  });
+  const input = {
+    type: "workspace.language.query.request" as const,
+    workspaceId: "project",
+    language: "import",
+    channelId: "editor",
+    requestId: "import",
+    notification: false,
+  };
+  try {
+    const initialization = session.request({ ...input, method: "initialize", params: {} });
+    await expect
+      .poll(() => messages)
+      .toContainEqual({
+        token: "mixer-initialize",
+        value: { kind: "begin", title: "Import", cancellable: true },
+      });
+    await session.request({
+      ...input,
+      method: "$/workDoneProgress/cancel",
+      params: { token: "mixer-initialize" },
+      notification: true,
+    });
+    await expect(initialization).resolves.toMatchObject({ capabilities: {} });
+    expect(messages).toContainEqual({
+      token: "mixer-initialize",
+      value: { kind: "end", message: "Import cancelled" },
+    });
+  } finally {
+    await session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 5000);

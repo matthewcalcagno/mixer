@@ -123,6 +123,25 @@ function setup(syncKind?: number) {
   };
 }
 
+test("routes virtual dependency reads and extension requests to the host without opening file buffers", async () => {
+  const { session, calls, documents } = setup();
+  await session.request("workspace/readFile", { uri: "jdt://dependency/Foo.class" }, "virtual");
+  await session.request(
+    "workspace/languageExtension",
+    { method: "java/projectInfo", params: {} },
+    "extension",
+  );
+  expect(
+    calls
+      .filter((call) => ["workspace/readFile", "workspace/languageExtension"].includes(call.method))
+      .map((call) => ({ method: call.method, params: call.params })),
+  ).toEqual([
+    { method: "workspace/readFile", params: { uri: "jdt://dependency/Foo.class" } },
+    { method: "workspace/languageExtension", params: { method: "java/projectInfo", params: {} } },
+  ]);
+  expect([...documents.entries()]).toEqual([]);
+});
+
 test("computes UTF-16 incremental edits without including unchanged text", () => {
   expect(
     incrementalDocumentChange(

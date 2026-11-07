@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { fork } from "node:child_process";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pino from "pino";
+import { z } from "zod";
 import type { ProviderEvent, ProviderRegistration } from "@mixer/plugin/server/provider";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStreamEvent } from "../agent/agent-sdk-types.js";
@@ -13,6 +14,26 @@ import { PluginAgentClientRegistry } from "../agent/plugin-provider.js";
 import { PluginRuntime } from "./runtime.js";
 import { resolveDaemonVersion } from "../daemon-version.js";
 import type { PluginSessionSocket } from "./session-socket.js";
+
+import { WorkspaceLanguageSession } from "../language-services/session.js";
+import { LanguageServerRegistry } from "../language-services/providers.js";
+import { providerForDocument } from "@mixer/protocol/language-services";
+import type { WorkspaceLanguageRequest } from "@mixer/protocol/messages";
+import { languageServers } from "../../../../../plugin-examples/language-servers/server/servers.js";
+import { pathToFileURL } from "node:url";
+
+function completionLabels(response: unknown): string {
+  const items = z
+    .union([
+      z.array(z.object({ label: z.string() })),
+      z
+        .object({ items: z.array(z.object({ label: z.string() })) })
+        .transform((value) => value.items),
+      z.null(),
+    ])
+    .parse(response);
+  return items?.map((item) => item.label).join("\n") ?? "";
+}
 
 const temporaryDirectories: string[] = [];
 
@@ -270,7 +291,10 @@ describe("PluginRuntime", () => {
     );
     await writeFile(
       path.join(directory, "mixer-plugin.json"),
-      JSON.stringify({ id: "language-pack", requirements: { mixer: ">=0.14.0-0" } }),
+      JSON.stringify({
+        id: "language-pack",
+        requirements: { mixer: `>=${resolveDaemonVersion()}` },
+      }),
     );
     const runtime = createTestRuntime({}, pino({ level: "silent" }), resolveDaemonVersion());
     try {
@@ -290,6 +314,138 @@ describe("PluginRuntime", () => {
       await runtime.stopAll();
     }
   }, 30_000);
+  it.each([
+    {
+      language: "java",
+      executable: process.env.MIXER_TEST_JDTLS,
+      filename: "src/Main.java",
+      text: "class Main {\n  String label;\n  static class User { public int loyaltyPoints; }\n  void check() {\n    User user = new User();\n    user.\n  }\n}\n",
+    },
+    {
+      language: "rust",
+      executable: process.env.MIXER_TEST_RUST_ANALYZER,
+      filename: "main.rs",
+      text: "struct User { loyalty_points: i32 }\nfn main() {\n    let user = User { loyalty_points: 1 };\n    user.\n}\n",
+    },
+    {
+      language: "c",
+      executable: process.env.MIXER_TEST_CLANGD,
+      filename: "main.c",
+      text: "struct User { int loyaltyPoints; };\nint main(void) {\n  struct User user;\n  user.\n}\n",
+    },
+  ])(
+    "runs real $language completion through a custom language plugin",
+    async ({ language, executable, filename, text }, context) => {
+      if (!executable) return context.skip();
+      const root = await realpath(await mkdtemp(path.join(tmpdir(), "mixer-plugin-lsp-")));
+      temporaryDirectories.push(root);
+      await mkdir(path.dirname(path.join(root, filename)), { recursive: true });
+      await writeFile(path.join(root, filename), text);
+      if (language === "java") {
+        await writeFile(
+          path.join(root, ".project"),
+          "<projectDescription><name>LanguageFixture</name><buildSpec><buildCommand><name>org.eclipse.jdt.core.javabuilder</name></buildCommand></buildSpec><natures><nature>org.eclipse.jdt.core.javanature</nature></natures></projectDescription>",
+        );
+        await writeFile(
+          path.join(root, ".classpath"),
+          '<classpath><classpathentry kind="src" path="src"/><classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/><classpathentry kind="output" path="bin"/></classpath>',
+        );
+      }
+      if (language === "rust")
+        await writeFile(
+          path.join(root, "rust-project.json"),
+          JSON.stringify({
+            crates: [{ root_module: "main.rs", edition: "2021", deps: [], cfg: [], env: {} }],
+          }),
+        );
+      const definition = languageServers({ [language]: [executable] }).find(
+        (entry) => entry.id === language,
+      )!;
+      const directory = await createPlugin(
+        "real-language",
+        `import type { PluginServerContext } from "@mixer/plugin/server"; export default function contribute(server: PluginServerContext) { server.registerLanguageServer(${JSON.stringify(definition)}); return () => {}; }`,
+      );
+      const runtime = createTestRuntime();
+      let session: WorkspaceLanguageSession | undefined;
+      try {
+        await runtime.startPlugin("real-language", directory);
+        const registry = new LanguageServerRegistry(() => runtime.listLanguageServers());
+        expect(providerForDocument(filename, await registry.catalog())?.id).toBe(
+          `real-language/${language}`,
+        );
+        session = new WorkspaceLanguageSession({
+          registry,
+          storageRoot: path.join(root, "server-data"),
+          getWorkspaceRoot: async () => root,
+          logger: pino({ level: "debug" }, pino.destination(`/tmp/mixer-real-${language}.log`)),
+          emit: () => {},
+        });
+        const request = (
+          method: WorkspaceLanguageRequest["method"],
+          params: unknown,
+          notification = false,
+        ) =>
+          session!.request({
+            type: "workspace.language.query.request",
+            workspaceId: "project",
+            language: `real-language/${language}`,
+            channelId: "editor",
+            requestId: crypto.randomUUID(),
+            method,
+            params,
+            notification,
+          });
+        await expect(request("initialize", {})).resolves.toMatchObject({
+          capabilities: expect.any(Object),
+        });
+        const uri = pathToFileURL(path.join(root, filename)).href;
+        await request(
+          "textDocument/didOpen",
+          { textDocument: { uri, languageId: language, version: 1, text } },
+          true,
+        );
+        const prefix = text.slice(0, text.indexOf("user.") + "user.".length).split("\n");
+        const position = { line: prefix.length - 1, character: prefix.at(-1)!.length };
+        const expected = language === "rust" ? "loyalty_points" : "loyaltyPoints";
+        await expect
+          .poll(
+            async () => {
+              const response = await request("textDocument/completion", {
+                textDocument: { uri },
+                position,
+              });
+              return completionLabels(response);
+            },
+            { timeout: 90_000, interval: 500 },
+          )
+          .toContain(expected);
+        if (language === "java") {
+          const definitions = z
+            .array(z.union([z.object({ uri: z.string() }), z.object({ targetUri: z.string() })]))
+            .parse(
+              await request("textDocument/definition", {
+                textDocument: { uri },
+                position: { line: 1, character: 4 },
+              }),
+            );
+          expect(definitions.length).toBeGreaterThan(0);
+          const target = definitions[0];
+          const dependencyUri = "uri" in target ? target.uri : target.targetUri;
+          expect(dependencyUri).toMatch(/^jdt:/);
+          const dependency = z
+            .object({ content: z.string() })
+            .parse(await request("workspace/readFile", { uri: dependencyUri }));
+          expect(dependency.content).toContain("class String");
+        }
+        expect(await readFile(path.join(root, filename), "utf8")).toBe(text);
+      } finally {
+        await session?.dispose();
+        await runtime.stopAll();
+      }
+    },
+    120_000,
+  );
+
   it.each([
     { specifier: "@mixer/plugin", moduleDirectory: "shared" },
     { specifier: "@mixer/plugin", moduleDirectory: "server" },

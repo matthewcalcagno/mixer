@@ -66,8 +66,10 @@ bundles until it stops.
 ### Startup readiness
 
 Electron's `ready-to-show` means a frame can be painted, not that the IDE is usable.
-The window remains hidden until the renderer has applied appearance, resolved its initial
-route and initialized any visible source editors.
+The window waits briefly for the renderer to apply appearance, resolve its initial
+route and initialize visible source editors. After five seconds, reveal the interface with
+its pending-task notice and let loading continue. A slow host or editor must not keep the
+entire desktop app invisible.
 Hidden tabs and language servers do not participate. Do not create a hidden editor to warm
 the runtime: it duplicates module execution and competes with the visible editors and
 workspace bootstrap. Files uses resource hints for optional preloading. Normal startup
@@ -77,7 +79,8 @@ Keep both renderer and main-process deadlines. A renderer-only timeout cannot re
 when JavaScript fails to boot. Slow or failed startup reveals recovery UI instead of leaving
 an invisible process. Hidden-window rendering stays unthrottled until the first reveal.
 The renderer's readiness signal is authoritative: never add a second native paint gate,
-because hidden windows can withhold that event until shown. The startup deadline stays referenced
+because hidden windows can withhold that event until shown. The renderer uses task turns,
+not animation frames, for the same reason. The ten-second main-process deadline stays referenced
 until readiness or close so an idle main process still reveals recovery UI. Delayed startup must
 activate the application and focus its first revealed window, rather than opening behind its caller.
 Restoring maximized geometry must also wait for readiness, because `maximize()` can show a window.

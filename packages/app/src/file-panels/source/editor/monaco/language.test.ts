@@ -31,6 +31,47 @@ describe("Monaco language selection", () => {
     expect(grammarForFile("main.ts", "typescript")).toBe("typescript");
     expect(grammarForFile("App.tsx", "python")).toBe("python");
   });
+  it("selects plugin file aliases and new language IDs without requiring a bundled grammar", () => {
+    const registrations = [
+      ...languages,
+      { id: "java", extensions: [".java"] },
+      { id: "custom-lsp", extensions: [".custom"] },
+    ];
+    const modes = buildLanguageModes(registrations, bundledLanguagesInfo);
+    const providers = [
+      {
+        id: "plugin/java",
+        label: "Custom Java",
+        status: "available" as const,
+        documents: [{ languageId: "java", extensions: [".javasource"], filenames: ["Javasource"] }],
+      },
+      {
+        id: "plugin/custom",
+        label: "Custom LSP",
+        status: "available" as const,
+        documents: [{ languageId: "custom-lsp", extensions: [".custom"] }],
+      },
+    ];
+    const resolve = (
+      filename: string,
+      override: string | null = null,
+      associations: Record<string, string> = {},
+    ) =>
+      resolveLanguageMode({
+        filename,
+        override,
+        associations,
+        content: "",
+        modes,
+        registrations,
+        providers,
+      });
+    expect(resolve("Main.javasource").id).toBe("java");
+    expect(resolve("Javasource").id).toBe("java");
+    expect(resolve("main.custom")).toMatchObject({ id: "custom-lsp", monacoId: "custom-lsp" });
+    expect(resolve("Main.javasource", "plaintext").id).toBe("plaintext");
+    expect(resolve("Main.javasource", null, { ".javasource": "python" }).id).toBe("python");
+  });
   it("includes popular languages and resolves file modes, shebangs and explicit overrides", () => {
     const registrations = [
       ...languages,
