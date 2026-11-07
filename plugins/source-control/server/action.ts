@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import type { RpcInput } from "@mixer/plugin";
 import type { actionRpc } from "../shared/git.js";
 import { resourceGroups } from "../shared/resources.js";
@@ -123,4 +124,25 @@ async function syncBranch(
   const strategy = pullRebase ? `--rebase=${pullRebase}` : "--no-rebase";
   await git(cwd, ["pull", "--no-edit", strategy]);
   return git(cwd, ["push"]);
+}
+
+export async function prepareTrash(
+  cwd: string,
+  paths: string[],
+  revision: string,
+): Promise<string[]> {
+  validatePaths(cwd, paths);
+  const current = await status(cwd);
+  if (current.revision !== revision)
+    throw new Error("Files changed. Refresh and review before moving files to Trash.");
+  if (
+    paths.some(
+      (path) =>
+        !current.files.some(
+          (file) => file.path === path && file.index === "?" && file.worktree === "?",
+        ),
+    )
+  )
+    throw new Error("Only untracked files can be moved to Trash from this action.");
+  return paths.map((path) => resolve(cwd, path));
 }

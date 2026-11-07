@@ -1,0 +1,207 @@
+=== /tmp/explorer-pr-type.log ===
+
+> mixer@0.1.1 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @mixer/builtin-plugins@0.1.1 typecheck
+> tsgo -p tsconfig.json --noEmit
+
+
+> @mixer/highlight@0.1.1 typecheck
+> tsgo --noEmit
+
+
+> @mixer/plugin@0.1.1 typecheck
+> tsgo --noEmit && npm run typecheck:examples
+
+
+> @mixer/plugin@0.1.1 typecheck:examples
+> npm --prefix ../../plugin-examples/markdown-panel install --ignore-scripts --no-audit --no-fund && tsgo -p tsconfig.examples.json --noEmit
+
+
+up to date in 188ms
+
+> @mixer/protocol@0.1.1 pretypecheck
+> npm run generate:validators
+
+
+> @mixer/protocol@0.1.1 generate:validators
+> node scripts/generate-validation-aot.mjs
+
+generated src/generated/validation/ws-outbound.aot.ts: envelope + 242 session message validators
+
+> @mixer/protocol@0.1.1 typecheck
+> tsgo --noEmit
+
+
+> @mixer/client@0.1.1 typecheck
+> tsgo --noEmit
+
+
+> @mixer/server@0.1.1 typecheck
+> tsgo -p tsconfig.server.typecheck.json --noEmit
+
+
+> @mixer/app@0.1.1 typecheck
+> tsgo --noEmit
+
+
+> @mixer/relay@0.1.1 typecheck
+> tsgo --noEmit
+
+
+> @mixer/website@0.1.1 typecheck
+> tsgo --noEmit
+
+
+> @mixer/desktop@0.1.1 typecheck
+> tsgo --noEmit -p tsconfig.json
+
+
+> @mixer/cli@0.1.1 typecheck
+> tsgo --noEmit
+
+
+
+=== /tmp/explorer-pr-lint.log ===
+
+> mixer@0.1.1 lint
+> oxlint
+
+Found 0 warnings and 0 errors.
+Finished in 3.0s on 5005 files with 177 rules using 10 threads.
+
+
+=== /tmp/explorer-pr-e2e.log ===
+
+> @mixer/app@0.1.1 test:e2e
+> playwright test --project=browser e2e/browser/file-editing.spec.ts --grep file tree colors modified|Source Control offers Trash
+
+[metro] Skipping web setup: EXPO_NO_WEB_SETUP is enabled.
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Waiting on http://localhost:50913
+[metro] Logs for your project will appear below.
+[metro] Web Bundled 1827ms packages/app/index.ts (5795 modules)
+[e2e] Metro warmed on port 50913
+
+Running 2 tests using 1 worker
+
+(node:48041) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 50940, home: /var/folders/fj/q8z3bb3s3zxfxm7m0h6gl6zh0000gn/T/mixer-e2e-worker-0-LGLQhw
+[metro] Web Bundled 214ms packages/app/index.ts (1 module)
+[metro] Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[metro] Web  LOG  Running application "main" with appParams:
+[metro]  {"hydrate": undefined, "rootTag": "#root"} 
+[metro] Development-level warnings: ON.
+[metro] Performance optimizations: OFF.
+[metro] Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[metro] Web Bundled 71ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+
+  ✓  1 [browser] › e2e/browser/file-editing.spec.ts:3595:5 › file tree colors modified and untracked files and clears decorations after Git reset (8.3s)
+[metro] Web Bundled 228ms packages/app/index.ts (1 module)
+[metro] Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[metro] Web  LOG  Running application "main" with appParams:
+[metro]  {"hydrate": undefined, "rootTag": "#root"} 
+[metro] Development-level warnings: ON.
+[metro] Performance optimizations: OFF.
+[metro] Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[metro] Web Bundled 6ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+  ✓  2 [browser] › e2e/browser/file-editing.spec.ts:3633:5 › Source Control offers Trash for untracked files with confirmation and visible failures (4.9s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  2 passed (24.8s)
+
+
+=== /tmp/tree-git-server-test.log ===
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/matthewcalcagno/Developer/mixer
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 16 skipped (17)
+   Start at  07:44:14
+   Duration  420ms (transform 122ms, setup 0ms, import 206ms, tests 152ms, environment 0ms)
+
+
+
+=== /tmp/tree-git-model-test.log ===
+
+> @mixer/app@0.1.1 test
+> vitest run src/file-explorer/tree.test.ts --bail=1
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+
+ RUN  v4.1.12 /Users/matthewcalcagno/Developer/mixer/packages/app
+
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  07:45:01
+   Duration  298ms (transform 102ms, setup 18ms, import 151ms, tests 61ms, environment 0ms)
+
+
+
+=== /tmp/scm-trash-validation-test.log ===
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/matthewcalcagno/Developer/mixer
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 17 skipped (18)
+   Start at  08:05:41
+   Duration  684ms (transform 132ms, setup 0ms, import 223ms, tests 401ms, environment 0ms)
+
+
+
+=== /tmp/scm-trash-dialog-test.log ===
+
+> @mixer/desktop@0.1.1 test
+> install-electron && vitest run --exclude "e2e/**" src/features/dialogs.test.ts --bail=1
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (../../vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/matthewcalcagno/Developer/mixer/packages/desktop
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  08:05:15
+   Duration  130ms (transform 18ms, setup 0ms, import 49ms, tests 8ms, environment 0ms)
+
+
+
+=== /tmp/scm-trash-boundary.log ===
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/matthewcalcagno/Developer/mixer
+
+
+ Test Files  1 passed (1)
+      Tests  69 passed (69)
+   Start at  08:08:49
+   Duration  2.32s (transform 40ms, setup 0ms, import 163ms, tests 2.09s, environment 0ms)
+
