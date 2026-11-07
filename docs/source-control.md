@@ -32,6 +32,11 @@ use the active workspace directory, so a linked worktree switches independently 
 main checkout. Search runs on the host rather than filtering only the first suggestion page. A name
 that is absent from the host results can be created from the current branch. Creation
 never replaces an existing branch and leaves the new branch without an upstream.
+Branch switches and creation use normal Git checkout semantics: compatible staged,
+unstaged, and untracked changes carry across. A dirty status alone must not block
+checkout. Offer Stash & Switch only after Git refuses to overwrite local changes;
+never force checkout or stash automatically. Checkout commands use the C locale
+because the client recognizes Git's overwrite refusal in the error response.
 
 A clean branch without an upstream offers **Publish branch**. Publishing sets its upstream
 on `origin`, or the sole configured remote. Changes keep **Commit** available; an existing
