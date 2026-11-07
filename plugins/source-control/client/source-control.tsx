@@ -2,11 +2,24 @@ import { primaryRemoteAction } from "./primary-remote-action.js";
 import type { PluginTheme } from "@mixer/plugin";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
-import { Icon, PaneHeader, PaneHeaderAction, ScrollView } from "@mixer/plugin/client/ui";
+import {
+  Icon,
+  PaneHeader,
+  PaneHeaderAction,
+  ScrollView,
+  trashFiles,
+} from "@mixer/plugin/client/ui";
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRpc, type PluginWorkspacePanelProps } from "@mixer/plugin/client";
 import type { RpcInput, RpcOutput } from "@mixer/plugin";
-import { actionRpc, autoFetchRpc, statusRpc, gitScopeKey, type GitScope } from "../shared/git.js";
+import {
+  actionRpc,
+  autoFetchRpc,
+  statusRpc,
+  prepareTrashRpc,
+  gitScopeKey,
+  type GitScope,
+} from "../shared/git.js";
 import { optimisticStatus } from "../shared/optimistic.js";
 import {
   CommitDropdown,
@@ -53,11 +66,12 @@ type Action = RpcInput<typeof actionRpc>["action"];
 
 export function SourceControlPanel({
   scope,
+  host,
   theme,
   tab,
   onOpenDiff,
   onOpenFile,
-}: Pick<PluginWorkspacePanelProps, "theme" | "tab"> & {
+}: Pick<PluginWorkspacePanelProps, "theme" | "tab" | "host"> & {
   scope: GitScope;
   onOpenDiff(selection: DiffSelection): void;
   onOpenFile?: (path: string) => void;
@@ -65,6 +79,7 @@ export function SourceControlPanel({
   const workspaceId = gitScopeKey(scope);
   const readStatus = useRpc(statusRpc);
   const runAction = useRpc(actionRpc);
+  const validateTrash = useRpc(prepareTrashRpc);
   const fetchRemote = useRpc(autoFetchRpc);
   const queries = useQueryClient();
   const [saved] = useState(() => {
@@ -155,7 +170,21 @@ export function SourceControlPanel({
       await queries.invalidateQueries({ queryKey: [...key, "editor-diff"] });
     },
   });
-  const pending = action.isPending || commitFlowPending;
+  const trash = useMutation({
+    mutationFn: async (path: string) => {
+      if (!state.data) throw new Error("Refresh the repository first");
+      const accepted = await confirmAction(
+        "Move untracked file to Trash?",
+        `Delete '${path}'? You can restore this file from the Trash.`,
+        "Move to Trash",
+      );
+      if (!accepted) return;
+      const paths = await validateTrash({ ...scope, paths: [path], revision: state.data.revision });
+      await trashFiles(host.id, paths);
+    },
+    onSettled: () => queries.invalidateQueries({ queryKey: key }),
+  });
+  const pending = action.isPending || commitFlowPending || trash.isPending;
   const pushing =
     action.isPending &&
     (action.variables.kind === "push" ||
@@ -313,7 +342,7 @@ export function SourceControlPanel({
   let primaryLabel = remoteAction?.label ?? "Commit";
   if (commitFlowOption)
     primaryLabel = commitOptions.find((option) => option.value === commitFlowOption)!.label;
-  const operationError = state.error || commitFlowError || action.error;
+  const operationError = state.error || commitFlowError || action.error || trash.error;
   async function commit(message: string, option: CommitOption) {
     if (!message.trim() || !(option === "amend" ? canAmend : canCommit) || !state.data) return;
     const snapshot = state.data;
@@ -705,7 +734,8 @@ export function SourceControlPanel({
                   else action.mutate({ kind: group.staged ? "unstage" : "stage", paths });
                 }}
                 onDiscard={(file) => {
-                  operateSelection("discard", { group: group.id, file });
+                  if (file.index === "?") trash.mutate(file.path);
+                  else operateSelection("discard", { group: group.id, file });
                 }}
               />
             )}

@@ -597,3 +597,70 @@ test("primary action offers pull for incoming commits and commit for changed fil
     "publish",
   );
 });
+
+test("explorer decorations scope Git paths and distinguish tracked, staged, and untracked files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "mixer-decorations-"));
+  try {
+    await git(root, ["init", "--quiet"]);
+    await git(root, ["config", "user.email", "test@example.com"]);
+    await git(root, ["config", "user.name", "Test"]);
+    await mkdir(join(root, "src"));
+    await writeFile(join(root, "src", "tracked.ts"), "before");
+    await writeFile(join(root, ".gitignore"), "ignored.txt\n");
+    await git(root, ["add", "."]);
+    await git(root, ["commit", "-qm", "initial"]);
+    await writeFile(join(root, "src", "tracked.ts"), "after");
+    await writeFile(join(root, "src", "new\nfile.ts"), "new");
+    await writeFile(join(root, "ignored.txt"), "ignored");
+    const { decorations } = await import("../server/git.js");
+    assert.deepEqual(await decorations(join(root, "src")), [
+      { path: "tracked.ts", index: " ", worktree: "M" },
+      { path: "new\nfile.ts", index: "?", worktree: "?" },
+    ]);
+    await git(root, ["add", "src/tracked.ts"]);
+    assert.equal(
+      (await decorations(root)).find((file) => file.path === "src/tracked.ts")?.index,
+      "M",
+    );
+    await git(root, ["checkout", "HEAD", "--", "src/tracked.ts"]);
+    assert.equal(
+      (await decorations(root)).some((file) => file.path === "src/tracked.ts"),
+      false,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Trash preparation accepts only reviewed untracked files and rejects tracked or stale requests", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "scm-trash-"));
+  try {
+    await git(cwd, ["init", "-q"]);
+    await writeFile(join(cwd, "tracked.txt"), "tracked");
+    await git(cwd, ["add", "."]);
+    await git(cwd, [
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-qm",
+      "initial",
+    ]);
+    await writeFile(join(cwd, "new.txt"), "new");
+    const { prepareTrash } = await import("../server/action.js");
+    const snapshot = await status(cwd);
+    assert.deepEqual(await prepareTrash(cwd, ["new.txt"], snapshot.revision), [
+      join(cwd, "new.txt"),
+    ]);
+    assert.equal(await readFile(join(cwd, "new.txt"), "utf8"), "new");
+    await assert.rejects(
+      prepareTrash(cwd, ["tracked.txt"], snapshot.revision),
+      /Only untracked files/,
+    );
+    await writeFile(join(cwd, "new.txt"), "changed since review");
+    await assert.rejects(prepareTrash(cwd, ["new.txt"], snapshot.revision), /Files changed/);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

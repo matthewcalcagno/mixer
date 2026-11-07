@@ -16,7 +16,15 @@ export function ProjectSourceControlPanel({
   const [selection, setSelection] = useState<DiffSelection | null>(null);
   const back = useCallback(() => setSelection(null), []);
   if (!selection)
-    return <SourceControlPanel scope={scope} theme={theme} tab={tab} onOpenDiff={setSelection} />;
+    return (
+      <SourceControlPanel
+        host={host}
+        scope={scope}
+        theme={theme}
+        tab={tab}
+        onOpenDiff={setSelection}
+      />
+    );
   return (
     <View style={frameStyle}>
       <PaneHeader title={selection.path}>

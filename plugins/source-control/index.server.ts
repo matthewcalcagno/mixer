@@ -2,15 +2,17 @@ import type { PluginServerContext, PluginHandlerContext } from "@mixer/plugin/se
 import type { GitScope } from "./shared/git.js";
 import {
   actionRpc,
+  prepareTrashRpc,
   autoFetchRpc,
   diffRpc,
   documentRpc,
   saveDocumentRpc,
   statusRpc,
+  decorationsRpc,
 } from "./shared/git.js";
-import { diff, git, status } from "./server/git.js";
+import { diff, git, status, decorations } from "./server/git.js";
 import { document, saveDocument } from "./server/document.js";
-import { executeGitAction } from "./server/action.js";
+import { executeGitAction, prepareTrash } from "./server/action.js";
 
 async function directory(scope: GitScope, mixer: PluginHandlerContext["mixer"]): Promise<string> {
   const root =
@@ -24,6 +26,12 @@ async function directory(scope: GitScope, mixer: PluginHandlerContext["mixer"]):
 }
 
 export default function contribute(server: PluginServerContext) {
+  server.handle(prepareTrashRpc, async (input, { mixer }) =>
+    prepareTrash(await directory(input, mixer), input.paths, input.revision),
+  );
+  server.handle(decorationsRpc, async (input, { mixer }) =>
+    decorations(await directory(input, mixer)),
+  );
   server.handle(documentRpc, async (input, { mixer }) => {
     return document(await directory(input, mixer), input.path, input.staged);
   });

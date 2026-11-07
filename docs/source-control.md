@@ -25,6 +25,13 @@ The implementation follows these upstream behaviors:
 Filtering is an adaptation of the workbench's tree-find behavior. It never changes group-wide
 action scope. Folder actions on a filtered tree explicitly say "matching files".
 
+## Untracked files
+
+Untracked rows offer **Move to Trash** through the same discard arrow. Confirmation uses
+Electron's native warning dialog. Files go to the local operating system Trash/Recycle Bin;
+remote hosts are rejected rather than falling back to permanent deletion. Ordinary discard
+and group discard remain tracked-only. New desktop bridge methods require relaunching Mixer.
+
 ## Branch selection
 
 Click the status bar's branch to open the shared searchable branch picker. Git operations

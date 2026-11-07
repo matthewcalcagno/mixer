@@ -30,6 +30,19 @@ export const saveDocumentRpc = defineRpc({
   ),
   output: z.object({ revision: z.string() }),
 });
+export const prepareTrashRpc = defineRpc({
+  name: "git.trash.prepare",
+  input: workspace.and(
+    z.object({ paths: z.array(z.string().min(1)).min(1), revision: z.string() }),
+  ),
+  output: z.array(z.string()),
+});
+// Lightweight explorer metadata: never read file contents or generate diffs.
+export const decorationsRpc = defineRpc({
+  name: "git.decorations",
+  input: workspace,
+  output: z.array(z.object({ path: z.string(), index: z.string(), worktree: z.string() })),
+});
 export const statusRpc = defineRpc({
   name: "git.status",
   input: workspace,

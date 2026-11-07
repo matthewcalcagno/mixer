@@ -1,8 +1,8 @@
-import { Alert, Linking, Platform, Text, View } from "react-native";
+import { Linking, Platform, Text, View } from "react-native";
 import { createElement, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import type { PluginTheme, RpcOutput } from "@mixer/plugin";
-import { useEditorSyntaxOptions } from "@mixer/plugin/client/ui";
+import { useEditorSyntaxOptions, confirmDialog } from "@mixer/plugin/client/ui";
 import type { documentRpc } from "../shared/git.js";
 import { diffSelection, type DiffSelection } from "./diff-selection.js";
 import { diffTabSchema, type DiffTab } from "../shared/diff-tabs.js";
@@ -237,22 +237,12 @@ export function confirmAction(
   message: string,
   acceptLabel = "Confirm",
 ): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(
-      title,
-      message,
-      [
-        { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-        {
-          text: acceptLabel,
-          style: acceptLabel === "Discard" ? "destructive" : "default",
-          onPress: () => resolve(true),
-        },
-      ],
-      { cancelable: true, onDismiss: () => resolve(false) },
-    ),
-  );
+  return confirmDialog({
+    title,
+    message,
+    confirmLabel: acceptLabel,
+    destructive: acceptLabel === "Discard" || acceptLabel === "Move to Trash",
+  });
 }
 
 export async function openExternal(url: string): Promise<void> {

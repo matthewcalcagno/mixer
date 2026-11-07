@@ -50,6 +50,7 @@ export interface DesktopDialogAskWithCheckboxResult {
   dontAskAgain: boolean;
 }
 export interface DesktopDialogBridge {
+  trashFiles?: (paths: string[]) => Promise<void>;
   saveText?: (options: { content: string; defaultPath?: string }) => Promise<string | null>;
   ask?: (message: string, options?: DesktopDialogAskOptions) => Promise<boolean>;
   askWithCheckbox?: (
