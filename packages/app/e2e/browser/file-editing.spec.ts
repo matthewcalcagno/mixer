@@ -91,6 +91,33 @@ for (const startupPlatform of ["darwin", "linux"] as const) {
       });
       await expect(source.locator(".view-lines")).toContainText("Ready before opening");
       await expect(page.getByTestId("desktop-startup-recovery")).toHaveCount(0);
+      // Slow editor assets must not keep the native window invisible for 90 seconds.
+      let resumeEditor: () => void = () => {};
+      const editorPaused = new Promise<void>((resolve) => {
+        resumeEditor = resolve;
+      });
+      await page.route("**/monaco/index.html", async (route) => {
+        await editorPaused;
+        await route.continue();
+      });
+      try {
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect
+          .poll(() => page.evaluate(() => window.__desktopStartupSignals?.length), {
+            timeout: 10000,
+          })
+          .toBe(1);
+        await expect(page.getByTestId("desktop-startup-recovery")).toContainText(
+          "Still preparing:",
+        );
+        expect(await page.evaluate(() => window.__desktopStartupSignals?.[0]?.readyEditors)).toBe(
+          0,
+        );
+      } finally {
+        resumeEditor();
+      }
+      await expect(source.locator(".view-lines")).toContainText("Ready before opening");
+      await expect(page.getByTestId("desktop-startup-recovery")).toHaveCount(0);
     } finally {
       await workspace.cleanup();
     }
