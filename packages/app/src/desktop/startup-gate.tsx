@@ -6,16 +6,14 @@ import { getDesktopHost, type DesktopHostBridge } from "./host";
 import { usePanelStore } from "@/stores/panel-store";
 import { useWorkspaceLayoutStoreHydrated } from "@/stores/workspace-layout-store";
 import { desktopStartup, useDesktopStartupBlocker } from "./startup-readiness";
-const STARTUP_RECOVERY_DELAY_MS = 90000;
+import { scheduleStartupReveal, STARTUP_RECOVERY_DELAY_MS } from "./startup-reveal";
 function retryStartup() {
   window.location.reload();
 }
 
 export function DesktopStartupGate() {
   const host = getDesktopHost();
-  return host?.startup ? (
-    <NativeStartupGate bridge={host.startup} isLinux={host.platform === "linux"} />
-  ) : null;
+  return host?.startup ? <NativeStartupGate bridge={host.startup} /> : null;
 }
 function subscribePanelHydration(listener: () => void) {
   return usePanelStore.persist.onFinishHydration(listener);
@@ -25,9 +23,8 @@ function panelHydrated() {
 }
 interface NativeStartupGateProps {
   bridge: NonNullable<DesktopHostBridge["startup"]>;
-  isLinux: boolean;
 }
-function NativeStartupGate({ bridge, isLinux }: NativeStartupGateProps) {
+function NativeStartupGate({ bridge }: NativeStartupGateProps) {
   const panelsReady = useSyncExternalStore(subscribePanelHydration, panelHydrated, panelHydrated);
   const layoutReady = useWorkspaceLayoutStoreHydrated();
   useDesktopStartupBlocker("Panel layout", !panelsReady || !layoutReady);
@@ -78,25 +75,20 @@ function NativeStartupGate({ bridge, isLinux }: NativeStartupGateProps) {
     const failed = error !== null || timedOut;
     if (!failed && snapshot.pending.length > 0) return;
     if (failed && revealed.current && snapshot.pending.length > 0) return;
-    // Linux compositors may withhold frames until show(). DOM commits still complete while hidden.
-    const schedule = (callback: () => void) =>
-      isLinux ? window.setTimeout(callback, 0) : requestAnimationFrame(callback);
-    let raf = schedule(() => {
-      raf = schedule(() => {
-        const current = desktopStartup.getSnapshot();
-        if (!failed && (current.pending.length > 0 || current.revision !== snapshot.revision))
-          return;
-        if (current.pending.length === 0) desktopStartup.complete();
-        if (revealed.current) return;
-        revealed.current = true;
-        void bridge.ready().catch(revealFailed);
-      });
+    return scheduleStartupReveal(() => {
+      const current = desktopStartup.getSnapshot();
+      if (!failed && (current.pending.length > 0 || current.revision !== snapshot.revision)) return;
+      if (current.pending.length === 0) desktopStartup.complete();
+      if (revealed.current) return;
+      revealed.current = true;
+      if (current.pending.length > 0)
+        console.warn("[startup] Revealing window while tasks continue", {
+          pending: current.pending,
+          timeoutMs: STARTUP_RECOVERY_DELAY_MS,
+        });
+      void bridge.ready().catch(revealFailed);
     });
-    return () => {
-      if (isLinux) window.clearTimeout(raf);
-      else cancelAnimationFrame(raf);
-    };
-  }, [bridge, error, snapshot, timedOut, revealFailed, isLinux]);
+  }, [bridge, error, snapshot, timedOut, revealFailed]);
   if (snapshot.completed && !error) return null;
   const delayed = timedOut && snapshot.pending.length > 0;
   if (!error && !delayed) return null;

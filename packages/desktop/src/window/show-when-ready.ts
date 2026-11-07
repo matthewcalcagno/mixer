@@ -1,4 +1,4 @@
-export const DESKTOP_STARTUP_TIMEOUT_MS = 120000;
+export const DESKTOP_STARTUP_TIMEOUT_MS = 10000;
 
 interface StartupWindow {
   once(event: "closed", listener: () => void): unknown;

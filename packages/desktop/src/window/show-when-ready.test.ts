@@ -19,12 +19,12 @@ class Window extends EventEmitter {
 }
 afterEach(() => vi.useRealTimers());
 describe("showWindowWhenReady", () => {
-  it("waits two minutes by default before showing the startup warning", () => {
+  it("reveals a stalled renderer within ten seconds instead of leaving an invisible process", () => {
     vi.useFakeTimers();
     const win = new Window();
     const timeout = vi.fn();
     showWindowWhenReady(win, { onTimeout: timeout });
-    vi.advanceTimersByTime(119999);
+    vi.advanceTimersByTime(9999);
     expect(win.shows).toBe(0);
     expect(timeout).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
