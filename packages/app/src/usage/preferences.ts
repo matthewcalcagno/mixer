@@ -5,7 +5,7 @@ import type { UsageReportEntry } from "./types";
 /** Whether percentages read as the share used or the share left. */
 export type UsageDisplayAs = "used" | "remaining";
 
-/** A window the user pinned to the sidebar Usage item. It matches every account of the source. */
+/** A window the user pinned to the status-bar Usage item. It matches every account of the source. */
 export interface UsagePin {
   sourceId: string;
   windowId: string;

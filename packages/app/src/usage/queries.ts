@@ -162,7 +162,7 @@ export function useHostUsage(serverId: string): { view: UsageView; refresh: () =
 const NO_REPORTS: UsageReportEntry[] = [];
 
 /**
- * The reports of the sidebar's usage host, which is connected and reports usage; none until they
+ * The reports of the status bar's usage host, which is connected and reports usage; none until they
  * load, or without a host.
  */
 export function useUsageHostReports(serverId: string | null): UsageReportEntry[] {

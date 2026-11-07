@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { UsagePreferences } from "./preferences";
 import {
   choosePinnedUsageLayout,
+  limitPinnedUsage,
   resolvePinnedUsage,
   type PinnedUsageSource,
   type PinnedUsageWindow,
@@ -300,4 +301,26 @@ it("localizes pinned labels and meanings while preserving custom window names", 
   } finally {
     await i18n.changeLanguage("en");
   }
+});
+
+it("bounds status windows and counts every hidden pin without changing the full selection", () => {
+  const pinnedWindows = Array.from({ length: 20 }, (_, index) => ({
+    key: String(index),
+    label: String(index),
+    shortLabel: "wk",
+    percent: 20,
+    percentText: "20%",
+    tone: "ok" as const,
+  }));
+  const sources = [
+    { key: "a", icon: null, windows: pinnedWindows.slice(0, 2) },
+    { key: "b", icon: null, windows: pinnedWindows.slice(2) },
+  ];
+  const result = limitPinnedUsage(sources, 4);
+  expect(result.visible.map((source) => source.windows.map((window) => window.key))).toEqual([
+    ["0", "1"],
+    ["2", "3"],
+  ]);
+  expect(result.overflow).toBe(16);
+  expect(sources[1].windows).toHaveLength(18);
 });

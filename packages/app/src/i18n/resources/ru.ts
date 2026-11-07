@@ -2176,8 +2176,6 @@ export const ru: TranslationResources = {
     displayAs: "Проценты",
     displayUsed: "Использовано",
     displayRemaining: "Осталось",
-    showInSidebar: "Сводка на боковой панели",
-    showInSidebarHint: "Закреплённые периоды отображаются внизу боковой панели",
     runToRefresh: "Выполните {{command}} для обновления.",
     signInAgain: "Войдите снова.",
     loginRejected: "Вход отклонён (HTTP {{status}}). {{remedy}}",

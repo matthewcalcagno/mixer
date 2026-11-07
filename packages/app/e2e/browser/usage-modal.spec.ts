@@ -114,8 +114,11 @@ async function openUsageSummaryAtWidth(page: Page, width: number) {
   await page.setViewportSize({ width, height: 900 });
   await gotoAppShell(page);
   if (width === 390) await openCompactSidebar(page);
-  await expectPinnedUsage(page, ["31% Weekly", "12% Weekly"]);
-  await openUsageFromItem(page);
+  if (width === 390) await openUsageFromIcon(page);
+  else {
+    await expectPinnedUsage(page, ["31% Weekly", "12% Weekly"]);
+    await openUsageFromItem(page);
+  }
 }
 
 async function expectUsageProviderOrder(page: Page, summary: string[]) {
@@ -124,7 +127,7 @@ async function expectUsageProviderOrder(page: Page, summary: string[]) {
     "opencode plan",
     "openai plan",
   ]);
-  await expectPinnedUsage(page, summary);
+  if (page.viewportSize()!.width > 390) await expectPinnedUsage(page, summary);
 }
 
 async function refreshUsageAndWaitForReports(page: Page, usage: UsageReportsFixture) {
@@ -507,7 +510,7 @@ for (const theme of ["light", "dark"] as const) {
 
       await openUsageOptions(page);
       await expectUsageOptionsFitContent(page);
-      await expect(page.getByText("Pinned windows show in the sidebar footer")).toBeVisible();
+      await expect(page.getByTestId("usage-show-in-sidebar")).toHaveCount(0);
       await expect(page.getByTestId("usage-display-used")).toHaveAttribute("aria-selected", "true");
       await captureSettingsState(page, testInfo, `${size}-${theme}-settings`);
       await showUsageAs(page, "remaining");

@@ -29,14 +29,14 @@ function useUsageHostChoice(): UsageHostChoice {
   };
 }
 
-/** The host the sidebar Usage row reads, or null when none reports usage. */
+/** The host the status-bar Usage summary reads, or null when none reports usage. */
 export function useUsageHostId(): string | null {
   return resolveUsageHostId(useUsageHostChoice());
 }
 
 /**
  * The host the Usage modal shows, and the hosts to pick from. A pick
- * is saved on the device, so the sidebar Usage row and later visits show the same host.
+ * is saved on the device, so the status-bar Usage summary and later visits show the same host.
  */
 export function useUsageHostSelection(): {
   serverId: string | null;

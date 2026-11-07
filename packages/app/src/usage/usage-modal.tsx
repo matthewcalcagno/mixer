@@ -2,7 +2,6 @@ import { useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { AdaptiveModalSheet } from "@/components/adaptive-modal-sheet";
-import { builtinSidebarNavLabelKey } from "@/sidebar-nav/model";
 import { useHostUsageWithControls } from "./controls";
 import { useUsagePreferences } from "./display";
 import { useUsageHostSelection } from "./hosts";
@@ -75,7 +74,7 @@ function UsageModalFrame({
   children,
 }: UsageModalProps & { actions?: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
-  const title = t(builtinSidebarNavLabelKey("usage"));
+  const title = t("sidebar.footer.usage");
   const header = useMemo(() => ({ title, actions }), [actions, title]);
   return (
     <AdaptiveModalSheet
