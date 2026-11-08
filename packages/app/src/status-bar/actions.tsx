@@ -7,24 +7,23 @@ import { router } from "expo-router";
 import { ToolbarButton } from "@/components/ui/pane-content-toolbar";
 import { HostPicker } from "@/components/hosts/host-picker";
 import { useHosts } from "@/runtime/host-runtime";
-import { UsageSidebarRoot, useOpenSidebarUsage } from "@/usage";
+import { UsageRoot, UsageStatusBarItem, useOpenUsage } from "@/usage";
 import { buildSettingsAddHostRoute } from "@/utils/host-routes";
 import { openHostOverview } from "@/navigation/settings-navigation";
-import { builtinSidebarNavLabelKey } from "@/sidebar-nav/model";
 
 const UsageIcon = withUnistyles(CircleGauge, (theme) => ({ color: theme.colors.foregroundMuted }));
 const HostsIcon = withUnistyles(Server, (theme) => ({ color: theme.colors.foregroundMuted }));
 
 export function StatusBarActions() {
   return (
-    <UsageSidebarRoot>
+    <UsageRoot>
       <Actions />
-    </UsageSidebarRoot>
+    </UsageRoot>
   );
 }
 function Actions() {
   const { t } = useTranslation();
-  const openUsage = useOpenSidebarUsage();
+  const openUsage = useOpenUsage();
   const hosts = useHosts();
   const anchor = useRef<View | null>(null);
   const [hostsOpen, setHostsOpen] = useState(false);
@@ -32,14 +31,16 @@ function Actions() {
   const addHost = useCallback(() => router.push(buildSettingsAddHostRoute(Date.now())), []);
   return (
     <View style={styles.actions} testID="status-bar-global-actions">
-      <ToolbarButton
-        label={t(builtinSidebarNavLabelKey("usage"))}
-        onPress={openUsage}
-        tooltipSide="top"
-        testID="sidebar-usage-icon"
-      >
-        <UsageIcon size={16} />
-      </ToolbarButton>
+      <UsageStatusBarItem>
+        <ToolbarButton
+          label={t("sidebar.footer.usage")}
+          onPress={openUsage}
+          tooltipSide="top"
+          testID="sidebar-usage-icon"
+        >
+          <UsageIcon size={16} />
+        </ToolbarButton>
+      </UsageStatusBarItem>
       <HostPicker
         hosts={hosts}
         value=""
@@ -78,7 +79,9 @@ const styles = StyleSheet.create((theme) => ({
   actions: {
     flexDirection: "row",
     alignItems: "center",
-    flexShrink: 0,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: "45%",
     gap: theme.spacing[1],
     marginLeft: theme.spacing[2],
     marginRight: theme.spacing[2],

@@ -6,11 +6,9 @@ import { DropdownMenu, DropdownMenuContent } from "@/components/ui/dropdown-menu
 import { extraMutedIconColorMapping } from "@/components/ui/icon-button-chrome";
 import { ToolbarButton, paneContentToolbarIconSize } from "@/components/ui/pane-content-toolbar";
 import { useIsCompactFormFactor } from "@/constants/layout";
-import { SettingsRow, SettingsSwitch } from "@/components/settings";
+import { SettingsRow } from "@/components/settings";
 import { SegmentedControl, type SegmentedControlOption } from "@/components/ui/segmented-control";
-import { settingsStyles } from "@/styles/settings";
 import { useUsagePreferences } from "./display";
-import { useUsageInSidebar } from "./in-sidebar";
 import type { UsageDisplayAs } from "./preferences";
 
 const ThemedSettings = withUnistyles(Settings);
@@ -28,7 +26,6 @@ export function UsageOptions() {
   ];
   const compact = useIsCompactFormFactor();
   const { display } = useUsagePreferences();
-  const { inSidebar, setInSidebar } = useUsageInSidebar();
   return (
     <DropdownMenu compactMode="sheet">
       <ToolbarButton
@@ -49,24 +46,15 @@ export function UsageOptions() {
         testID="usage-options-surface"
       >
         <View testID="usage-options-fields">
-          <SettingsSwitch
-            label={t("providerUsage.showInSidebar")}
-            hint={t("providerUsage.showInSidebarHint")}
-            value={inSidebar}
-            onValueChange={setInSidebar}
-            testID="usage-show-in-sidebar"
-          />
-          <View style={settingsStyles.rowBorder}>
-            <SettingsRow label={t("providerUsage.displayAs")}>
-              <SegmentedControl
-                options={displayAsOptions}
-                value={display.displayAs}
-                onValueChange={display.setDisplayAs}
-                size="sm"
-                testID="usage-display-as"
-              />
-            </SettingsRow>
-          </View>
+          <SettingsRow label={t("providerUsage.displayAs")}>
+            <SegmentedControl
+              options={displayAsOptions}
+              value={display.displayAs}
+              onValueChange={display.setDisplayAs}
+              size="sm"
+              testID="usage-display-as"
+            />
+          </SettingsRow>
         </View>
       </DropdownMenuContent>
     </DropdownMenu>

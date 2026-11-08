@@ -137,9 +137,9 @@ function visible(page: Page, testID: string): Locator {
   return page.locator(`[data-testid="${testID}"]:visible`).first();
 }
 
-/** The sidebar footer's Usage item: each summary window with data. */
+/** The status bar's Usage summary: each summary window with data. */
 export function usageItem(page: Page): Locator {
-  return visible(page, "sidebar-usage");
+  return visible(page, "status-bar-usage");
 }
 
 /** The Usage modal's body: a dialog on wide layouts, a bottom sheet on compact ones. */
@@ -149,13 +149,13 @@ export function usageModal(page: Page): Locator {
 
 /** Each pinned window as it reads: its percent and short label, "31% 5h". */
 export async function expectPinnedUsage(page: Page, windows: string[]): Promise<void> {
-  const pinned = usageItem(page).getByTestId("sidebar-usage-pinned-window");
+  const pinned = usageItem(page).getByTestId("status-bar-usage-pinned-window");
   await expect(pinned).toHaveText(windows);
 }
 
-/** Without a summary window with data the footer has no Usage item, only the Usage icon. */
+/** Without a pinned window with data the status bar shows only the Usage icon. */
 export async function expectNoUsageItem(page: Page): Promise<void> {
-  await expect(page.locator('[data-testid="sidebar-usage"]:visible')).toHaveCount(0);
+  await expect(page.locator('[data-testid="status-bar-usage"]:visible')).toHaveCount(0);
   await expect(page.locator('[data-testid="sidebar-usage-icon"]:visible')).toBeVisible();
 }
 
@@ -190,7 +190,10 @@ export async function togglePin(scope: Locator, source: string, window: string) 
  * sidebar drawer has to be open.
  */
 export async function openUsageFromIcon(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Usage", exact: true }).click({ timeout: 30_000 });
+  await page
+    .locator('[data-testid="status-bar-usage"]:visible, [data-testid="sidebar-usage-icon"]:visible')
+    .first()
+    .click({ timeout: 30_000 });
   await expect(usageModal(page)).toBeVisible();
 }
 
@@ -234,23 +237,6 @@ export async function closeUsageFromBackdrop(page: Page): Promise<void> {
   if (!bounds) throw new Error("Usage must be open before closing it.");
   await page.mouse.click(bounds.x + bounds.width / 2, bounds.y / 2);
   await expect(sheet).toHaveCount(0);
-}
-
-function summaryInSidebarSwitch(page: Page): Locator {
-  return page.getByRole("switch", { name: "Summary in sidebar", exact: true });
-}
-
-/** Turns the sidebar Usage summary on or off from the Usage modal's Settings. */
-export async function setSummaryInSidebar(page: Page, on: boolean): Promise<void> {
-  await openUsageOptions(page);
-  await summaryInSidebarSwitch(page).click();
-  await expectSummaryInSidebar(page, on);
-}
-
-export async function expectSummaryInSidebar(page: Page, on: boolean): Promise<void> {
-  await openUsageOptions(page);
-  await expect(summaryInSidebarSwitch(page)).toBeChecked({ checked: on });
-  await closeUsageOptions(page);
 }
 
 /** Open the cog's settings popover or compact sheet. */

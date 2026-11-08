@@ -1423,6 +1423,11 @@ Use `confirmDialog({ title, message, confirmLabel?, cancelLabel?, destructive? }
 `@mixer/plugin/client/ui` for confirmations. It returns `Promise<boolean>` and uses the
 same desktop dialog backend as Mixer workspace actions. Use `Modal` for editable forms.
 
+`trashFiles(hostId, absolutePaths): Promise<void>` moves validated local files to the operating
+system Trash or Recycle Bin. Validate the paths and current file status on the owning host,
+then obtain confirmation before calling it. Remote hosts are rejected; files are never
+permanently deleted as a fallback. The desktop bridge requires a Mixer relaunch after updating.
+
 Use `ActionMenu` for a resource’s overflow button. Pass `label`, `actions`, and `onSelect`, using
 the same action records as `ContextMenu`. It opens Mixer’s shared dropdown or native desktop menu.
 

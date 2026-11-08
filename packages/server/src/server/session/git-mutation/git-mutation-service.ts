@@ -1,5 +1,4 @@
 import type pino from "pino";
-import { getErrorMessage } from "@mixer/protocol/error-utils";
 import {
   checkoutResolvedBranch,
   type CheckoutExistingBranchResult,
@@ -16,7 +15,7 @@ import { assertSafeGitRef as assertWorktreeSafeGitRef } from "../../worktree-ses
  *
  * CheckoutSession (the branch/commit/merge commands), the worktree session-config
  * builder, and the auto-naming + worktree-creation paths all funnel their git
- * mutations through this one module, so the validate-ref → clean-tree → execute →
+ * mutations through this one module, so the validate-ref → execute →
  * refresh sequence lives in a single place instead of being smeared across the
  * session as loose callbacks.
  */
@@ -52,26 +51,6 @@ export function createGitMutationService(deps: {
     assertWorktreeSafeGitRef(ref, label);
   }
 
-  async function isWorkingTreeDirty(cwd: string): Promise<boolean> {
-    try {
-      const snapshot = await workspaceGitService.getSnapshot(cwd);
-      return snapshot.git.isDirty === true;
-    } catch (error) {
-      throw new Error(`Unable to inspect git status for ${cwd}: ${getErrorMessage(error)}`, {
-        cause: error,
-      });
-    }
-  }
-
-  async function ensureCleanWorkingTree(cwd: string): Promise<void> {
-    const dirty = await isWorkingTreeDirty(cwd);
-    if (dirty) {
-      throw new Error(
-        "Working directory has uncommitted changes. Commit or stash before switching branches.",
-      );
-    }
-  }
-
   async function notifyGitMutation(
     cwd: string,
     reason: GitMutationRefreshReason,
@@ -97,7 +76,6 @@ export function createGitMutationService(deps: {
       if (resolution.kind === "not-found") {
         throw new Error(`Branch not found: ${branch}`);
       }
-      await ensureCleanWorkingTree(cwd);
       const result = await checkoutResolvedBranch({ cwd, resolution });
       await notifyGitMutation(cwd, "switch-branch", { invalidateForge: true });
       return result;
@@ -117,7 +95,6 @@ export function createGitMutationService(deps: {
         throw new Error(`Branch already exists: ${newBranchName}`);
       }
 
-      await ensureCleanWorkingTree(cwd);
       // --no-track: a branch we create is not a continuation of its base, so it gets no
       // upstream. Without it git hands the new branch `origin/<base>` whenever the base is a
       // remote-tracking ref or branch.autoSetupMerge asks for inheritance, and every later
@@ -126,6 +103,7 @@ export function createGitMutationService(deps: {
       await runGitCommand(["checkout", "-b", newBranchName, "--no-track", baseBranch], {
         cwd,
         timeout: 120_000,
+        envOverlay: { LC_ALL: "C" },
       });
       await notifyGitMutation(cwd, "create-branch");
     },

@@ -37,7 +37,7 @@ export function UsageWindowBar({
   retained?: boolean;
   window: UsageWindow;
   displayAs: UsageDisplayAs;
-  /** Whether the row pins the window to the sidebar. When false the row is a plain bar. */
+  /** Whether the row pins the window to the status bar. When false the row is a plain bar. */
   pinnable: boolean;
   pinned: boolean;
   onTogglePin: () => void;
@@ -80,7 +80,7 @@ export function UsageWindowBar({
     );
   }
 
-  // The whole row pins the window to the sidebar Usage item. Pinned or not, it keeps the same
+  // The whole row pins the window to the status-bar Usage item. Pinned or not, it keeps the same
   // padding so toggling only changes the background.
   return (
     <Pressable

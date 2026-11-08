@@ -235,3 +235,24 @@ describe("file explorer tree", () => {
     await expect(restoration).resolves.toEqual([".", ".hidden"]);
   });
 });
+
+it("decorates files and propagates Git changes only to their parent folders", async () => {
+  const { buildGitDecorations } = await import("./git-decorations");
+  const changes = buildGitDecorations([
+    { path: "src/modified.ts", index: " ", worktree: "M" },
+    { path: "src/nested/new.ts", index: "?", worktree: "?" },
+    { path: "staged.ts", index: "M", worktree: " " },
+    { path: "added.ts", index: "A", worktree: " " },
+    { path: "conflict.ts", index: "U", worktree: "U" },
+  ]);
+  expect(Object.fromEntries(changes)).toEqual({
+    "src/modified.ts": "M",
+    src: "M",
+    "src/nested/new.ts": "U",
+    "src/nested": "U",
+    "staged.ts": "M",
+    "added.ts": "A",
+    "conflict.ts": "!",
+  });
+  expect(buildGitDecorations([]).size).toBe(0);
+});

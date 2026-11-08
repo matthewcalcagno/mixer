@@ -1,4 +1,5 @@
-import { dialog, ipcMain, BrowserWindow } from "electron";
+import { moveFilesToTrash } from "./move-files-to-trash.js";
+import { dialog, ipcMain, BrowserWindow, shell } from "electron";
 import { writeFile } from "node:fs/promises";
 import { z } from "zod";
 
@@ -57,6 +58,9 @@ function resolveDialogType(kind: AskOptions["kind"]): "warning" | "error" | "que
 }
 
 export function registerDialogHandlers(): void {
+  ipcMain.handle("mixer:dialog:trashFiles", async (_event, input: unknown) => {
+    await moveFilesToTrash(input, (path) => shell.trashItem(path));
+  });
   ipcMain.handle("mixer:dialog:saveText", async (event, input: unknown) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window || event.senderFrame !== event.sender.mainFrame)

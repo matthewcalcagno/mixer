@@ -83,7 +83,7 @@ function ResourceFileRow(props: ResourceListProps & { file: Resource }) {
   const stage = useCallback(() => onStageFile(file), [file, onStageFile]);
   const focus = useCallback(() => onFocusFile(file), [file, onFocusFile]);
   const discard = useCallback(() => onDiscard(file), [file, onDiscard]);
-  const canDiscard = !props.staged && !props.merge && file.index !== "?";
+  const canDiscard = !props.staged && !props.merge;
   const key = resourceKey(props.group, file.path);
   const selected = props.selection.keys.has(key);
   const operation = props.staged ? "unstage" : "stage";
@@ -103,7 +103,7 @@ function ResourceFileRow(props: ResourceListProps & { file: Resource }) {
     if (canDiscard)
       actions.push({
         id: "discard",
-        label: discardCount > 1 ? `Discard ${discardCount} Tracked Changes…` : "Discard Changes…",
+        label: discardActionLabel(file.index === "?", discardCount),
         disabled: props.disabled,
         separatorBefore: true,
       });
@@ -134,7 +134,9 @@ function ResourceFileRow(props: ResourceListProps & { file: Resource }) {
         onRowFocus={focus}
         stageLabel={stageCount > 1 ? `${verb} ${stageCount} selected files` : `${verb} ${name}`}
         discardLabel={
-          discardCount > 1 ? `Discard ${discardCount} selected files` : `Discard ${name}`
+          file.index === "?"
+            ? `Move ${name} to Trash`
+            : discardActionLabel(false, discardCount, name)
         }
         disabled={props.disabled}
         theme={props.theme}
@@ -217,3 +219,13 @@ const FOLDER_STYLE = {
   gap: 5,
   minHeight: 22,
 } as const;
+
+function discardActionLabel(untracked: boolean, count: number, name?: string): string {
+  if (untracked) return "Move to Trash…";
+  if (count > 1) {
+    if (name) return `Discard ${count} selected files`;
+    return `Discard ${count} Tracked Changes…`;
+  }
+  if (name) return `Discard ${name}`;
+  return "Discard Changes…";
+}

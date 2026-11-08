@@ -2154,8 +2154,6 @@ export const ko: TranslationResources = {
     displayAs: "백분율",
     displayUsed: "사용됨",
     displayRemaining: "남음",
-    showInSidebar: "사이드바에 요약 표시",
-    showInSidebarHint: "고정된 기간이 사이드바 하단에 표시됩니다",
     runToRefresh: "{{command}} 명령을 실행하여 새로 고치세요.",
     signInAgain: "다시 로그인하세요.",
     loginRejected: "로그인이 거부되었습니다 (HTTP {{status}}). {{remedy}}",

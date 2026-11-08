@@ -51,6 +51,30 @@ export function parseFiles(raw: string) {
   return files;
 }
 
+export async function decorations(cwd: string) {
+  const prefix = await git(cwd, ["rev-parse", "--show-prefix"]).catch(() => null);
+  if (prefix === null) return [];
+  const base = prefix.trimEnd();
+  const files = parseFiles(
+    await git(cwd, [
+      "status",
+      "--porcelain=v1",
+      "--no-renames",
+      "-z",
+      "--untracked-files=all",
+      "--",
+      ".",
+    ]),
+  );
+  return files
+    .filter((file) => file.path.startsWith(base))
+    .map((file) => ({
+      index: file.index,
+      worktree: file.worktree,
+      path: file.path.slice(base.length),
+    }));
+}
+
 export async function status(cwd: string) {
   const entries = parseFiles(
     await git(cwd, ["status", "--porcelain=v1", "--no-renames", "-z", "--untracked-files=all"]),

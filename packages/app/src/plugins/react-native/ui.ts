@@ -46,3 +46,5 @@ export {
 
 export { WorkspaceSidebar } from "./workspace-sidebar";
 export { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+
+export { trashFiles } from "./trash-files";

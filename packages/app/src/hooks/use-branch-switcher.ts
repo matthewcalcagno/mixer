@@ -200,8 +200,11 @@ export function useBranchSwitcher({
             ? await operations.switchBranch(branchId)
             : await operations.createBranch(branchId);
           if (payload.error) {
-            // If the error is about uncommitted changes, offer the stash dialog
-            if (payload.error.message.toLowerCase().includes("uncommitted")) {
+            const message = payload.error.message.toLowerCase();
+            const blockedByLocalChanges =
+              message.includes("uncommitted") ||
+              message.includes("would be overwritten by checkout");
+            if (blockedByLocalChanges) {
               if (!(await stashAndSwitch(branchId, !exists))) return;
             } else {
               toast.error(payload.error.message);

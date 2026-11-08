@@ -9,7 +9,7 @@ export type SidebarSection = PluginSidebarSection;
  */
 export const BUILTIN_SIDEBAR_ITEM_IDS = {
   header: ["new-workspace", "history", "search"],
-  footer: ["usage"],
+  footer: [],
 } as const satisfies Record<SidebarSection, readonly string[]>;
 
 export type BuiltinSidebarItemId<Section extends SidebarSection = SidebarSection> =
@@ -44,7 +44,6 @@ const BUILTIN_LABEL_KEYS: Record<BuiltinSidebarItemId, string> = {
   "new-workspace": "sidebar.actions.newWorkspace",
   history: "sidebar.sections.sessions",
   search: "sidebar.sections.search",
-  usage: "sidebar.footer.usage",
 };
 
 export function builtinSidebarNavLabelKey(id: BuiltinSidebarItemId): string {
@@ -60,18 +59,10 @@ const BUILTIN_SHORTCUT_ACTIONS: Record<BuiltinSidebarItemId, string | null> = {
   "new-workspace": "new-workspace",
   history: null,
   search: "toggle-command-center",
-  usage: null,
 };
 
 export function builtinSidebarNavShortcutAction(id: BuiltinSidebarItemId): string | null {
   return BUILTIN_SHORTCUT_ACTIONS[id];
-}
-
-/** Builtins that start hidden until the user turns them on: the Usage summary is opt-in. */
-const HIDDEN_BY_DEFAULT: ReadonlySet<BuiltinSidebarItemId> = new Set(["usage"]);
-
-function builtinVisibleByDefault(id: BuiltinSidebarItemId): boolean {
-  return !HIDDEN_BY_DEFAULT.has(id);
 }
 
 export function pluginSidebarNavKey(
@@ -124,7 +115,7 @@ export function resolveSidebarNavItems<Section extends SidebarSection>(input: {
       kind: "builtin",
       key: id,
       id,
-      visible: builtinVisibleByDefault(id),
+      visible: true,
     });
   }
   for (const [key, group] of groupsByKey) {

@@ -14,9 +14,6 @@ import { SHOWCASE_PLUGIN_ID, installSidebarPlugins } from "../support/helpers/pl
 import {
   expectFooterIconRow,
   expectFooterSeparator,
-  hoverFooterAddProject,
-  footerScreenshot,
-  expectFooterItemHidden,
   expectFooterOrder,
   expectFooterSettingsKeys,
   expectSidebarItemHidden,
@@ -150,52 +147,25 @@ test("developer toasts leave concurrent sidebar layout checks uninterrupted", as
   await expect(page.locator("#error-toast")).toBeHidden();
 });
 
-test("fixed footer line keeps its five icons, Help and Settings at the end", async ({ page }) => {
-  test.setTimeout(120_000);
+test("Usage belongs to the status bar and not the sidebar footer preferences", async ({ page }) => {
   await installUsageReportsFixture(page, { lists: [() => claudeAndCodexReports()] });
-  await seedSidebarFooterPreferences(page, [
-    { key: "add-project", visible: false },
-    { key: "usage", visible: true },
-  ]);
+  await seedSidebarFooterPreferences(page, [{ key: "usage", visible: true }]);
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoAppShell(page);
   await expectPinnedUsage(page, ["31% 5h", "54% wk", "7% 5h", "12% wk"]);
-  await expectFooterIconRow(page);
-  await expectFooterSeparator(page, true);
-  await footerScreenshot(page, "footer-desktop-with-rows");
-  await hoverFooterAddProject(page);
-  await footerScreenshot(page, "footer-desktop-add-project-tooltip");
-  await openAddProjectFlow(page);
-  await page.keyboard.press("Escape");
-  await expect(addProjectFlow(page)).toBeHidden();
+  await expect(page.getByTestId("sidebar-footer").getByTestId("status-bar-usage")).toHaveCount(0);
   await openSidebarNavSettings(page);
-  await expectFooterSettingsKeys(page, ["usage"]);
-  await setFooterItemVisible(page, "usage", false);
+  await expectFooterSettingsKeys(page, []);
   await leaveSettings(page);
-  await expectFooterSeparator(page, false);
-  await expectFooterIconRow(page);
-  await footerScreenshot(page, "footer-desktop-without-rows");
   await page.setViewportSize({ width: 390, height: 844 });
   await openCompactSidebar(page);
-  await expectFooterSeparator(page, false);
+  await expect(page.locator('[data-testid="sidebar-add-project"]:visible')).toBeVisible();
   await expectFooterIconRow(page);
-  await footerScreenshot(page, "footer-compact-without-rows");
-  await page.locator('[data-testid="sidebar-add-project"]:visible').hover();
-  await expect(page.getByTestId("sidebar-add-project-tooltip")).toHaveCount(0);
-  await footerScreenshot(page, "footer-compact-add-project-hover");
+  await expectFooterSeparator(page, false);
   await openAddProjectFlow(page);
   await page.keyboard.press("Escape");
   await expect(addProjectFlow(page)).toBeHidden();
   await expectCompactSidebarOpen(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await openSidebarNavSettings(page);
-  await setFooterItemVisible(page, "usage", true);
-  await leaveSettings(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expectCompactSidebarOpen(page);
-  await expectFooterSeparator(page, true);
-  await expectFooterIconRow(page);
-  await footerScreenshot(page, "footer-compact-with-rows");
 });
 
 test.describe("Sidebar items in Appearance settings", () => {
@@ -309,24 +279,24 @@ test.describe("Sidebar footer rows in Appearance settings", () => {
       await expect(page.getByTestId("sidebar-nav-section-footer-info")).toHaveAccessibleName(
         "About Footer",
       );
-      await expectFooterSettingsKeys(page, ["usage", syncKey, brokenKey]);
+      await expectFooterSettingsKeys(page, [syncKey, brokenKey]);
       await leaveSettings(page);
-      await expectFooterOrder(page, ["usage", syncKey]);
-      await expectFooterIconRow(page);
+      await expectFooterOrder(page, [syncKey]);
+      await expect(page.getByTestId("sidebar-hosts-trigger")).toBeVisible();
       await expectFooterSeparator(page, true);
     });
 
-    await test.step("moving Sync up and hiding the Usage item changes the rows", async () => {
+    await test.step("moving and hiding a plugin footer item leaves Usage untouched", async () => {
       await openSidebarNavSettings(page);
-      await moveFooterItemUp(page, syncKey);
-      await setFooterItemVisible(page, "usage", false);
-      await expectFooterSettingsKeys(page, [syncKey, "usage", brokenKey]);
+      await moveFooterItemUp(page, brokenKey);
+      await setFooterItemVisible(page, brokenKey, false);
+      await expectFooterSettingsKeys(page, [brokenKey, syncKey]);
       await leaveSettings(page);
-      await expectFooterItemHidden(page, "usage");
+      await expectPinnedUsage(page, ["31% 5h", "54% wk", "7% 5h", "12% wk"]);
       await expect(
         page.locator(`[data-testid="plugin-sidebar-footer-${SHOWCASE_PLUGIN_ID}-sync"]:visible`),
       ).toBeVisible();
-      await expectFooterIconRow(page);
+      await expect(page.getByTestId("sidebar-hosts-trigger")).toBeVisible();
       await expectFooterSeparator(page, true);
     });
 
@@ -335,11 +305,11 @@ test.describe("Sidebar footer rows in Appearance settings", () => {
       await expect(
         page.locator(`[data-testid="plugin-sidebar-footer-${SHOWCASE_PLUGIN_ID}-sync"]:visible`),
       ).toBeVisible({ timeout: 30_000 });
-      await expectFooterItemHidden(page, "usage");
-      await expectFooterIconRow(page);
+      await expectPinnedUsage(page, ["31% 5h", "54% wk", "7% 5h", "12% wk"]);
+      await expect(page.getByTestId("sidebar-hosts-trigger")).toBeVisible();
       await expectFooterSeparator(page, true);
       await openSidebarNavSettings(page);
-      await expectFooterSettingsKeys(page, [syncKey, "usage", brokenKey]);
+      await expectFooterSettingsKeys(page, [brokenKey, syncKey]);
     });
   });
 });

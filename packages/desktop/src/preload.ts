@@ -83,6 +83,8 @@ contextBridge.exposeInMainWorld("mixerDesktop", {
     }),
   },
   dialog: {
+    trashFiles: (paths: string[]) =>
+      ipcRenderer.invoke("mixer:dialog:trashFiles", paths) as Promise<void>,
     saveText: (options: { content: string; defaultPath?: string }) =>
       ipcRenderer.invoke("mixer:dialog:saveText", options) as Promise<string | null>,
     ask: (message: string, options?: Record<string, unknown>) =>

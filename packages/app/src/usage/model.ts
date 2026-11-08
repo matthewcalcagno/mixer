@@ -193,7 +193,7 @@ export function resolveUsageHostId(choice: UsageHostChoice): string | null {
 
 /**
  * The host the Usage modal shows: the picked host while it is connected, even one that cannot
- * report usage so the modal says to update it; else the sidebar row's host; else the first
+ * report usage so the modal says to update it; else the status-bar summary's host; else the first
  * connected host.
  */
 export function resolveUsageModalHostId(choice: UsageHostChoice): string | null {

@@ -2192,8 +2192,6 @@ export const fr: TranslationResources = {
     displayAs: "Pourcentages",
     displayUsed: "Utilisé",
     displayRemaining: "Restant",
-    showInSidebar: "Résumé dans la barre latérale",
-    showInSidebarHint: "Les périodes épinglées apparaissent en bas de la barre latérale",
     runToRefresh: "Exécutez {{command}} pour actualiser.",
     signInAgain: "Reconnectez-vous.",
     loginRejected: "Connexion refusée (HTTP {{status}}). {{remedy}}",

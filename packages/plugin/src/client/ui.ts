@@ -308,3 +308,6 @@ export declare const HoverCardContent: ComponentType<{
   placement: "top" | "bottom" | "left" | "right";
   alignment?: "start" | "center" | "end";
 }>;
+
+/** Move validated local files to the operating system Trash/Recycle Bin. Remote hosts are rejected. */
+export declare function trashFiles(hostId: string, paths: string[]): Promise<void>;

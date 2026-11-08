@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { expect, test, type Page } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import {
@@ -95,3 +98,72 @@ test.describe("Branch switcher", () => {
     }
   });
 });
+
+for (const blocked of [false, true]) {
+  test(`status-bar branch switching ${blocked ? "prompts only for overlapping changes" : "carries compatible local changes without stashing"}`, async ({
+    page,
+  }) => {
+    const workspace = await seedWorkspace({
+      repoPrefix: "branch-local-changes-",
+      repo: { branches: ["main", "feature"] },
+    });
+    const dialogs: string[] = [];
+    page.on("dialog", async (dialog) => {
+      dialogs.push(dialog.message());
+      await dialog.dismiss();
+    });
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: workspace.repoPath, stdio: "pipe" }).toString().trim();
+    try {
+      git("checkout", "feature");
+      await writeFile(
+        path.join(workspace.repoPath, blocked ? "README.md" : "feature.txt"),
+        "target branch edit\n",
+      );
+      git("add", "-A");
+      git("commit", "-m", "target branch");
+      git("checkout", "main");
+      await writeFile(path.join(workspace.repoPath, "README.md"), "local edit\n");
+      await writeFile(path.join(workspace.repoPath, "untracked.txt"), "local untracked\n");
+      if (!blocked) git("add", "README.md");
+      await gotoAppShell(page);
+      await waitForSidebarHydration(page);
+      await switchWorkspaceViaSidebar({
+        page,
+        serverId: getServerId(),
+        workspaceId: workspace.workspaceId,
+      });
+      const trigger = page.getByTestId("status-bar-branch");
+      await expect(trigger).toContainText("main");
+      await trigger.click();
+      await page.getByPlaceholder("Filter branches...").fill("feature");
+      await page
+        .getByTestId("combobox-desktop-container")
+        .getByText("feature", { exact: true })
+        .click();
+      if (blocked) {
+        await expect.poll(() => dialogs).toHaveLength(1);
+        expect(dialogs[0]).toContain("Stash them before switching branches?");
+        expect(git("branch", "--show-current")).toBe("main");
+        await expect(trigger).toContainText("main");
+      } else {
+        await expect.poll(() => git("branch", "--show-current")).toBe("feature");
+        await expect(trigger).toContainText("feature");
+        expect(dialogs).toEqual([]);
+        expect(git("diff", "--cached", "--name-only")).toBe("README.md");
+        expect(await readFile(path.join(workspace.repoPath, "feature.txt"), "utf8")).toBe(
+          "target branch edit\n",
+        );
+      }
+      expect(await readFile(path.join(workspace.repoPath, "README.md"), "utf8")).toBe(
+        "local edit\n",
+      );
+      expect(await readFile(path.join(workspace.repoPath, "untracked.txt"), "utf8")).toBe(
+        "local untracked\n",
+      );
+      expect(git("stash", "list")).toBe("");
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+}

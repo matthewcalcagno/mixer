@@ -62,3 +62,24 @@ it("rejects oversized content before opening the dialog", async () => {
   ).rejects.toThrow("1 MiB");
   expect(dialog.showSaveDialog).not.toHaveBeenCalled();
 });
+
+it("moves validated paths through the OS Trash API and rejects a mixed invalid batch before moving anything", async () => {
+  const { moveFilesToTrash } = await import("./move-files-to-trash.js");
+  const moved: string[] = [];
+  const trash = async (file: string) => {
+    moved.push(file);
+  };
+  const file = path.join(directory, "untracked.txt");
+  await moveFilesToTrash([file], trash);
+  expect(moved).toEqual([file]);
+  moved.length = 0;
+  await expect(moveFilesToTrash([file, "../escape"], trash)).rejects.toThrow(
+    "Expected an absolute file path",
+  );
+  expect(moved).toEqual([]);
+  await expect(
+    moveFilesToTrash([file], async () => {
+      throw new Error("Trash unavailable");
+    }),
+  ).rejects.toThrow("Trash unavailable");
+});

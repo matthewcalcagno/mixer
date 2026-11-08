@@ -6,7 +6,7 @@ import { effectiveUsagePins, type UsagePreferences } from "./preferences";
 import { windowTone } from "./tone";
 import type { UsageReportEntry, UsageTone } from "./types";
 
-/** One summary window of one account, as the sidebar Usage item shows it. */
+/** One summary window of one account, as the status-bar Usage item shows it. */
 export interface PinnedUsageWindow {
   key: string;
   /** Accessible description, including the source, account, window and percent meaning. */
@@ -64,7 +64,7 @@ function groupBySource(reports: readonly UsageReportEntry[]): UsageReportEntry[]
 }
 
 /**
- * The sidebar Usage item's summary: one group per account, grouped by source, each with its
+ * The status-bar Usage item's summary: one group per account, grouped by source, each with its
  * windows in its report's order. Accounts with nothing to show are left out.
  */
 export function resolvePinnedUsage(
@@ -96,4 +96,21 @@ export function resolvePinnedUsage(
     if (windows.length === 0) return [];
     return [{ key: entry.id, icon: entry.icon ?? null, windows }];
   });
+}
+
+/** Bound mounted status items as well as their width; every pin stays available in Usage. */
+export function limitPinnedUsage(
+  sources: readonly PinnedUsageSource[],
+  limit: number,
+): { visible: PinnedUsageSource[]; overflow: number } {
+  let remaining = limit;
+  let overflow = 0;
+  const visible: PinnedUsageSource[] = [];
+  for (const source of sources) {
+    const windows = source.windows.slice(0, remaining);
+    remaining -= windows.length;
+    overflow += source.windows.length - windows.length;
+    if (windows.length) visible.push({ ...source, windows });
+  }
+  return { visible, overflow };
 }

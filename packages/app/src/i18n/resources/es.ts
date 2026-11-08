@@ -2192,8 +2192,6 @@ export const es: TranslationResources = {
     displayAs: "Porcentajes",
     displayUsed: "Usado",
     displayRemaining: "Restante",
-    showInSidebar: "Resumen en la barra lateral",
-    showInSidebarHint: "Los períodos fijados aparecen al pie de la barra lateral",
     runToRefresh: "Ejecuta {{command}} para actualizar.",
     signInAgain: "Vuelve a iniciar sesión.",
     loginRejected: "Inicio de sesión rechazado (HTTP {{status}}). {{remedy}}",

@@ -1,3 +1,5 @@
+import { useGitDecorations } from "@/file-explorer/use-git-decorations";
+import type { GitDecoration } from "@/file-explorer/git-decorations";
 import {
   useCallback,
   useEffect,
@@ -97,6 +99,7 @@ function DirectoryChevronIcon({ loading, expanded }: { loading: boolean; expande
   return <TreeChevron expanded={expanded} />;
 }
 interface TreeRowItemProps {
+  gitDecoration?: GitDecoration;
   serverId: string;
   workspaceId?: string | null;
   entry: ExplorerEntry;
@@ -240,7 +243,45 @@ function EntryNameInputRow({
 }
 const ENTRY_DRAG_SELECTION = { file: undefined, directory: { kind: "whole_folder" } } as const;
 
+function gitDecorationStyle(status?: GitDecoration, ignored?: boolean) {
+  if (!status || ignored) return undefined;
+  let color = styles.gitModified;
+  if (status === "U" || status === "A") color = styles.gitAdded;
+  if (status === "D" || status === "!") color = styles.gitDeleted;
+  return [color, styles.gitChangedName];
+}
+function GitStatusBadge({
+  status,
+  ignored,
+  directory,
+  testID,
+}: {
+  status?: GitDecoration;
+  ignored?: boolean;
+  directory: boolean;
+  testID?: string;
+}) {
+  if (!status || ignored) return null;
+  if (directory)
+    return (
+      <View
+        testID={testID ? `${testID}-git-status` : undefined}
+        accessibilityLabel="Contains Git changes"
+        style={styles.gitFolderDot}
+      />
+    );
+  return (
+    <Text
+      testID={testID ? `${testID}-git-status` : undefined}
+      accessibilityLabel={`Git status ${status}`}
+      style={[styles.gitBadge, gitDecorationStyle(status)]}
+    >
+      {status}
+    </Text>
+  );
+}
 const TreeRowItem = memo(function TreeRowItem({
+  gitDecoration,
   serverId,
   workspaceId,
   entry,
@@ -379,6 +420,7 @@ const TreeRowItem = memo(function TreeRowItem({
               workspaceTreeRowStyles.name,
               styles.entryName,
               isHovered && workspaceTreeRowStyles.nameHovered,
+              gitDecorationStyle(gitDecoration, entry.gitIgnored),
               entry.gitIgnored && styles.ignoredEntryName,
             ]}
             numberOfLines={1}
@@ -386,6 +428,12 @@ const TreeRowItem = memo(function TreeRowItem({
           >
             {entry.name}
           </Text>
+          <GitStatusBadge
+            status={gitDecoration}
+            ignored={entry.gitIgnored}
+            directory={isDirectory}
+            testID={testID}
+          />
         </View>
       </ContextMenuTrigger>
       <FileActionsContextMenuContent
@@ -465,6 +513,12 @@ export function FileExplorerPane({
     serverId,
     workspaceId ?? null,
     (workspace) => workspace.projectId,
+  );
+  const gitDecorations = useGitDecorations(
+    serverId,
+    workspaceId,
+    projectId,
+    normalizedWorkspaceRoot,
   );
   const openDirectoryInEditor = useOpenDirectoryInEditor({
     serverId,
@@ -912,6 +966,7 @@ export function FileExplorerPane({
           serverId={serverId}
           workspaceId={workspaceId}
           row={info.item.row}
+          gitDecoration={gitDecorations.get(info.item.row.entry.path)}
           index={info.index}
           expandedPaths={expandedPaths}
           selectedEntryPath={selectedEntryPath}
@@ -937,6 +992,7 @@ export function FileExplorerPane({
     },
     [
       expandedPaths,
+      gitDecorations,
       fsEntryDuplicateEnabled,
       fsEntryOpsEnabled,
       handleCollapseDirectory,
@@ -1363,6 +1419,7 @@ function TreeRowDispatcher({
   serverId,
   workspaceId,
   row,
+  gitDecoration,
   index,
   expandedPaths,
   selectedEntryPath,
@@ -1386,6 +1443,7 @@ function TreeRowDispatcher({
 }: {
   serverId: string;
   workspaceId?: string | null;
+  gitDecoration?: GitDecoration;
   row: ExplorerTreeRow;
   index: number;
   expandedPaths: Set<string>;
@@ -1419,6 +1477,7 @@ function TreeRowDispatcher({
       serverId={serverId}
       workspaceId={workspaceId}
       entry={entry}
+      gitDecoration={gitDecoration}
       depth={depth}
       isExpanded={isExpanded}
       isSelected={isSelected}
@@ -1623,6 +1682,20 @@ const styles = StyleSheet.create((theme) => ({
     lineHeight: fileExplorerRowMetrics(theme.fontSize.chrome).lineHeight,
     userSelect: "none",
   },
+  gitModified: { color: theme.colors.statusDotRunning },
+  gitAdded: { color: theme.colors.statusSuccess },
+  gitDeleted: { color: theme.colors.statusDanger },
+  gitChangedName: { opacity: 1 },
+  gitFolderDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    marginLeft: "auto",
+    marginRight: 3,
+    backgroundColor: theme.colors.statusDotRunning,
+    opacity: 0.45,
+  },
+  gitBadge: { marginLeft: "auto", paddingLeft: 8, fontSize: theme.fontSize.xs, fontWeight: "600" },
   ignoredEntryName: {
     color: theme.colors.foregroundExtraMuted,
     opacity: 1,

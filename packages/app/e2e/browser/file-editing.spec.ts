@@ -3591,3 +3591,78 @@ async function expectPreviewText(page: Page, text: string): Promise<void> {
       .getByText(text, { exact: true }),
   ).toBeVisible();
 }
+
+test("file tree colors modified and untracked files and clears decorations after Git reset", async ({
+  page,
+  withWorkspace,
+}, testInfo) => {
+  const workspace = await withWorkspace({ prefix: "tree-git-decorations-" });
+  const runGit = (...args: string[]) => execFileSync("git", args, { cwd: workspace.repoPath });
+  await writeFile(path.join(workspace.repoPath, "tracked.ts"), "before\n");
+  runGit("add", "tracked.ts");
+  runGit(
+    "-c",
+    "user.name=Test",
+    "-c",
+    "user.email=test@example.com",
+    "commit",
+    "-m",
+    "Track fixture",
+  );
+  await writeFile(path.join(workspace.repoPath, "tracked.ts"), "after\n");
+  await writeFile(path.join(workspace.repoPath, "untracked.ts"), "new\n");
+  await workspace.navigateTo();
+  await openFileExplorer(page);
+  const tree = page.getByTestId("file-explorer-tree-scroll");
+  const trackedName = tree.getByText("tracked.ts", { exact: true });
+  await expect(trackedName).toBeVisible();
+  await expect(tree.getByLabel("Git status M", { exact: true })).toHaveText("M");
+  await expect(
+    tree.getByLabel("Git status U", { exact: true }).filter({ hasText: "U" }),
+  ).not.toHaveCount(0);
+  const newName = tree.getByText("untracked.ts", { exact: true });
+  await expect(newName).toBeVisible();
+  expect(await trackedName.evaluate((element) => getComputedStyle(element).color)).not.toBe(
+    await newName.evaluate((element) => getComputedStyle(element).color),
+  );
+  await page.screenshot({ path: testInfo.outputPath("file-tree-git-decorations.png") });
+  runGit("checkout", "--", "tracked.ts");
+  await expect(tree.getByLabel("Git status M", { exact: true })).toHaveCount(0);
+});
+
+test("Source Control offers Trash for untracked files with confirmation and visible failures", async ({
+  page,
+  withWorkspace,
+}, testInfo) => {
+  const workspace = await withWorkspace({ prefix: "scm-untracked-trash-" });
+  await writeFile(path.join(workspace.repoPath, "untracked-trash.txt"), "Keep until confirmed\n");
+  await workspace.navigateTo();
+  await openFileExplorer(page);
+  await page.getByRole("button", { name: "Source Control", exact: true }).click();
+  await page.getByRole("button", { name: "Open file untracked-trash.txt", exact: true }).hover();
+  const trash = page.getByRole("button", {
+    name: "Move untracked-trash.txt to Trash",
+    exact: true,
+  });
+  await expect(trash).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("source-control-trash-action.png") });
+  const cancelled = page.waitForEvent("dialog");
+  const click = trash.click();
+  const prompt = await cancelled;
+  expect(prompt.message()).toContain("You can restore this file from the Trash.");
+  await prompt.dismiss();
+  await click;
+  expect(await readFile(path.join(workspace.repoPath, "untracked-trash.txt"), "utf8")).toBe(
+    "Keep until confirmed\n",
+  );
+  const accepted = page.waitForEvent("dialog");
+  const retry = trash.click();
+  await (await accepted).accept();
+  await retry;
+  await expect(
+    page.getByText("Update and relaunch Mixer to use Move to Trash.", { exact: true }),
+  ).toBeVisible();
+  expect(await readFile(path.join(workspace.repoPath, "untracked-trash.txt"), "utf8")).toBe(
+    "Keep until confirmed\n",
+  );
+});

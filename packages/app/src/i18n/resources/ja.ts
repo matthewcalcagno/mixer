@@ -2166,8 +2166,6 @@ export const ja: TranslationResources = {
     displayAs: "割合",
     displayUsed: "使用済み",
     displayRemaining: "残り",
-    showInSidebar: "サイドバーに概要を表示",
-    showInSidebarHint: "ピン留めした期間をサイドバーの下部に表示します",
     runToRefresh: "{{command}} を実行して更新してください。",
     signInAgain: "再度サインインしてください。",
     loginRejected: "ログインが拒否されました (HTTP {{status}})。{{remedy}}",
