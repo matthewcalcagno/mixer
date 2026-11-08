@@ -1,6 +1,6 @@
 {
   "name": "@mixer/relay",
-  "version": "0.1.1",
+  "version": "0.8.0",
   "private": true,
   "description": "Mixer relay for bridging daemon and client connections",
   "files": [

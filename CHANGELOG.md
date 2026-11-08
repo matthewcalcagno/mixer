@@ -1,5 +1,80 @@
 # Mixer Changelog
 
+## 0.8.0 - 2026-11-08
+
+### Added
+
+- Add file-tree Git decorations and native untracked-file Trash action ([#45](https://github.com/matthewcalcagno/mixer/pull/45))
+
+### Changed
+
+- Allow branch switching with compatible local changes ([#44](https://github.com/matthewcalcagno/mixer/pull/44))
+- Use blue for modified file decorations ([#46](https://github.com/matthewcalcagno/mixer/pull/46))
+
+### Fixed
+
+- Fix Usage pinning and move summaries into the status bar ([#43](https://github.com/matthewcalcagno/mixer/pull/43))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.7.0...v0.8.0)
+
+## 0.7.0 - 2026-11-07
+
+### Changed
+
+- Extend plugin language services for project language servers ([#40](https://github.com/matthewcalcagno/mixer/pull/40))
+- Reveal Mixer promptly when startup tasks are delayed ([#41](https://github.com/matthewcalcagno/mixer/pull/41))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.6.0...v0.7.0)
+
+## 0.6.0 - 2026-11-06
+
+### Added
+
+- Add API Client workspace with collections, environments, and themed editors ([#38](https://github.com/matthewcalcagno/mixer/pull/38))
+
+### Changed
+
+- Simplify History and custom plugin page headers ([#37](https://github.com/matthewcalcagno/mixer/pull/37))
+
+### Removed
+
+- Remove Schedule from the IDE, daemon, CLI, and agent tools ([#36](https://github.com/matthewcalcagno/mixer/pull/36))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.5.1...v0.6.0)
+
+## 0.5.1 - 2026-11-04
+
+### Removed
+
+- Remove redundant work from desktop startup ([#34](https://github.com/matthewcalcagno/mixer/pull/34))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.5.0...v0.5.1)
+
+## 0.5.0 - 2026-11-03
+
+### Added
+
+- Add reveal actions to file tabs ([#31](https://github.com/matthewcalcagno/mixer/pull/31))
+- Support dragging workspace folders into chat ([#32](https://github.com/matthewcalcagno/mixer/pull/32))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.4.4...v0.5.0)
+
+## 0.4.4 - 2026-11-03
+
+### Changed
+
+- Retry transient Apple ticket validation failures ([#24](https://github.com/matthewcalcagno/mixer/pull/24))
+- Keep Apple ticket retries active during installer verification ([#26](https://github.com/matthewcalcagno/mixer/pull/26))
+
+### Fixed
+
+- Fix unsigned macOS releases and verify distributed installers ([#22](https://github.com/matthewcalcagno/mixer/pull/22))
+- Fix changelog upload to draft desktop releases ([#29](https://github.com/matthewcalcagno/mixer/pull/29))
+- Keep each version's changelog focused on its own changes, with concise categorized notes and version comparison links. ([#28](https://github.com/matthewcalcagno/mixer/pull/28))
+- Show corrected published Mixer release history in What's new without drafts, betas, or inherited upstream entries. ([#28](https://github.com/matthewcalcagno/mixer/pull/28))
+
+[Full Changelog](https://github.com/matthewcalcagno/mixer/compare/v0.4.0...v0.4.4)
+
 ## 0.4.0 - 2026-11-02
 
 ### Changed
