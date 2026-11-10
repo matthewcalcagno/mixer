@@ -1,3 +1,4 @@
+import { useAutoRevealFile } from "@/screens/workspace/use-explorer-auto-reveal";
 import { useDesktopStartupBlocker } from "@/desktop/startup-readiness";
 import { isHiddenExplorerPath } from "@/file-explorer/visibility";
 import type { FileTabRevealActions } from "./workspace-tab-menu";
@@ -1930,6 +1931,14 @@ function WorkspaceScreenContent({
     serverId: normalizedServerId,
     workspaceId: normalizedWorkspaceId,
     workspaceRoot: workspaceDirectory,
+  });
+  useAutoRevealFile({
+    serverId: normalizedServerId,
+    workspaceId: normalizedWorkspaceId,
+    workspaceRoot: workspaceDirectory,
+    paneState: { layout: workspaceLayout, tabs: uiTabs, paneId: lastMainPaneId },
+    routeFocused: isRouteFocused,
+    explorerShowing: isExplorerSidebarShowing,
   });
   const isLocalDaemon = useIsLocalDaemon(normalizedServerId);
   const { targets: desktopOpenTargets } = useDesktopOpenTargets({
