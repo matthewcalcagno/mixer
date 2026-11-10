@@ -64,6 +64,77 @@ async function expectExplorerActiveTabForeground(
 }
 
 test.describe("Explorer sidebar", () => {
+  test("continues a merge with Git's prepared message without warning clutter", async ({
+    page,
+  }) => {
+    const workspace = await seedWorkspace({ repoPrefix: "scm-merge-workflow-" });
+    const git = promisify(execFile);
+    const run = (args: string[]) => git("git", args, { cwd: workspace.repoPath });
+    const commit = (message: string) =>
+      run([
+        "-c",
+        "user.name=Merge test",
+        "-c",
+        "user.email=merge@example.test",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-am",
+        message,
+      ]);
+    try {
+      await writeFile(path.join(workspace.repoPath, "conflict.txt"), "base\n");
+      await run(["add", "conflict.txt"]);
+      await commit("Base");
+      const { stdout: original } = await run(["branch", "--show-current"]);
+      await run(["checkout", "-b", "incoming"]);
+      await writeFile(path.join(workspace.repoPath, "conflict.txt"), "incoming\n");
+      await commit("Incoming");
+      await run(["checkout", original.trim()]);
+      await writeFile(path.join(workspace.repoPath, "conflict.txt"), "current\n");
+      await commit("Current");
+      await run(["merge", "incoming"]).catch(() => undefined);
+      await gotoWorkspace(page, workspace.workspaceId);
+      const explorer = await ensureExplorerSidebar(page);
+      await explorer.getByRole("button", { name: "Source Control", exact: true }).click();
+      const scm = explorer.getByTestId("source-control-panel");
+      const message = scm.getByTestId("source-control-commit-message");
+      await expect(message).toHaveValue(/Merge branch 'incoming'/);
+      const next = scm.getByRole("button", { name: "Continue Merge", exact: true });
+      await expect(next).toBeDisabled();
+      await expect(scm.getByText("Merge Changes", { exact: true })).toBeVisible();
+      await expect(scm.getByText(/Resolve Merge Changes before committing/)).toHaveCount(0);
+      await message.fill("Resolve incoming changes");
+      await scm.getByTestId("source-control-refresh").click();
+      await expect(message).toHaveValue("Resolve incoming changes");
+      await writeFile(path.join(workspace.repoPath, "conflict.txt"), "resolved\n");
+      // A newly visible file proves the refresh includes the out-of-band resolution.
+      await writeFile(path.join(workspace.repoPath, "refresh-check.txt"), "refreshed\n");
+      await scm.getByTestId("source-control-refresh").click();
+      await expect(
+        scm.getByRole("button", {
+          name: "Open file refresh-check.txt",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await scm
+        .getByRole("button", { name: "Open working tree diff for conflict.txt", exact: true })
+        .hover();
+      await scm.getByRole("button", { name: "Stage conflict.txt", exact: true }).click();
+      await expect(next).toBeEnabled();
+      await next.click();
+      await expect(
+        scm.getByRole("button", { name: "Commit staged changes", exact: true }),
+      ).toBeVisible();
+      await expect
+        .poll(async () => (await run(["log", "-1", "--format=%s"])).stdout.trim())
+        .toBe("Resolve incoming changes");
+      await expect(scm.getByText("Merge Changes", { exact: true })).toHaveCount(0);
+    } finally {
+      await workspace.cleanup();
+    }
+  });
+
   test("reveals a file tab in a collapsed folder", async ({ page, withWorkspace }) => {
     const workspace = await withWorkspace({ prefix: "tab-reveal-file-" });
     await mkdir(path.join(workspace.repoPath, "src"));

@@ -75,7 +75,7 @@ The Changes header places Discard All Changes immediately before Stage All Chang
 Discard targets tracked worktree changes and preserves untracked files and the index.
 
 Ordinary commit, push, and Commit & Push run directly. Keep confirmation for
-amending history, synchronization that pulls changes, conflict-resolution staging,
+amending history, synchronization that pulls changes, aborting a Git operation,
 and destructive discard. During a combined operation the primary button retains
 the selected label and busy state through the remote step. Clear the message only
 after Git commits successfully; a failed push offers Push without restoring the
@@ -143,3 +143,17 @@ node plugins/source-control/scripts/test-sidebar.mjs
 The Git cases use disposable repositories and a local bare remote. Built-in lifecycle tests
 use a real daemon. The sidebar fixture renders the actual client in Chromium but substitutes
 RPC responses and icons; it does not prove a connected Electron workflow.
+
+### Interrupted Git operations
+
+Read operation metadata from the worktree Git directory, including Git’s prepared
+commit message. Preserve edits to that message across status refreshes. During a
+merge, rebase, cherry-pick, or revert, use Continue as the primary action and keep
+unresolved files in Merge Changes. Stage resolved files directly; reject remaining
+conflict markers. Open conflicted files in the editable source editor.
+
+Expected conflicts belong in the file list, without a second error banner. Show
+other failures as a short summary with expandable technical details. Keep Abort
+available as an icon action with confirmation. This follows the upstream
+[VS Code Git action button](https://github.com/microsoft/vscode/blob/main/extensions/git/src/actionButton.ts)
+and its use of Git’s prepared message.

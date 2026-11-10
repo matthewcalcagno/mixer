@@ -2,13 +2,24 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { readOperation } from "./operation.js";
 import { resolve, relative, isAbsolute } from "node:path";
 
-export function git(cwd: string, args: string[], input?: string): Promise<string> {
+export function git(
+  cwd: string,
+  args: string[],
+  input?: string,
+  env?: NodeJS.ProcessEnv,
+): Promise<string> {
   return new Promise((accept, reject) => {
     const process = spawn("git", ["--no-pager", ...args], {
       cwd,
-      env: { ...globalThis.process.env, GIT_TERMINAL_PROMPT: "0", GIT_LITERAL_PATHSPECS: "1" },
+      env: {
+        ...globalThis.process.env,
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_LITERAL_PATHSPECS: "1",
+        ...env,
+      },
       stdio: "pipe",
     });
     let stdout = "";
@@ -30,7 +41,12 @@ export function git(cwd: string, args: string[], input?: string): Promise<string
       clearTimeout(timer);
       if (spawnError) reject(spawnError);
       else if (code === 0) accept(stdout);
-      else reject(new Error(stderr.trim() || `Git exited with ${code}`));
+      else
+        reject(
+          new Error(
+            [stderr.trim(), stdout.trim()].filter(Boolean).join("\n") || `Git exited with ${code}`,
+          ),
+        );
     });
     process.stdin.on("error", () => {});
     process.stdin.end(input);
@@ -124,11 +140,14 @@ export async function status(cwd: string) {
   hash.update(await git(cwd, ["rev-parse", "HEAD"]).catch(() => Promise.resolve("unborn")));
   for (const file of files)
     if (file.index === "?") hash.update(await readFile(resolve(cwd, file.path)));
+  const operation = await readOperation(cwd);
+  hash.update(JSON.stringify(operation));
   const hasRemote = (await git(cwd, ["remote"])).trim().length > 0;
   return {
     branch,
     upstream,
     hasRemote,
+    operation,
     ahead: counts[0] ?? 0,
     behind: counts[1] ?? 0,
     files,

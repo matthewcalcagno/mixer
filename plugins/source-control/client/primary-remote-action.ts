@@ -19,7 +19,14 @@ export function primaryRemoteAction({
   commitFlowPending,
   pushing,
 }: PrimaryRemoteActionInput): RemoteAction | null {
-  if (commitFlowPending || !status || status.files.length > 0 || !status.hasRemote) return null;
+  if (
+    commitFlowPending ||
+    !status ||
+    status.operation ||
+    status.files.length > 0 ||
+    !status.hasRemote
+  )
+    return null;
   if (!status.upstream && status.branch !== "Detached HEAD")
     return {
       kind: "publish",
