@@ -19,6 +19,7 @@ import {
   Pressable,
   Text,
   View,
+  type ViewToken,
   type NativeSyntheticEvent,
   type PressableStateCallbackType,
   type TextInputKeyPressEventData,
@@ -925,6 +926,15 @@ export function FileExplorerPane({
     return rows;
   }, [pendingEdit, treeRows]);
   const showInitialLoading = !directories.has(".") && requests.get(".")?.status === "loading";
+  const visibleEntryPaths = useRef(new Set<string>());
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<ExplorerListRow>[] }) => {
+      visibleEntryPaths.current = new Set(
+        viewableItems.flatMap(({ item }) => (item.type === "entry" ? [item.row.entry.path] : [])),
+      );
+    },
+    [],
+  );
   const revealRequest = explorerState?.revealRequest;
   const lastRevealRequest = useRef<typeof revealRequest>(undefined);
   useEffect(() => {
@@ -935,7 +945,8 @@ export function FileExplorerPane({
     );
     if (index < 0) return;
     lastRevealRequest.current = revealRequest;
-    treeListRef.current.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+    if (!visibleEntryPaths.current.has(revealRequest.path))
+      treeListRef.current.scrollToIndex({ index, viewPosition: 0.5, animated: false });
   }, [listRows, revealRequest]);
   const showBackFromError = Boolean(error && selectedEntryPath);
   const renderTreeRow = useCallback(
@@ -1070,6 +1081,7 @@ export function FileExplorerPane({
         isRefreshFetching={isRefreshFetching}
         treeListRef={treeListRef}
         scrollbar={scrollbar}
+        onViewableItemsChanged={onViewableItemsChanged}
         renderTreeRow={renderTreeRow}
         handleToggleHiddenFiles={handleToggleHiddenFiles}
         handleRefresh={handleRefresh}
@@ -1129,6 +1141,7 @@ function RootCreationContextTarget({
     </View>
   );
 }
+const fullyVisibleRows = { itemVisiblePercentThreshold: 100 };
 interface FileExplorerPaneContentProps {
   workspaceRoot: string;
   error: string | null;
@@ -1141,6 +1154,7 @@ interface FileExplorerPaneContentProps {
   isRefreshFetching: boolean;
   treeListRef: RefObject<FlatList<ExplorerListRow> | null>;
   scrollbar: OverlayFlatListScrollbar;
+  onViewableItemsChanged: (info: { viewableItems: ViewToken<ExplorerListRow>[] }) => void;
   renderTreeRow: (info: ListRenderItemInfo<ExplorerListRow>) => ReactElement;
   handleToggleHiddenFiles: () => void;
   handleRefresh: () => void;
@@ -1325,6 +1339,8 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
               renderItem={renderTreeRow}
               keyExtractor={listRowKeyExtractor}
               onScrollToIndexFailed={handleScrollToIndexFailed}
+              onViewableItemsChanged={props.onViewableItemsChanged}
+              viewabilityConfig={fullyVisibleRows}
               testID="file-explorer-tree-scroll"
               contentContainerStyle={styles.entriesContent}
               onLayout={scrollbar.onLayout}

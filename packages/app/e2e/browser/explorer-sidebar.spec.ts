@@ -64,6 +64,62 @@ async function expectExplorerActiveTabForeground(
 }
 
 test.describe("Explorer sidebar", () => {
+  test("automatically reveals the active file when opening and switching tabs", async ({
+    page,
+    withWorkspace,
+  }, testInfo) => {
+    const workspace = await withWorkspace({ prefix: "auto-reveal-file-" });
+    await mkdir(path.join(workspace.repoPath, "alpha", "nested"), { recursive: true });
+    await mkdir(path.join(workspace.repoPath, "zulu", "nested"), { recursive: true });
+    await writeFile(path.join(workspace.repoPath, "alpha/nested/first.txt"), "First file");
+    await writeFile(path.join(workspace.repoPath, "zulu/nested/last.txt"), "Last file");
+    await Promise.all(
+      Array.from({ length: 80 }, (_, index) =>
+        mkdir(path.join(workspace.repoPath, `middle-${index}`)),
+      ),
+    );
+    await gotoWorkspace(page, workspace.workspaceId);
+    await openFilesPanel(page);
+    await expandFolder(page, "alpha");
+    await expandFolder(page, "nested");
+    await openFileFromExplorer(page, "first.txt");
+    const firstTab = page
+      .getByTestId("workspace-tab-file_alpha/nested/first.txt")
+      .filter({ visible: true });
+    await firstTab.dblclick();
+    const tree = page.getByTestId("file-explorer-tree-scroll");
+    const selected = (name: string) =>
+      tree.locator('[aria-selected="true"]').filter({ hasText: name });
+    await expect(selected("first.txt")).toBeInViewport();
+    await collapseFolder(page, "alpha");
+    await tree.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expandFolder(page, "zulu");
+    await expandFolder(page, "nested");
+    await openFileFromExplorer(page, "last.txt");
+    const lastTab = page
+      .getByTestId("workspace-tab-file_zulu/nested/last.txt")
+      .filter({ visible: true });
+    await lastTab.dblclick();
+    await expect(selected("last.txt")).toBeInViewport();
+    await collapseFolder(page, "zulu");
+    await firstTab.click();
+    await expect(selected("first.txt")).toBeInViewport();
+    await expect(selected("last.txt")).toHaveCount(0);
+    expect(await tree.evaluate((element) => element.contains(document.activeElement))).toBe(false);
+    await lastTab.click();
+    await expect(selected("last.txt")).toBeInViewport();
+    await expect(selected("first.txt")).toHaveCount(0);
+    await firstTab.click();
+    await lastTab.click();
+    await expect(selected("last.txt")).toBeInViewport();
+    await testInfo.attach("auto-revealed-active-file", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+
   test("continues a merge with Git's prepared message without warning clutter", async ({
     page,
   }) => {

@@ -102,6 +102,13 @@ even for a different PR; moving or reordering it remains the user's choice.
 Callers request the content and never choose the shell.
 The composer's Git pill always reveals Source Control, including on repeated presses.
 
+Files follows the active file in the last focused editor pane. Reveal expands only its
+ancestor chain and selects the file without focusing the tree or switching away from
+Search or Source Control. Hidden sidebars defer the work until reopened. Scroll only
+when the file is outside the viewport, so switching between visible files preserves
+the user's tree position. Automatic reveal shares the manual Reveal in File Tree
+loader and selection request; late requests must not select an older editor.
+
 The persisted layout still contains the Explorer pane so tabs survive reloads. The renderer removes
 that pane from the workspace split tree and docks it separately. Persisted identifiers retain the
 literal `"explorer"` pane id and `explorerPaneIdByWorkspace` key for compatibility.
