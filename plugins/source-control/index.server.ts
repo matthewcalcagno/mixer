@@ -10,6 +10,7 @@ import {
   statusRpc,
   decorationsRpc,
 } from "./shared/git.js";
+import { resourceGroups } from "./shared/resources.js";
 import { diff, git, status, decorations } from "./server/git.js";
 import { document, saveDocument } from "./server/document.js";
 import { executeGitAction, prepareTrash } from "./server/action.js";
@@ -80,6 +81,17 @@ export default function contribute(server: PluginServerContext) {
     busy.add(cwd);
     try {
       return { message: await executeGitAction({ cwd, revision, action }) };
+    } catch (error) {
+      const current = await status(cwd).catch(() => null);
+      const integration = ["sync", "pull", "continue"].includes(action.kind);
+      return {
+        message: "",
+        error: {
+          message: error instanceof Error ? error.message : "Git operation failed.",
+          conflict:
+            integration && current !== null && resourceGroups(current.files).merge.length > 0,
+        },
+      };
     } finally {
       busy.delete(cwd);
     }

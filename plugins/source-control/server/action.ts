@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { continueOperation } from "./operation.js";
 import { resolve } from "node:path";
 import type { RpcInput } from "@mixer/plugin";
 import type { actionRpc } from "../shared/git.js";
@@ -14,13 +16,12 @@ export async function executeGitAction({ cwd, revision, action }: ActionInput): 
   const current = await status(cwd);
   if (current.revision !== revision)
     throw new Error("Files changed. Refresh and review the diff before trying again.");
-  const committing = action.kind === "commit" || action.kind === "amend";
-  if (committing && resourceGroups(current.files).merge.length > 0)
-    throw new Error("Resolve merge conflicts before committing.");
+  validateActionState(current, action);
   let output: string;
   switch (action.kind) {
     case "stage":
       validatePaths(cwd, action.paths);
+      await validateResolvedFiles(cwd, current, action.paths);
       output = await git(cwd, ["add", "--", ...action.paths]);
       break;
     case "unstage":
@@ -42,6 +43,12 @@ export async function executeGitAction({ cwd, revision, action }: ActionInput): 
     case "amend":
       output = await git(cwd, ["commit", "--amend", "-m", action.message]);
       break;
+    case "continue":
+      output = await continueOperation(cwd, requireOperation(current), action.message);
+      break;
+    case "abort":
+      output = await git(cwd, [requireOperation(current).kind, "--abort"]);
+      break;
     case "fetch":
       output = await git(cwd, ["fetch"]);
       break;
@@ -62,6 +69,14 @@ export async function executeGitAction({ cwd, revision, action }: ActionInput): 
       break;
   }
   return output.trim() || "Done";
+}
+function validateActionState(current: Awaited<ReturnType<typeof status>>, action: Action): void {
+  const committing =
+    action.kind === "commit" || action.kind === "amend" || action.kind === "continue";
+  if (committing && resourceGroups(current.files).merge.length > 0)
+    throw new Error("Resolve merge conflicts before committing.");
+  if (current.operation && ["pull", "sync", "push", "publish", "amend"].includes(action.kind))
+    throw new Error(`Finish the current ${current.operation.kind} first.`);
 }
 async function unstage(cwd: string, paths: string[]): Promise<string> {
   validatePaths(cwd, paths);
@@ -145,4 +160,26 @@ export async function prepareTrash(
   )
     throw new Error("Only untracked files can be moved to Trash from this action.");
   return paths.map((path) => resolve(cwd, path));
+}
+
+async function validateResolvedFiles(
+  cwd: string,
+  current: Awaited<ReturnType<typeof status>>,
+  paths: string[],
+): Promise<void> {
+  const conflicts = new Set(resourceGroups(current.files).merge.map((file) => file.path));
+  for (const path of paths) {
+    if (!conflicts.has(path)) continue;
+    const content = await readFile(resolve(cwd, path), "utf8").catch((error) => {
+      if (error.code === "ENOENT") return "";
+      throw error;
+    });
+    if (/^(?:<{7,}(?: |$)|\|{7,}(?: |$)|={7,}$|>{7,}(?: |$))/m.test(content))
+      throw new Error(`Resolve conflict markers in ${path} before staging.`);
+  }
+}
+
+function requireOperation(current: Awaited<ReturnType<typeof status>>) {
+  if (!current.operation) throw new Error("No Git operation in progress. Refresh and try again.");
+  return current.operation;
 }
