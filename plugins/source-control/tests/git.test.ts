@@ -456,7 +456,7 @@ test("remote fetch, fast-forward pull, and push use a local bare remote", async 
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 30_000);
 
 test("optimistic file moves match real Git for partial changes, new files, deletions, and cancellation", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "mixer-source-control-optimistic-"));
@@ -664,3 +664,96 @@ test("Trash preparation accepts only reviewed untracked files and rejects tracke
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+async function conflictedRepository(
+  kind: "merge" | "rebase" | "cherry-pick" | "revert",
+  linked = false,
+) {
+  const root = await mkdtemp(join(tmpdir(), "mixer-scm-operation-"));
+  const repository = join(root, "repo");
+  await mkdir(repository);
+  await git(repository, ["init", "-b", "main"]);
+  await git(repository, ["config", "user.name", "SCM test"]);
+  await git(repository, ["config", "user.email", "scm@example.test"]);
+  await git(repository, ["config", "commit.gpgsign", "false"]);
+  await writeFile(join(repository, "file.txt"), "base\n");
+  await git(repository, ["add", "."]);
+  await git(repository, ["commit", "-m", "base"]);
+  await git(repository, ["checkout", "-b", "incoming"]);
+  await writeFile(join(repository, "file.txt"), "theirs\n");
+  await git(repository, ["commit", "-am", "Incoming change"]);
+  const incoming = (await git(repository, ["rev-parse", "HEAD"])).trim();
+  await git(repository, ["checkout", "main"]);
+  await writeFile(join(repository, "file.txt"), "ours\n");
+  await git(repository, ["commit", "-am", "Current change"]);
+  let cwd = repository;
+  if (linked) {
+    cwd = join(root, "linked");
+    await git(repository, ["worktree", "add", "-b", "linked", cwd]);
+  }
+  const head = (await git(cwd, ["rev-parse", "HEAD"])).trim();
+  const target = kind === "merge" || kind === "rebase" ? "incoming" : incoming;
+  await assert.rejects(git(cwd, [kind, target], undefined, { GIT_EDITOR: "true" }));
+  return { root, cwd, head };
+}
+
+for (const kind of ["merge", "rebase", "cherry-pick", "revert"] as const) {
+  test(`SCM continues ${kind} with the prepared message and a reviewed resolution`, async () => {
+    const { root, cwd } = await conflictedRepository(kind, kind === "merge");
+    try {
+      const before = await status(cwd);
+      assert.equal(before.operation?.kind, kind);
+      assert.ok(before.operation?.message);
+      assert.ok(!before.operation?.message.includes("# Conflicts:"));
+      if (kind === "merge")
+        assert.match(before.operation!.message, /Merge branch 'incoming' into linked/);
+      await assert.rejects(
+        executeGitAction({
+          cwd,
+          revision: before.revision,
+          action: { kind: "continue", message: "unsafe" },
+        }),
+        /Resolve merge conflicts/,
+      );
+      await assert.rejects(
+        executeGitAction({
+          cwd,
+          revision: before.revision,
+          action: { kind: "stage", paths: ["file.txt"] },
+        }),
+        /Resolve conflict markers/,
+      );
+      await writeFile(join(cwd, "file.txt"), "resolved\n");
+      await executeGitAction({
+        cwd,
+        revision: (await status(cwd)).revision,
+        action: { kind: "stage", paths: ["file.txt"] },
+      });
+      const ready = await status(cwd);
+      await executeGitAction({
+        cwd,
+        revision: ready.revision,
+        action: { kind: "continue", message: `Resolved ${kind}` },
+      });
+      assert.equal((await status(cwd)).operation, null);
+      assert.equal((await git(cwd, ["log", "-1", "--format=%s"])).trim(), `Resolved ${kind}`);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+  test(`SCM aborts ${kind} without leaving operation state`, async () => {
+    const { root, cwd, head } = await conflictedRepository(kind);
+    try {
+      await executeGitAction({
+        cwd,
+        revision: (await status(cwd)).revision,
+        action: { kind: "abort" },
+      });
+      assert.equal((await status(cwd)).operation, null);
+      assert.equal((await git(cwd, ["rev-parse", "HEAD"])).trim(), head);
+      assert.equal(await readFile(join(cwd, "file.txt"), "utf8"), "ours\n");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}

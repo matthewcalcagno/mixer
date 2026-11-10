@@ -53,6 +53,14 @@ export const statusRpc = defineRpc({
     behind: z.number(),
     revision: z.string(),
     hasRemote: z.boolean(),
+    operation: z
+      .object({
+        kind: z.enum(["merge", "rebase", "cherry-pick", "revert"]),
+        id: z.string(),
+        message: z.string(),
+      })
+      .nullable()
+      .optional(),
     files: z.array(
       z.object({ path: z.string(), index: z.string(), worktree: z.string(), head: z.string() }),
     ),
@@ -80,7 +88,8 @@ export const actionRpc = defineRpc({
         }),
         z.object({ kind: z.literal("commit"), message: z.string().trim().min(1) }),
         z.object({ kind: z.literal("amend"), message: z.string().trim().min(1) }),
-        z.object({ kind: z.enum(["fetch", "pull", "push", "sync", "publish"]) }),
+        z.object({ kind: z.enum(["fetch", "pull", "push", "sync", "publish", "abort"]) }),
+        z.object({ kind: z.literal("continue"), message: z.string().trim().min(1) }),
         z.object({
           kind: z.literal("patch"),
           path: z.string().min(1),
@@ -92,5 +101,18 @@ export const actionRpc = defineRpc({
       ]),
     }),
   ),
-  output: z.object({ message: z.string() }),
+  output: z.object({
+    message: z.string(),
+    error: z.object({ message: z.string(), conflict: z.boolean() }).optional(),
+  }),
 });
+
+export class GitActionError extends Error {
+  constructor(
+    message: string,
+    readonly conflict: boolean,
+  ) {
+    super(message);
+    this.name = "GitActionError";
+  }
+}
