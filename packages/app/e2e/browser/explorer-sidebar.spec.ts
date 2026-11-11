@@ -159,6 +159,9 @@ test.describe("Explorer sidebar", () => {
       const next = scm.getByRole("button", { name: "Continue Merge", exact: true });
       await expect(next).toBeDisabled();
       await expect(scm.getByText("Merge Changes", { exact: true })).toBeVisible();
+      const filename = scm.getByText("conflict.txt", { exact: true });
+      await expect(filename).toHaveCSS("font-size", "13px");
+      await expect(filename).toHaveCSS("font-weight", "500");
       await expect(scm.getByText(/Resolve Merge Changes before committing/)).toHaveCount(0);
       await message.fill("Resolve incoming changes");
       await scm.getByTestId("source-control-refresh").click();
@@ -813,6 +816,9 @@ test.describe("Explorer sidebar", () => {
       const input = search.getByLabel("Search workspace text", { exact: true });
       await input.fill("searchNeedle");
       await expect(search.getByTestId("search-status")).toHaveText("3 results in 2 files");
+      const filename = search.getByText("reference.ts", { exact: true });
+      await expect(filename).toHaveCSS("font-size", "13px");
+      await expect(filename).toHaveCSS("font-weight", "500");
       await search.getByRole("button", { name: "Match case", exact: true }).click();
       await expect(search.getByTestId("search-status")).toHaveText("2 results in 1 file");
       await search.getByRole("button", { name: "Toggle search details", exact: true }).click();

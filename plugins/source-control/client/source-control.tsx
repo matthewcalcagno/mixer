@@ -211,7 +211,11 @@ export function SourceControlPanel({
     pushing ||
     (action.isPending && ["continue", "abort"].includes(action.variables.kind));
   const c = theme.colors;
-  const text = { color: c.foreground, fontSize: 13 };
+  const text = {
+    color: c.foreground,
+    fontFamily: theme.typography?.fontFamily,
+    fontSize: theme.typography?.chrome ?? 13,
+  };
   const files = state.data?.files ?? EMPTY_FILES;
   const groups = resourceGroups(files);
   const tracked = groups.changes.filter((file) => file.index !== "?");
@@ -900,7 +904,11 @@ function CommitForm({
   if (operation)
     primaryAccessibilityLabel = `Continue ${{ merge: "Merge", rebase: "Rebase", "cherry-pick": "Cherry-Pick", revert: "Revert" }[operation.kind]}`;
   const c = theme.colors;
-  const text = { color: c.foreground, fontSize: 13 };
+  const text = {
+    color: c.foreground,
+    fontFamily: theme.typography?.fontFamily,
+    fontSize: theme.typography?.chrome ?? 13,
+  };
   return (
     <View style={{ paddingHorizontal: 10, paddingTop: 2, paddingBottom: 6, gap: 10 }}>
       <View>
