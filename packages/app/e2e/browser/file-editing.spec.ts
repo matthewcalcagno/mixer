@@ -562,7 +562,9 @@ test("VS Code-sized shell text leaves chat and editor font preferences independe
     const tabLabel = tab.getByText("typography.ts", { exact: true });
     await expect(tabLabel).toHaveCSS("font-size", "13px");
     await expect(tabLabel).toHaveCSS("font-weight", "400");
-    await expect(page.getByTestId("workspace-status-bar")).toHaveCSS("height", "22px");
+    const statusBar = page.getByTestId("workspace-status-bar");
+    await expect(statusBar).toHaveCSS("height", "22px");
+    await expect(statusBar).toHaveCSS("margin-bottom", "4px");
     const host = page.getByTestId("file-source-editor").filter({ visible: true });
     if (process.env.MIXER_WEB_PLATFORM === "electron")
       await expect(host.frameLocator("iframe").locator(".view-lines")).toHaveCSS(

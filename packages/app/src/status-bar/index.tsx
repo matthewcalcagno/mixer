@@ -177,6 +177,7 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     backgroundColor: theme.colors.background,
     paddingHorizontal: WORKSPACE_ISLAND_GAP,
+    marginBottom: WORKSPACE_ISLAND_GAP,
   },
   left: {
     flex: 1,

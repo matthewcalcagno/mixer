@@ -83,8 +83,8 @@ describe("window-manager", () => {
         update: { trafficLightOffsetY: 0.5 },
       });
 
-      expect(setWindowButtonPosition).toHaveBeenNthCalledWith(1, { x: 16, y: 9 });
-      expect(setWindowButtonPosition).toHaveBeenNthCalledWith(2, { x: 16, y: 14.5 });
+      expect(setWindowButtonPosition).toHaveBeenNthCalledWith(1, { x: 10, y: 3 });
+      expect(setWindowButtonPosition).toHaveBeenNthCalledWith(2, { x: 10, y: 8.5 });
     });
   });
 
@@ -119,7 +119,7 @@ describe("window-manager", () => {
       ).toEqual({
         titleBarStyle: "hidden",
         titleBarOverlay: true,
-        trafficLightPosition: { x: 16, y: 14 },
+        trafficLightPosition: { x: 10, y: 8 },
       });
     });
   });

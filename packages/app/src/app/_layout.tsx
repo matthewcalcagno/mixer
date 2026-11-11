@@ -570,7 +570,6 @@ function DesktopWindowControlsSync() {
     if (isLoading || isNative) return;
     void updateDesktopWindowChrome({
       backgroundColor: surface0,
-      trafficLightOffsetY: -4,
     }).catch((error) => {
       console.warn("[DesktopWindow] Failed to update window controls overlay", error);
     });

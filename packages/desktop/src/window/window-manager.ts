@@ -14,7 +14,8 @@ import type { WindowState, WindowStateStore } from "../settings/window-state.js"
 import type { DesktopWindowChromeMode } from "./chrome.js";
 
 const WINDOW_STATE_SAVE_DEBOUNCE_MS = 400;
-const MAC_TRAFFIC_LIGHT_POSITION = { x: 16, y: 14 } as const;
+// Keep the native buttons centered in Mixer's 28px desktop title bar.
+const MAC_TRAFFIC_LIGHT_POSITION = { x: 10, y: 8 } as const;
 const MAX_TRAFFIC_LIGHT_OFFSET_Y = 10;
 
 export function readBadgeCount(input: unknown): number {
