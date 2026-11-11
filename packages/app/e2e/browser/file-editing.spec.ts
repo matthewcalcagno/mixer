@@ -557,6 +557,9 @@ test("VS Code-sized shell text leaves chat and editor font preferences independe
     await openWorkspaceFile(page, "typography.ts");
     const tree = page.getByTestId("file-explorer-tree-scroll");
     await expect(tree.getByText("typography.ts", { exact: true })).toHaveCSS("font-size", "13px");
+    const unchangedFile = tree.getByText("README.md", { exact: true });
+    await expect(unchangedFile).toHaveCSS("font-weight", "500");
+    await expect(unchangedFile).toHaveCSS("opacity", "1");
     await expect(page.getByTestId("files-root-folder-name")).toHaveCSS("font-size", "13px");
     const tab = page.getByTestId("workspace-tab-file_typography.ts").filter({ visible: true });
     const tabLabel = tab.getByText("typography.ts", { exact: true });

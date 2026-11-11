@@ -249,7 +249,7 @@ function gitDecorationStyle(status?: GitDecoration, ignored?: boolean) {
   let color = styles.gitModified;
   if (status === "U" || status === "A") color = styles.gitAdded;
   if (status === "D" || status === "!") color = styles.gitDeleted;
-  return [color, styles.gitChangedName];
+  return color;
 }
 function GitStatusBadge({
   status,
@@ -308,9 +308,6 @@ const TreeRowItem = memo(function TreeRowItem({
   onDeleteEntry,
   testID,
 }: TreeRowItemProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const showNameHover = useCallback(() => setIsHovered(true), []);
-  const hideNameHover = useCallback(() => setIsHovered(false), []);
   const isDirectory = entry.kind === "directory";
   const dragSourceRef = useWorkspaceFileDragSource({
     enabled: true,
@@ -393,8 +390,6 @@ const TreeRowItem = memo(function TreeRowItem({
         onLongPress={handleSelect}
         onContextMenu={handleSelect}
         style={pressableStyle}
-        onHoverIn={showNameHover}
-        onHoverOut={hideNameHover}
         accessibilityState={accessibilityState}
         aria-selected={isSelected}
         aria-expanded={isDirectory ? isExpanded : undefined}
@@ -418,9 +413,7 @@ const TreeRowItem = memo(function TreeRowItem({
           </View>
           <Text
             style={[
-              workspaceTreeRowStyles.name,
               styles.entryName,
-              isHovered && workspaceTreeRowStyles.nameHovered,
               gitDecorationStyle(gitDecoration, entry.gitIgnored),
               entry.gitIgnored && styles.ignoredEntryName,
             ]}
@@ -1691,17 +1684,15 @@ const styles = StyleSheet.create((theme) => ({
   entryName: {
     flex: 1,
     color: theme.colors.foreground,
-    opacity: 0.8,
     fontSize: theme.fontSize.chrome,
     fontFamily: theme.fontFamily.ui,
-    fontWeight: theme.fontWeight.normal,
+    fontWeight: theme.fontWeight.medium,
     lineHeight: fileExplorerRowMetrics(theme.fontSize.chrome).lineHeight,
     userSelect: "none",
   },
   gitModified: { color: theme.colors.statusDotRunning },
   gitAdded: { color: theme.colors.statusSuccess },
   gitDeleted: { color: theme.colors.statusDanger },
-  gitChangedName: { opacity: 1 },
   gitFolderDot: {
     width: 5,
     height: 5,
@@ -1714,7 +1705,6 @@ const styles = StyleSheet.create((theme) => ({
   gitBadge: { marginLeft: "auto", paddingLeft: 8, fontSize: theme.fontSize.xs, fontWeight: "600" },
   ignoredEntryName: {
     color: theme.colors.foregroundExtraMuted,
-    opacity: 1,
   },
   desktopRow: { minHeight: fileExplorerRowMetrics(theme.fontSize.chrome).minHeight },
   draftInput: {
