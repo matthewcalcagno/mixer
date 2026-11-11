@@ -65,7 +65,7 @@ test("workspace file search stays geometrically stable through delayed loading a
 
     const panel = page.getByTestId("command-center-panel");
     await expect(panel).toBeVisible({ timeout: 30_000 });
-    await expect(panel.getByRole("button", { name: "Files" })).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "Files", exact: true })).toBeVisible();
     await startCommandCenterLayoutObservation(page);
 
     await panel.getByTestId("command-center-input").fill(FILE_NAME);
@@ -93,10 +93,10 @@ test("workspace file search stays geometrically stable through delayed loading a
   }
 });
 
-test("dropping the files scope leaves the search row the same height", async ({ page }) => {
+test("switching search categories leaves the search row the same height", async ({ page }) => {
   const seeded = await seedWorkspace({
     repoPrefix: "command-center-file-search-scope-",
-    title: "Scope chip height",
+    title: "Search category height",
   });
 
   try {
@@ -108,8 +108,11 @@ test("dropping the files scope leaves the search row the same height", async ({ 
     const header = panel.getByTestId("command-center-header");
     const scoped = await header.boundingBox();
 
-    await page.getByTestId("command-center-files-scope").click();
-    await expect(page.getByTestId("command-center-files-scope")).toHaveCount(0);
+    await panel.getByRole("tab", { name: "All", exact: true }).click();
+    await expect(panel.getByRole("tab", { name: "All", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     const unscoped = await header.boundingBox();
 
     expect(scoped?.height).toBe(unscoped?.height);
@@ -233,4 +236,50 @@ test.describe("Compact file search context", () => {
       await seeded.cleanup();
     }
   });
+});
+
+test("Search Everywhere opens text matches and finds settings by keyword", async ({
+  page,
+}, testInfo) => {
+  const workspace = await seedWorkspace({
+    repoPrefix: "search-everywhere-",
+    repo: { files: [{ path: "src/lookup.txt", content: "intro\nsearchEverywhereNeedle here\n" }] },
+  });
+  try {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await gotoWorkspace(page, workspace.workspaceId);
+    const panel = await openCommandCenter(page);
+    const input = panel.getByTestId("command-center-input");
+    await expect(input).toBeFocused();
+    await input.press("Tab");
+    await expect(panel.getByRole("tab", { name: "Files", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await input.press("Tab");
+    await expect(panel.getByRole("tab", { name: "Text", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await input.fill("searchEverywhereNeedle");
+    await expect(
+      panel.getByRole("button", { name: /searchEverywhereNeedle here.*src\/lookup.txt:2/ }),
+    ).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("search-everywhere.png") });
+    await input.press("Enter");
+    await expectFileTabOpen(page, "src/lookup.txt");
+    await expect(
+      page.getByTestId("file-source-editor").filter({ visible: true }).locator(".cm-activeLine"),
+    ).toHaveText("searchEverywhereNeedle here");
+    await expect(panel).toHaveCount(0);
+
+    await openCommandCenter(page);
+    await panel.getByRole("tab", { name: "Settings", exact: true }).click();
+    await input.fill("minimap");
+    await expect(panel.getByRole("button", { name: "Editor", exact: true })).toBeVisible();
+    await input.press("Enter");
+    await expect(page).toHaveURL(/settings\/editor/);
+  } finally {
+    await workspace.cleanup();
+  }
 });

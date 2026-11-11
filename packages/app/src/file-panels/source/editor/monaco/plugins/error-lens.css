@@ -1,0 +1,29 @@
+.monaco-editor :is(.mixer-error-lens-error, .mixer-error-lens-line-error) {
+  --mixer-diagnostic-color: var(--vscode-editorError-foreground, #f14c4c);
+}
+
+.monaco-editor :is(.mixer-error-lens-warning, .mixer-error-lens-line-warning) {
+  --mixer-diagnostic-color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.monaco-editor :is(.mixer-error-lens-info, .mixer-error-lens-line-info) {
+  --mixer-diagnostic-color: var(--vscode-editorInfo-foreground, #3794ff);
+}
+
+.monaco-editor :is(.mixer-error-lens-hint, .mixer-error-lens-line-hint) {
+  --mixer-diagnostic-color: var(--vscode-editorHint-foreground, #8a8a8a);
+}
+
+.monaco-editor .mixer-error-lens {
+  color: var(--mixer-diagnostic-color);
+}
+
+.monaco-editor
+  :is(
+    .mixer-error-lens-line-error,
+    .mixer-error-lens-line-warning,
+    .mixer-error-lens-line-info,
+    .mixer-error-lens-line-hint
+  ) {
+  background-color: color-mix(in srgb, var(--mixer-diagnostic-color) 9%, transparent);
+}

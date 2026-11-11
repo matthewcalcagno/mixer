@@ -6,6 +6,7 @@ import {
   type LanguageProvider,
 } from "@mixer/protocol/language-services";
 import { GitAnnotations } from "./git-annotations";
+import { installErrorLens } from "./plugins/error-lens";
 import { monacoThemeColors } from "./theme-colors";
 import { monacoPreferences, applyModelPreferences } from "./preferences";
 import { editorActiveLineColor, editorLineNumberColors } from "../preferences";
@@ -67,6 +68,7 @@ let jsonConnectionAttempt = 0;
 let jsonConnectionPending = false;
 let projectConnection: monaco.IDisposable | null = null;
 let gitAnnotations: GitAnnotations | null = null;
+let errorLens: monaco.IDisposable | null = null;
 let diffEditor: monaco.editor.IStandaloneDiffEditor | null = null;
 let diffModels: monaco.editor.ITextModel[] = [];
 let diffViewModel: monaco.editor.IDiffEditorViewModel | null = null;
@@ -333,6 +335,7 @@ async function configure(configuration: EditorConfiguration) {
       emit({ type: "change", content, revision, baseVersion });
     });
     registerEditingActions(editor);
+    errorLens = installErrorLens(editor);
     gitAnnotations = new GitAnnotations({
       editor,
       model: textModel,
@@ -655,6 +658,7 @@ window.addEventListener("pagehide", () => {
   jsonConnection?.dispose();
   projectConnection?.dispose();
   gitAnnotations?.dispose();
+  errorLens?.dispose();
   vim?.dispose();
   editor?.dispose();
   textModel?.dispose();

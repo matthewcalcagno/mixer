@@ -4,6 +4,7 @@ import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspac
 import { revealWorkspaceTab } from "@/workspace-tabs/navigation";
 import { useSessionStore } from "@/stores/session-store";
 import { useWorkspaceDirectory } from "@/stores/session-store-hooks";
+import { collectAllTabs } from "@/stores/workspace-layout-actions";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { clearCommandCenterFocusRestoreElement } from "@/utils/command-center-focus-restore";
 import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
@@ -47,16 +48,36 @@ function describeFileEntries(
   return entries.map(({ path }) => describeWorkspaceFilePath(path));
 }
 
-export function useWorkspaceFileSearch(input: { enabled: boolean; query: string }): {
+export function useWorkspaceFileSearch(input: {
+  enabled: boolean;
+  query: string;
+  limit?: number;
+}): {
   entries: readonly WorkspaceFileSearchEntry[];
   loading: boolean;
   error: string | null;
-  openFile(path: string): void;
+  openFile(path: string, lineStart?: number): void;
 } {
   const selection = useActiveWorkspaceSelection();
   const serverId = selection?.serverId ?? null;
   const workspaceId = selection?.workspaceId ?? null;
   const cwd = useWorkspaceDirectory(serverId, workspaceId);
+  const layoutKey =
+    serverId && workspaceId ? buildWorkspaceTabPersistenceKey({ serverId, workspaceId }) : null;
+  const layout = useWorkspaceLayoutStore((state) =>
+    layoutKey ? state.layoutByWorkspace[layoutKey] : undefined,
+  );
+  const limit = input.limit ?? FILE_SEARCH_LIMIT;
+  const blankQuery = !input.query.trim();
+  const openFiles = useMemo(() => {
+    if (!layout || !input.enabled || !blankQuery) return [];
+    const tabs = collectAllTabs(layout.root).sort(
+      (left, right) => right.createdAt - left.createdAt,
+    );
+    return [...new Set(tabs.flatMap(({ target }) => (target.kind === "file" ? [target.path] : [])))]
+      .slice(0, limit)
+      .map(describeWorkspaceFilePath);
+  }, [blankQuery, input.enabled, layout, limit]);
   const client = useSessionStore((state) =>
     serverId ? (state.sessions[serverId]?.client ?? null) : null,
   );
@@ -93,7 +114,7 @@ export function useWorkspaceFileSearch(input: { enabled: boolean; query: string 
           query: input.query,
           includeFiles: true,
           includeDirectories: false,
-          limit: FILE_SEARCH_LIMIT,
+          limit,
         });
         if (cancelled) return;
         setState({
@@ -122,14 +143,15 @@ export function useWorkspaceFileSearch(input: { enabled: boolean; query: string 
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [client, cwd, input.query, requestKey, sourceKey]);
+  }, [client, cwd, input.query, limit, requestKey, sourceKey]);
 
   const openFile = useCallback(
-    (path: string) => {
+    (path: string, lineStart?: number) => {
       if (!serverId || !workspaceId) return;
       clearCommandCenterFocusRestoreElement();
       openWorkspaceFileFromExplorer({
         filePath: path,
+        lineStart,
         persistenceKey: buildWorkspaceTabPersistenceKey({ serverId, workspaceId }),
         openWorkspaceTabInFocusedPane: (workspaceKey, target, placement) =>
           useWorkspaceLayoutStore.getState().openTab({
@@ -144,8 +166,15 @@ export function useWorkspaceFileSearch(input: { enabled: boolean; query: string 
     [serverId, workspaceId],
   );
 
+  const entries = useMemo(() => {
+    const matches = requestKey && state.sourceKey === sourceKey ? state.entries : [];
+    if (!openFiles.length) return matches;
+    const paths = new Set(openFiles.map(({ path }) => path));
+    return [...openFiles, ...matches.filter(({ path }) => !paths.has(path))].slice(0, limit);
+  }, [limit, openFiles, requestKey, sourceKey, state.entries, state.sourceKey]);
+
   return {
-    entries: requestKey && state.sourceKey === sourceKey ? state.entries : [],
+    entries,
     loading: Boolean(requestKey) && (state.requestKey !== requestKey || state.loading),
     error: state.requestKey === requestKey ? state.error : null,
     openFile,

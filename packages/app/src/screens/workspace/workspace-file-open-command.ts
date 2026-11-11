@@ -10,6 +10,7 @@ import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 
 interface OpenWorkspaceFileFromExplorerInput {
   filePath: string;
+  lineStart?: number;
   persistenceKey: string | null;
   openWorkspaceTabInFocusedPane: (
     workspaceKey: string,
@@ -23,7 +24,10 @@ export function openWorkspaceFileFromExplorer(input: OpenWorkspaceFileFromExplor
   if (!input.persistenceKey) {
     return;
   }
-  const location = normalizeWorkspaceFileLocation({ path: input.filePath });
+  const location = normalizeWorkspaceFileLocation({
+    path: input.filePath,
+    lineStart: input.lineStart,
+  });
   if (!location) {
     return;
   }

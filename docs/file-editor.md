@@ -21,6 +21,11 @@ HTML into the app shell leaves the hidden startup frame waiting until recovery.
 Revision numbers prevent delayed host updates from replacing newer
 keystrokes. The HTML preview uses a separate, untrusted-content sandbox.
 
+The desktop editor bundles Error Lens. It reads Monaco markers, so diagnostics from
+local workers and language server plugins use the same inline presentation. Each line
+shows its highest severity message and a count of additional diagnostics. The editor
+keeps its normal squiggles and diagnostic hovers for the full details.
+
 ## Editor preferences
 
 App layout shortcuts take precedence while an editor has focus. Cmd+D deliberately splits a

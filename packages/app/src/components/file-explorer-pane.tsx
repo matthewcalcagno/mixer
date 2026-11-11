@@ -244,12 +244,23 @@ function EntryNameInputRow({
 }
 const ENTRY_DRAG_SELECTION = { file: undefined, directory: { kind: "whole_folder" } } as const;
 
+function gitDecorationTone(status: GitDecoration) {
+  if (status === "U" || status === "A") return "added";
+  if (status === "D" || status === "!") return "deleted";
+  return "modified";
+}
+
+function gitDecorationColors(theme: Theme) {
+  return {
+    added: theme.colors.statusSuccess,
+    modified: theme.colors.statusDotRunning,
+    deleted: theme.colors.statusDanger,
+  };
+}
+
 function gitDecorationStyle(status?: GitDecoration, ignored?: boolean) {
   if (!status || ignored) return undefined;
-  let color = styles.gitModified;
-  if (status === "U" || status === "A") color = styles.gitAdded;
-  if (status === "D" || status === "!") color = styles.gitDeleted;
-  return color;
+  return styles.gitLabel(gitDecorationTone(status));
 }
 function GitStatusBadge({
   status,
@@ -268,7 +279,7 @@ function GitStatusBadge({
       <View
         testID={testID ? `${testID}-git-status` : undefined}
         accessibilityLabel="Contains Git changes"
-        style={styles.gitFolderDot}
+        style={[styles.gitFolderDot, styles.gitDotColor(gitDecorationTone(status))]}
       />
     );
   return (
@@ -920,13 +931,14 @@ export function FileExplorerPane({
   }, [pendingEdit, treeRows]);
   const showInitialLoading = !directories.has(".") && requests.get(".")?.status === "loading";
   const visibleEntryPaths = useRef(new Set<string>());
-  const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken<ExplorerListRow>[] }) => {
-      visibleEntryPaths.current = new Set(
-        viewableItems.flatMap(({ item }) => (item.type === "entry" ? [item.row.entry.path] : [])),
-      );
-    },
-    [],
+  // FlatList requires this callback to keep its identity for the lifetime of the list.
+  const [onViewableItemsChanged] = useState(
+    () =>
+      ({ viewableItems }: { viewableItems: ViewToken<ExplorerListRow>[] }) => {
+        visibleEntryPaths.current = new Set(
+          viewableItems.flatMap(({ item }) => (item.type === "entry" ? [item.row.entry.path] : [])),
+        );
+      },
   );
   const revealRequest = explorerState?.revealRequest;
   const lastRevealRequest = useRef<typeof revealRequest>(undefined);
@@ -1690,16 +1702,22 @@ const styles = StyleSheet.create((theme) => ({
     lineHeight: fileExplorerRowMetrics(theme.fontSize.chrome).lineHeight,
     userSelect: "none",
   },
-  gitModified: { color: theme.colors.statusDotRunning },
-  gitAdded: { color: theme.colors.statusSuccess },
-  gitDeleted: { color: theme.colors.statusDanger },
+  gitLabel: (tone: ReturnType<typeof gitDecorationTone>) => {
+    const color = gitDecorationColors(theme)[tone];
+    return {
+      color:
+        tone === "deleted" ? color : `color-mix(in srgb, ${color} 80%, ${theme.colors.foreground})`,
+    };
+  },
+  gitDotColor: (tone: ReturnType<typeof gitDecorationTone>) => ({
+    backgroundColor: gitDecorationColors(theme)[tone],
+  }),
   gitFolderDot: {
     width: 5,
     height: 5,
     borderRadius: 3,
     marginLeft: "auto",
     marginRight: 3,
-    backgroundColor: theme.colors.statusDotRunning,
     opacity: 0.45,
   },
   gitBadge: { marginLeft: "auto", paddingLeft: 8, fontSize: theme.fontSize.xs, fontWeight: "600" },
