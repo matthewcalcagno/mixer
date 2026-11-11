@@ -31,7 +31,7 @@ export function RequestWorkspace({
   columns: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null);
-  const [ratio, setRatio] = useState(0.48);
+  const [ratio, setRatio] = useState(0.4);
   const collapsed = !columns && ratio === 1;
   const shownRatio = columns ? Math.min(0.75, Math.max(0.25, ratio)) : ratio;
   const style = useMemo(

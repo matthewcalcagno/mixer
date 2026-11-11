@@ -5,6 +5,7 @@ import {
   buildSubagentPillPresentation,
   buildSubagentRowPresentationData,
   countFinishedSubagents,
+  rowsForSubagentsTrack,
   resolveRowLabel,
 } from "./track-presentation";
 
@@ -145,6 +146,24 @@ describe("countFinishedSubagents", () => {
         row({ id: "finished", status: "idle" }),
       ]),
     ).toBe(1);
+  });
+});
+
+describe("rowsForSubagentsTrack", () => {
+  it("shows only working children while work is active", () => {
+    const rows = [
+      row({ id: "finished" }),
+      row({ id: "working-a", status: "running" }),
+      row({ id: "working-b", status: "running" }),
+    ];
+
+    expect(rowsForSubagentsTrack(rows).map(({ id }) => id)).toEqual(["working-a", "working-b"]);
+  });
+
+  it("keeps the complete list available when no child is working", () => {
+    const rows = [row({ id: "finished" }), row({ id: "failed", status: "error" })];
+
+    expect(rowsForSubagentsTrack(rows)).toBe(rows);
   });
 });
 

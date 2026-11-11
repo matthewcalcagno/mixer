@@ -222,6 +222,7 @@ const postmanRequest = z.object({
       bearer: z.array(postmanPair).optional(),
       basic: z.array(postmanPair).optional(),
       apikey: z.array(postmanPair).optional(),
+      oauth2: z.array(postmanPair).optional(),
     })
     .optional(),
 });
@@ -252,24 +253,27 @@ function applyPostmanBody(request: ApiRequest, source: PostmanRequest) {
 }
 function applyPostmanAuth(request: ApiRequest, source: PostmanRequest) {
   const auth = source.auth;
-  const entries = auth?.bearer ?? auth?.basic ?? auth?.apikey ?? [];
+  if (!auth) return;
+  const entries = Object.values(auth).find(Array.isArray) ?? [];
   const values = new Map(entries.map((entry) => [entry.key, String(entry.value ?? "")]));
   const value = (key: string) => values.get(key) ?? "";
-  if (auth?.type === "bearer") request.auth = { type: "bearer", token: value("token") };
-  else if (auth?.type === "basic")
+  if (auth.type === "bearer") request.auth = { type: "bearer", token: value("token") };
+  else if (auth.type === "basic")
     request.auth = {
       type: "basic",
       username: value("username"),
       password: value("password"),
     };
-  else if (auth?.type === "apikey")
+  else if (auth.type === "apikey")
     request.auth = {
       type: "api-key",
       key: value("key"),
       value: value("value"),
       location: values.get("in") === "query" ? "query" : "header",
     };
-  else if (auth?.type && auth.type !== "noauth")
+  else if (auth.type === "oauth2")
+    request.auth = { type: "bearer", token: value("accessToken") || value("access_token") };
+  else if (auth.type && auth.type !== "noauth")
     throw new Error(`Authorization type ${auth.type} requires manual setup.`);
 }
 function importPostmanRequest(value: unknown, name: string): ApiRequest {

@@ -15,7 +15,7 @@ import type { ApiRequest, Environment } from "../shared/contracts.js";
 import { withRequestUrl } from "../shared/query.js";
 import { newRequest } from "../shared/request.js";
 import { VariableInput } from "./variable-input.js";
-import { VariableProvider, RequestVariableStatus } from "./variables.js";
+import { VariableProvider } from "./variables.js";
 import { useClientStore } from "./store.js";
 import {
   closeRequests,
@@ -44,6 +44,7 @@ import { Action, IconAction } from "./controls.js";
 import { RequestWorkspace } from "./request-workspace.js";
 import { downloadText } from "./response.js";
 import { Library } from "./library.js";
+import { EnvironmentPicker } from "./environment-picker.js";
 import { EnvironmentDialog, ImportDialog, SaveDialog, NameDialog } from "./dialogs.js";
 import { toCurl } from "./import-export.js";
 import { css, themeStyle } from "./styles.js";
@@ -348,14 +349,13 @@ function ApiClient({ theme, host, layout }: PluginScreenProps) {
   const onClickToggleAPIClientLibrary = useCallback<
     NonNullable<ComponentProps<typeof IconAction>["onClick"]>
   >(() => setSideOpen(!sideOpen), [setSideOpen, sideOpen]);
-  const onChangeActiveEnvironment = useCallback<NonNullable<ComponentProps<"select">["onChange"]>>(
-    (event) =>
-      update((current) => ({
-        ...current,
-        activeEnvironmentId: event.target.value || null,
-      })),
+  const onChangeActiveEnvironment = useCallback(
+    (id: string | null) => update((current) => ({ ...current, activeEnvironmentId: id })),
     [update],
   );
+  const onChangeLibraryEnvironment = useCallback<
+    NonNullable<ComponentProps<typeof Library>["environmentChange"]>
+  >((event) => onChangeActiveEnvironment(event.target.value || null), [onChangeActiveEnvironment]);
   const handleShortcut = useCallback<NonNullable<ComponentProps<"div">["onKeyDown"]>>(
     (event) => {
       if (!(event.metaKey || event.ctrlKey)) return;
@@ -499,7 +499,7 @@ function ApiClient({ theme, host, layout }: PluginScreenProps) {
       <Notice storageError={storageError} notice={notice} dismiss={onClickDismissNotice} />
       <WorkspaceLayout testID="api-client-workspace">
         <WorkspaceIsland testID="api-client-main-island">
-          <main className="ac-main">
+          <main className="ac-main" data-editing-environment={Boolean(environmentDialog)}>
             <div className="ac-request-tabs" role="tablist" aria-label="API request tabs">
               <div className="ac-tabs-scroll">
                 {state.tabs.map((request) => (
@@ -534,6 +534,12 @@ function ApiClient({ theme, host, layout }: PluginScreenProps) {
               </div>
               <div className="ac-inline">
                 <IconAction icon="Copy" label="Copy as cURL" onClick={copyCurl} />
+                <EnvironmentPicker
+                  environments={state.environments}
+                  activeId={state.activeEnvironmentId}
+                  onChange={onChangeActiveEnvironment}
+                  onCreate={createEnvironmentLibrary}
+                />
                 <Action icon="Save" onClick={saveActiveRequest}>
                   Save
                 </Action>
@@ -579,14 +585,34 @@ function ApiClient({ theme, host, layout }: PluginScreenProps) {
                 )}
               </div>
             </div>
-            <RequestVariableStatus request={active} />
-            <RequestWorkspace
-              request={active}
-              result={result}
-              onChange={change}
-              onError={error}
-              columns={columns && !compact}
-            />
+            {environmentDialog ? (
+              <>
+                {" "}
+                {environmentDialog && (
+                  <EnvironmentDialog
+                    key={
+                      typeof environmentDialog === "string"
+                        ? environmentDialog
+                        : environmentDialog.id
+                    }
+                    inline
+                    theme={theme}
+                    close={closeEnvironmentDialog}
+                    environment={environmentDialog === "globals" ? undefined : environmentDialog}
+                    globals={environmentDialog === "globals" ? state.globals : undefined}
+                    onSave={onSaveEnvironmentDialog}
+                  />
+                )}{" "}
+              </>
+            ) : (
+              <RequestWorkspace
+                request={active}
+                result={result}
+                onChange={change}
+                onError={error}
+                columns={columns && !compact}
+              />
+            )}
           </main>
         </WorkspaceIsland>
         <WorkspaceSidebar
@@ -603,7 +629,7 @@ function ApiClient({ theme, host, layout }: PluginScreenProps) {
             changeCollection={changeCollection}
             duplicateCollection={duplicateCollection}
             state={state}
-            environmentChange={onChangeActiveEnvironment}
+            environmentChange={onChangeLibraryEnvironment}
             close={closeLibrary}
             open={open}
             openHistory={history}
@@ -643,15 +669,6 @@ function ApiClient({ theme, host, layout }: PluginScreenProps) {
           initialCollectionId={requestCollection(state, saving.id)?.id}
           initialFolderId={savedCollection?.locations?.[saving.id]}
           onSave={save}
-        />
-      )}
-      {environmentDialog && (
-        <EnvironmentDialog
-          theme={theme}
-          close={closeEnvironmentDialog}
-          environment={environmentDialog === "globals" ? undefined : environmentDialog}
-          globals={environmentDialog === "globals" ? state.globals : undefined}
-          onSave={onSaveEnvironmentDialog}
         />
       )}
     </VariableProvider>

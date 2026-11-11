@@ -25,6 +25,7 @@ import {
   buildSubagentPillPresentation,
   buildSubagentRowPresentationData,
   countFinishedSubagents,
+  rowsForSubagentsTrack,
 } from "./track-presentation";
 const ThemedArchive = withUnistyles(Archive);
 const ThemedUnlink = withUnistyles(Unlink);
@@ -81,7 +82,8 @@ export function SubagentsTrack({
   const pill = buildSubagentPillPresentation(t, rows);
   const finishedCount = countFinishedSubagents(rows);
   const showArchiveFinished = finishedCount > 0 || isArchivingFinished || isArchiveFinishedFailed;
-  const sheets = rows.map(sheetTabFor);
+  const visibleRows = rowsForSubagentsTrack(rows);
+  const sheets = visibleRows.map(sheetTabFor);
   const pages = sheets.flatMap((sheet) => (sheet ? [sheetPanePage(sheet)] : []));
   return (
     <ComposerTrackPill
@@ -92,7 +94,7 @@ export function SubagentsTrack({
       panelTitle={t("subagents.title")}
     >
       {showArchiveFinished && onArchiveFinished ? (
-        <ComposerTrackActions divided={rows.length > 0}>
+        <ComposerTrackActions divided={visibleRows.length > 0}>
           <ArchiveFinishedRow
             status={archiveFinishedStatus}
             disabled={isArchivingFinished}
@@ -100,7 +102,7 @@ export function SubagentsTrack({
           />
         </ComposerTrackActions>
       ) : null}
-      {rows.map((row, index) => (
+      {visibleRows.map((row, index) => (
         <SubagentsTrackRow
           key={row.kind === "mixer" ? `${row.address.serverId}:${row.id}` : row.id}
           row={row}

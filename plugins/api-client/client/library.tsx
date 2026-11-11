@@ -107,7 +107,7 @@ function EnvironmentRow({
 export function Library(props: LibraryProps) {
   const {
     state,
-    environmentChange,
+
     close,
     open,
     openHistory,
@@ -146,21 +146,6 @@ export function Library(props: LibraryProps) {
           <IconAction icon="PanelRightClose" label="Close API Client library" onClick={close} />
         </div>
       </div>
-      <label className="ac-library-context">
-        <Icon name="Globe" size={14} color="currentColor" />
-        <select
-          aria-label="Active environment"
-          value={state.activeEnvironmentId ?? ""}
-          onChange={environmentChange}
-        >
-          <option value="">No environment</option>
-          {state.environments.map((environment) => (
-            <option key={environment.id} value={environment.id}>
-              {environment.name}
-            </option>
-          ))}
-        </select>
-      </label>
       <div className="ac-side-search">
         <span className="ac-search-glyph">
           <Icon name="Search" size={14} color="currentColor" />

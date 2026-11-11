@@ -224,7 +224,9 @@ export function EnvironmentDialog({
   globals,
   scopeName,
   onSave,
+  inline = false,
 }: {
+  inline?: boolean;
   theme: PluginTheme;
   close: () => void;
   environment?: Environment;
@@ -242,13 +244,35 @@ export function EnvironmentDialog({
     });
     close();
   }, [onSave, environment, name, variables, close]);
+  const persist = useCallback(
+    (nextName: string, nextVariables: Pair[]) => {
+      if (inline && nextName.trim())
+        onSave({
+          id: environment?.id ?? "globals",
+          name: nextName.trim(),
+          variables: nextVariables,
+        });
+    },
+    [inline, onSave, environment],
+  );
   const onChangeEnvironmentName = useCallback<NonNullable<ComponentProps<"input">["onChange"]>>(
-    (event) => setName(event.target.value),
-    [setName],
+    (event) => {
+      setName(event.target.value);
+      persist(event.target.value, variables);
+    },
+    [persist, variables],
+  );
+  const changeVariables = useCallback(
+    (next: Pair[]) => {
+      setVariables(next);
+      persist(name, next);
+    },
+    [persist, name],
   );
   const title = scopeName ? `${scopeName} variables` : undefined;
+  const Frame = inline ? InlineEnvironmentFrame : Dialog;
   return (
-    <Dialog
+    <Frame
       title={title ?? (globals ? "Global variables" : "Environment")}
       theme={theme}
       close={close}
@@ -263,21 +287,38 @@ export function EnvironmentDialog({
           />
         </Field>
       )}
-      <PairEditor name="variable" pairs={variables} onChange={setVariables} />
-      <p className="ac-muted">Values, including credentials, are saved on this device.</p>
-      <p className="ac-muted">
-        Environment variables override collection variables, then globals. Disabled rows are
-        excluded.
-      </p>
-      <div className="ac-dialog-actions">
-        <Action size="sm" onClick={close}>
-          Cancel
-        </Action>
-        <Action size="sm" primary disabled={!name.trim()} onClick={saveVariables}>
-          Save variables
-        </Action>
+      <PairEditor name="variable" pairs={variables} onChange={changeVariables} />
+      {!inline && (
+        <div className="ac-dialog-actions">
+          <Action size="sm" onClick={close}>
+            Cancel
+          </Action>
+          <Action size="sm" primary disabled={!name.trim()} onClick={saveVariables}>
+            Save variables
+          </Action>
+        </div>
+      )}
+    </Frame>
+  );
+}
+
+function InlineEnvironmentFrame({
+  children,
+  close,
+}: {
+  children: ReactNode;
+  title: string;
+  theme: PluginTheme;
+  close: () => void;
+}) {
+  return (
+    <section className="ac-environment-workspace" aria-label="Environment editor">
+      <div className="ac-inline">
+        <Action onClick={close}>Back to request</Action>
+        <span className="ac-muted">Variables · Saved automatically</span>
       </div>
-    </Dialog>
+      {children}
+    </section>
   );
 }
 

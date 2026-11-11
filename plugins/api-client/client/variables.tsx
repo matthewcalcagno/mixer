@@ -9,23 +9,20 @@ import {
 } from "react";
 import type { PluginTheme } from "@mixer/plugin";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@mixer/plugin/client/ui";
-import type { ApiRequest } from "../shared/contracts.js";
 import { requestCollection, type ClientState } from "./model.js";
 import {
   variableStatus,
-  activeVariablePairs,
   variableDefinitions,
-  requestVariableNames,
   saveVariable,
   scopeVariables,
 } from "./variables-model.js";
-import { Dialog } from "./dialogs.js";
 import { Action, Field } from "./controls.js";
 import { themeStyle } from "./styles.js";
 interface VariableContextValue {
   state: ClientState;
   theme: PluginTheme;
   inspect(name: string): void;
+  save(name: string, value: string, scopeId: string): void;
 }
 const VariableContext = createContext<VariableContextValue | null>(null);
 export const useRequestVariables = () => useContext(VariableContext);
@@ -57,7 +54,10 @@ export function VariableProvider({
     },
     [update],
   );
-  const context = useMemo(() => ({ state, theme, inspect: setInspecting }), [state, theme]);
+  const context = useMemo(
+    () => ({ state, theme, inspect: setInspecting, save }),
+    [state, theme, save],
+  );
   return (
     <VariableContext value={context}>
       <div
@@ -119,7 +119,7 @@ function VariableDialog({
     [name, value, scopeId, save],
   );
   return (
-    <Dialog theme={context.theme} title={`Variable: ${name}`} close={close}>
+    <div className="ac-root ac-variable-quick-edit" style={themeStyle(context.theme)}>
       <form ref={form} className="ac-name-form" onSubmit={submit}>
         {!status.resolved && <p className="ac-variable-error">{status.error}</p>}
         <Field label="Scope">
@@ -140,10 +140,6 @@ function VariableDialog({
             placeholder="Value or {{anotherVariable}}"
           />
         </Field>
-        <p className="ac-muted">
-          Environment values override collection variables and globals. Saving enables this
-          variable. Values are stored on this device.
-        </p>
         <div className="ac-dialog-actions">
           <Action onClick={close}>Cancel</Action>
           <Action primary onClick={saveAction}>
@@ -152,7 +148,7 @@ function VariableDialog({
           <button type="submit" className="ac-hidden" tabIndex={-1} aria-hidden="true" />
         </div>
       </form>
-    </Dialog>
+    </div>
   );
 }
 export function VariableToken({
@@ -192,62 +188,58 @@ function VariablePreview({
   const status = variableStatus(context.state, name);
   const [revealed, setRevealed] = useState(!sensitive);
   const toggle = useCallback(() => setRevealed((value) => !value), []);
-  const inspect = useCallback(() => context.inspect(name), [context, name]);
+  const scopeId = status.scopeId;
+  const [value, setValue] = useState(
+    scopeVariables(context.state, status.scopeId).findLast((pair) => pair.key === name)?.value ??
+      "",
+  );
   const style = useMemo(() => themeStyle(context.theme), [context.theme]);
-  const environment = context.state.environments.find(
-    (item) => item.id === context.state.activeEnvironmentId,
+  const change = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => setValue(event.target.value),
+    [],
   );
-  const defined = activeVariablePairs(context.state).some(
-    (pair) => pair.enabled && pair.key === name,
+  const commit = useCallback(
+    () => context.save(name, value, scopeId),
+    [context, name, value, scopeId],
   );
-  const error = defined
-    ? status.error
-    : "Not defined in the active environment, collection, or globals.";
+  const keyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      }
+    },
+    [commit],
+  );
+  const inspect = useCallback(() => context.inspect(name), [context, name]);
+  let scopeLabel = "Environment";
+  if (scopeId === "globals") scopeLabel = "Global";
+  else if (scopeId.startsWith("collection:")) scopeLabel = "Collection";
   return (
     <div className="ac-root ac-variable-preview" style={style}>
-      <strong>{`{{${name}}}`}</strong>
-      <span className={status.resolved ? "ac-muted" : "ac-variable-error"}>
-        {status.resolved ? `Resolved · ${status.source}` : "Unresolved variable"}
-      </span>
-      {!status.resolved && (
-        <span className="ac-muted">
-          {environment ? `Active environment: ${environment.name}` : "No environment selected"}
-        </span>
-      )}
-      {status.resolved ? (
-        <code>{revealed ? status.value || "(empty value)" : "••••••••"}</code>
-      ) : (
-        <p>{error}</p>
-      )}
-      {sensitive && status.resolved && (
-        <Action onClick={toggle}>{revealed ? "Hide value" : "Show value"}</Action>
-      )}
-      <Action onClick={inspect}>{status.resolved ? "Edit variable" : "Set variable"}</Action>
+      <div className="ac-inline">
+        <input
+          aria-label={`Value for ${name}`}
+          placeholder="Enter value"
+          type={revealed ? "text" : "password"}
+          value={value}
+          onChange={change}
+          onBlur={commit}
+          onKeyDown={keyDown}
+        />
+        {sensitive && <Action onClick={toggle}>{revealed ? "Hide" : "Show"}</Action>}
+      </div>
+      <div className="ac-variable-footer">
+        <span className="ac-variable-scope-icon">{scopeLabel[0]}</span>
+        <span className="ac-variable-scope-label">{scopeLabel}</span>
+        <button type="button" className="ac-variable-request-link" onClick={inspect}>
+          Variables in request →
+        </button>
+      </div>
     </div>
   );
 }
-export function RequestVariableStatus({ request }: { request: ApiRequest }) {
-  const context = useRequestVariables();
-  if (!context) return null;
-  const missing = requestVariableNames(request).filter(
-    (name) => !variableStatus(context.state, name).resolved,
-  );
-  if (!missing.length) return null;
-  return (
-    <div className="ac-variable-status" role="status">
-      <span>
-        {missing.length} unresolved variable{missing.length === 1 ? "" : "s"}
-      </span>
-      {missing.map((name) => (
-        <MissingVariable key={name} name={name} inspect={context.inspect} />
-      ))}
-    </div>
-  );
-}
-function MissingVariable({ name, inspect }: { name: string; inspect(name: string): void }) {
-  const edit = useCallback(() => inspect(name), [inspect, name]);
-  return <Action onClick={edit}>{`Set {{${name}}}`}</Action>;
-}
+
 export function useVariableCompletions() {
   const context = useRequestVariables();
   return useMemo(() => (context ? variableDefinitions(context.state) : []), [context]);
