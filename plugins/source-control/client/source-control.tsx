@@ -14,6 +14,7 @@ import { useRpc, type PluginWorkspacePanelProps } from "@mixer/plugin/client";
 import type { RpcInput, RpcOutput } from "@mixer/plugin";
 import {
   actionRpc,
+  GitActionError,
   autoFetchRpc,
   statusRpc,
   prepareTrashRpc,
@@ -63,6 +64,15 @@ const preferences = z.object({
 });
 
 type Action = RpcInput<typeof actionRpc>["action"];
+
+function describeGitError(error: Error | null) {
+  if (!error || (error instanceof GitActionError && error.conflict)) return null;
+  const firstLine = error.message.split("\n")[0];
+  const summary = /^(?:Request failed|Git exited|fatal:|error:)/i.test(firstLine)
+    ? "Git operation failed."
+    : firstLine;
+  return { summary, details: error.message };
+}
 
 export function SourceControlPanel({
   scope,
@@ -114,6 +124,7 @@ export function SourceControlPanel({
   const [collapsedFolders, setCollapsedFolders] = useState<ReadonlySet<string>>(() => new Set());
   const [commitFlowOption, setCommitFlowOption] = useState<CommitOption | null>(null);
   const commitFlowPending = commitFlowOption !== null;
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [commitFlowError, setCommitFlowError] = useState<Error | null>(null);
   const key = ["source-control", workspaceId];
   const mutating = useIsMutating({ mutationKey: key }) > 0 || commitFlowPending;
@@ -139,6 +150,7 @@ export function SourceControlPanel({
     mutationKey: key,
     onMutate: async (operation: Action & { expectedRevision?: string }) => {
       setCommitFlowError(null);
+      setShowErrorDetails(false);
       await queries.cancelQueries({ queryKey: key });
       const previous = queries.getQueryData<RpcOutput<typeof statusRpc>>(key);
       if (previous) queries.setQueryData(key, optimisticStatus(previous, operation));
@@ -150,10 +162,13 @@ export function SourceControlPanel({
         ...scope,
         revision: operation.expectedRevision ?? state.data.revision,
         action: operation,
+      }).then((result) => {
+        if (result.error) throw new GitActionError(result.error.message, result.error.conflict);
+        return result;
       });
     },
     onSuccess: (_result, operation) => {
-      if (operation.kind === "commit" || operation.kind === "amend") {
+      if (["commit", "amend", "continue", "abort"].includes(operation.kind)) {
         saveMessage("");
         setMessageResetVersion((version) => version + 1);
       }
@@ -191,9 +206,16 @@ export function SourceControlPanel({
       action.variables.kind === "publish" ||
       action.variables.kind === "pull" ||
       action.variables.kind === "sync");
-  const primaryBusy = commitFlowPending || pushing;
+  const primaryBusy =
+    commitFlowPending ||
+    pushing ||
+    (action.isPending && ["continue", "abort"].includes(action.variables.kind));
   const c = theme.colors;
-  const text = { color: c.foreground, fontSize: 13 };
+  const text = {
+    color: c.foreground,
+    fontFamily: theme.typography?.fontFamily,
+    fontSize: theme.typography?.chrome ?? 13,
+  };
   const files = state.data?.files ?? EMPTY_FILES;
   const groups = resourceGroups(files);
   const tracked = groups.changes.filter((file) => file.index !== "?");
@@ -273,7 +295,7 @@ export function SourceControlPanel({
   );
 
   function openResource(group: ResourceGroup, file: Resource) {
-    if (file.index === "?" && onOpenFile) {
+    if ((file.index === "?" || group === "merge") && onOpenFile) {
       onOpenFile(file.path);
       return;
     }
@@ -328,24 +350,39 @@ export function SourceControlPanel({
     const entries = actionResources({ selection: currentSelection, resources, operation, context });
     const paths = [...new Set(entries.map((entry) => entry.file.path))];
     if (!paths.length) return;
-    if (
-      operation === "discard" ||
-      (operation === "stage" && entries.some((entry) => entry.group === "merge"))
-    )
-      void confirm({ kind: operation, paths });
+    if (operation === "discard") void confirm({ kind: operation, paths });
     else action.mutate({ kind: operation, paths });
   }
   const hasConflicts = groups.merge.length > 0;
-  const canCommit = staged.length > 0 && !hasConflicts && !pending && !state.isPending;
-  const canAmend = !hasConflicts && !pending && !!state.data;
+  const gitOperation = state.data?.operation;
+  const operationLabel = gitOperation
+    ? { merge: "Merge", rebase: "Rebase", "cherry-pick": "Cherry-Pick", revert: "Revert" }[
+        gitOperation.kind
+      ]
+    : "";
+  const canCommit =
+    (staged.length > 0 || !!gitOperation) && !hasConflicts && !pending && !state.isPending;
+  const canAmend = !gitOperation && !hasConflicts && !pending && !!state.data;
   const remoteAction = primaryRemoteAction({ status: state.data, commitFlowPending, pushing });
-  let primaryLabel = remoteAction?.label ?? "Commit";
+  let primaryLabel = gitOperation ? "Continue" : (remoteAction?.label ?? "Commit");
   if (commitFlowOption)
     primaryLabel = commitOptions.find((option) => option.value === commitFlowOption)!.label;
-  const operationError = state.error || commitFlowError || action.error || trash.error;
+  const gitError = describeGitError(state.error || commitFlowError || action.error || trash.error);
   async function commit(message: string, option: CommitOption) {
     if (!message.trim() || !(option === "amend" ? canAmend : canCommit) || !state.data) return;
     const snapshot = state.data;
+    if (snapshot.operation) {
+      try {
+        await action.mutateAsync({
+          kind: "continue",
+          message,
+          expectedRevision: snapshot.revision,
+        });
+      } catch (error) {
+        setCommitFlowError(error instanceof Error ? error : new Error("Unable to continue."));
+      }
+      return;
+    }
     const hasRemoteStep = option === "commit-push" || option === "commit-sync";
     if (hasRemoteStep && (!snapshot.hasRemote || !snapshot.upstream)) return;
     setCommitFlowOption(option);
@@ -416,8 +453,9 @@ export function SourceControlPanel({
       />
     );
   }
-  const remoteActionsDisabled = !state.data?.hasRemote;
+  const remoteActionsDisabled = !state.data?.hasRemote || !!gitOperation;
   const actionOptions: NativeSelectorOption[] = [
+    ...(gitOperation ? [{ value: "abort", label: `Abort ${operationLabel}…` }] : []),
     { value: "fetch", label: "Fetch", disabled: remoteActionsDisabled },
     { value: "pull", label: "Pull (fast-forward only)", disabled: remoteActionsDisabled },
     { value: "push", label: "Push", disabled: remoteActionsDisabled },
@@ -450,6 +488,18 @@ export function SourceControlPanel({
   ];
   function selectAction(value: string) {
     switch (value) {
+      case "abort":
+        void (async () => {
+          if (
+            await confirmAction(
+              `Abort ${operationLabel}?`,
+              "Discard the conflict resolutions for this operation?",
+              "Abort",
+            )
+          )
+            action.mutate({ kind: "abort" });
+        })();
+        break;
       case "stage-all":
         action.mutate({
           kind: "stage",
@@ -496,6 +546,15 @@ export function SourceControlPanel({
         testID="source-control-pane-header"
         titleTestID="source-control-pane-title"
       >
+        {gitOperation && (
+          <PaneHeaderAction
+            icon="X"
+            label={`Abort ${operationLabel}`}
+            testID="source-control-abort"
+            disabled={pending}
+            onPress={() => selectAction("abort")}
+          />
+        )}
         <PaneHeaderAction
           icon="Filter"
           label="Filter changes"
@@ -569,7 +628,7 @@ export function SourceControlPanel({
           amendAllowed={canAmend}
           disabled={pending || !state.data}
           remoteDisabled={!state.data?.hasRemote || !state.data.upstream}
-          diverged={!!state.data?.ahead && !!state.data.behind}
+          operation={gitOperation}
           showRemoteAction={remoteAction !== null}
           remoteIcon={remoteAction?.icon ?? "ArrowUp"}
           remoteAccessibilityLabel={remoteAction?.accessibilityLabel ?? ""}
@@ -582,34 +641,41 @@ export function SourceControlPanel({
             if (remoteAction) action.mutate({ kind: remoteAction.kind });
           }}
         />
-        {operationError && (
-          <View
-            style={{
-              marginHorizontal: 16,
-              padding: 10,
-              marginBottom: 10,
-              borderLeftWidth: 2,
-              borderColor: c.statusDanger,
-              backgroundColor: c.surface1,
-            }}
-          >
-            <Text accessibilityRole="alert" selectable style={{ ...text, color: c.statusDanger }}>
-              {operationError.message}
-            </Text>
+        {gitError && (
+          <View style={{ marginHorizontal: 10, marginBottom: 8, gap: 4 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Icon name="AlertCircle" size={14} color={c.statusDanger} />
+              <Text
+                accessibilityRole="alert"
+                numberOfLines={2}
+                style={{ ...text, flex: 1, color: c.statusDanger }}
+              >
+                {gitError.summary}
+              </Text>
+              <IconButton
+                icon="Info"
+                label={showErrorDetails ? "Hide Git error details" : "Show Git error details"}
+                theme={theme}
+                onPress={() => setShowErrorDetails(!showErrorDetails)}
+              />
+              <IconButton
+                icon="X"
+                label="Dismiss Git error"
+                theme={theme}
+                onPress={() => {
+                  action.reset();
+                  trash.reset();
+                  setCommitFlowError(null);
+                  if (state.error) void state.refetch();
+                }}
+              />
+            </View>
+            {showErrorDetails && (
+              <Text selectable style={{ ...text, color: c.foregroundMuted }}>
+                {gitError.details}
+              </Text>
+            )}
           </View>
-        )}
-        {hasConflicts && (
-          <Text
-            accessibilityRole="alert"
-            style={{
-              color: c.statusWarning,
-              fontSize: 12,
-              paddingHorizontal: 10,
-              paddingBottom: 8,
-            }}
-          >
-            Resolve Merge Changes before committing. Staging a merge file marks it resolved.
-          </Text>
         )}
         {sections.map((group) => (
           <View key={group.id} style={{ marginBottom: 4 }}>
@@ -762,7 +828,7 @@ interface CommitFormProps {
   amendAllowed: boolean;
   disabled: boolean;
   remoteDisabled: boolean;
-  diverged: boolean;
+  operation: RpcOutput<typeof statusRpc>["operation"];
   showRemoteAction: boolean;
   remoteIcon: "ArrowDown" | "ArrowUp" | "RefreshCw";
   remoteAccessibilityLabel: string;
@@ -784,7 +850,7 @@ function CommitForm({
   amendAllowed,
   disabled,
   remoteDisabled,
-  diverged,
+  operation,
   showRemoteAction,
   remoteIcon,
   remoteAccessibilityLabel,
@@ -819,21 +885,32 @@ function CommitForm({
     },
     [],
   );
+  const previousTemplate = useRef({ id: "", message: "" });
+  useEffect(() => {
+    const id = operation?.id ?? "";
+    if (previousTemplate.current.id === id) return;
+    const previous = previousTemplate.current.message;
+    previousTemplate.current = { id, message: operation?.message ?? "" };
+    if (operation)
+      setMessage((current) =>
+        !current.trim() || current === previous ? operation.message : current,
+      );
+  }, [operation]);
   const canCommit = !!message.trim() && commitAllowed;
   const canAmend = !!message.trim() && amendAllowed;
   const primaryEnabled = showRemoteAction ? remoteEnabled : canCommit;
   const remoteLabel = primaryLabel === "Publish branch" ? primaryLabel : remoteAccessibilityLabel;
-  const primaryAccessibilityLabel = primaryBusy ? primaryLabel : "Commit staged changes";
+  let primaryAccessibilityLabel = primaryBusy ? primaryLabel : "Commit staged changes";
+  if (operation)
+    primaryAccessibilityLabel = `Continue ${{ merge: "Merge", rebase: "Rebase", "cherry-pick": "Cherry-Pick", revert: "Revert" }[operation.kind]}`;
   const c = theme.colors;
-  const text = { color: c.foreground, fontSize: 13 };
+  const text = {
+    color: c.foreground,
+    fontFamily: theme.typography?.fontFamily,
+    fontSize: theme.typography?.chrome ?? 13,
+  };
   return (
     <View style={{ paddingHorizontal: 10, paddingTop: 2, paddingBottom: 6, gap: 10 }}>
-      {diverged && (
-        <Text style={{ color: c.statusWarning, fontSize: 11 }}>
-          Branches have diverged. Sync Changes integrates incoming commits before pushing. If
-          conflicts occur, resolve them before retrying.
-        </Text>
-      )}
       <View>
         <TextInput
           ref={messageInput}
@@ -937,7 +1014,7 @@ function CommitForm({
             {primaryLabel}
           </Text>
         </Pressable>
-        {!showRemoteAction && (
+        {!showRemoteAction && !operation && (
           <CommitDropdown
             disabled={disabled}
             canCommit={canCommit}

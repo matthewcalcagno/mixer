@@ -138,6 +138,9 @@ describe("bundled workspace text search", () => {
     expect(result.count).toBe(MAX_RESULTS);
     expect(result.limited).toBe(true);
     expect(result.limitReason).toBe("results");
+    const quick = await run({ includes: "many.txt", limit: 24 });
+    expect(quick.count).toBe(24);
+    expect(quick.limitReason).toBe("results");
   });
   it("skips files over the size budget", async () => {
     const { root, run } = await fixture();

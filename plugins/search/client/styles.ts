@@ -3,6 +3,12 @@ import type { PluginTheme } from "@mixer/plugin";
 
 export function createStyles(theme: PluginTheme) {
   const c = theme.colors;
+  const primaryText = {
+    color: c.foreground,
+    fontFamily: theme.typography?.fontFamily,
+    fontSize: theme.typography?.chrome ?? 13,
+    fontWeight: "500" as const,
+  };
   return StyleSheet.create({
     panel: { flex: 1, minHeight: 0 },
     inputs: { paddingHorizontal: 10, paddingVertical: 6, gap: 6 },
@@ -57,8 +63,13 @@ export function createStyles(theme: PluginTheme) {
     list: { flex: 1, minHeight: 0 },
     file: { height: 24, flexDirection: "row", alignItems: "center", paddingHorizontal: 8, gap: 5 },
     chevron: { width: 14, flexShrink: 0 },
-    filename: { color: c.foreground, fontSize: 13, flexShrink: 1 },
-    directory: { color: c.foregroundMuted, fontSize: 11, flex: 1 },
+    filename: { ...primaryText, flexShrink: 1 },
+    directory: {
+      color: c.foregroundMuted,
+      fontFamily: theme.typography?.fontFamily,
+      fontSize: theme.typography?.small ?? 12,
+      flex: 1,
+    },
     badge: { color: c.foregroundMuted, fontSize: 11, paddingHorizontal: 5, marginLeft: "auto" },
     hit: {
       height: 24,
@@ -69,7 +80,7 @@ export function createStyles(theme: PluginTheme) {
       gap: 7,
     },
     line: { color: c.foregroundMuted, fontSize: 11, minWidth: 26, textAlign: "right" },
-    preview: { color: c.foregroundMuted, fontSize: 12, flex: 1 },
+    preview: { ...primaryText, flex: 1 },
     highlight: { color: c.accent, fontWeight: "600", backgroundColor: c.surface2 },
     pressed: { backgroundColor: c.surface2 },
     footer: { color: c.foregroundMuted, fontSize: 10, paddingHorizontal: 12, paddingVertical: 5 },

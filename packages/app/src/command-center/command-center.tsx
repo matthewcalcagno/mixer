@@ -1,8 +1,9 @@
 import equal from "fast-deep-equal";
+import { createPortal } from "react-dom";
 import { recordRenderProfileReasons } from "@/utils/render-profiler";
 import {
   FlatList,
-  Modal,
+  ScrollView,
   Pressable,
   Text,
   View,
@@ -53,6 +54,7 @@ import { useTimeAgo } from "@/hooks/use-time-ago";
 import { createProjectIconTarget } from "@/projects/icon-target";
 import { useProjectIcons } from "@/projects/icons";
 import {
+  getOverlayRoot,
   OverlayLayerProvider,
   useGlobalWebOverlayLayer,
   useWebOverlayRegistration,
@@ -96,6 +98,8 @@ import {
 } from "./results";
 import { createCommandCenterInteraction, type CommandCenterInteraction } from "./interaction";
 import { useWorkspaceFileSearch } from "./workspace-file-search";
+import { useWorkspaceSearchProviders } from "./search-providers";
+import { useSearchSettings } from "./search-settings";
 const ThemedBottomSheetTextInput = withUnistyles(TextInput, (theme) => ({
   placeholderTextColor: theme.colors.foregroundMuted,
 }));
@@ -255,10 +259,33 @@ function useBuiltInSections(open: boolean, query: string): CommandCenterResultSe
     ];
   }, [open, query, rows, t]);
 }
+const SEARCH_SCOPES: readonly CommandCenterScope[] = [
+  null,
+  "files",
+  "text",
+  "settings",
+  "actions",
+  "workspaces",
+  "agents",
+];
+
+function searchScopeLabel(scope: CommandCenterScope, t: ReturnType<typeof useTranslation>["t"]) {
+  switch (scope) {
+    case null:
+      return t("shell.commandCenter.all");
+    case "settings":
+      return t("settings.title");
+    default:
+      return t(`shell.commandCenter.${scope}`);
+  }
+}
+
 interface CommandCenterState {
   open: boolean;
   scope: CommandCenterScope;
   clearScope(): void;
+  scopes: readonly CommandCenterScope[];
+  chooseScope(scope: CommandCenterScope): void;
   query: string;
   setQuery(query: string): void;
   activeId: string | null;
@@ -286,14 +313,37 @@ function useCommandCenterState(
   const previousOpenRef = useRef(open);
   const { query, activeId } = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
   const builtInSections = useBuiltInSections(open, query);
+  const settings = useSearchSettings();
+  const {
+    sources,
+    results: providerResults,
+    loading: providerLoading,
+  } = useWorkspaceSearchProviders({ open, scope, query });
+  const scopes = useMemo(
+    () => [
+      ...SEARCH_SCOPES,
+      ...(["classes", "symbols"] as const).filter((category) =>
+        sources.some((provider) => provider.category === category),
+      ),
+    ],
+    [sources],
+  );
+  const chooseScope = useCallback(
+    (next: CommandCenterScope) => {
+      setScope(next);
+      inputRef.current?.focus();
+    },
+    [setScope],
+  );
   const {
     entries: fileSearchEntries,
     loading: fileSearchLoading,
     error: fileSearchError,
     openFile,
   } = useWorkspaceFileSearch({
-    enabled: open && (scope === "files" || Boolean(query.trim())),
+    enabled: open && (scope === null || scope === "files"),
     query,
+    limit: scope === null ? 16 : undefined,
   });
   const fileSections = useMemo<CommandCenterResultSection[]>(() => {
     const results = fileSearchEntries.map<CommandCenterFileResult>((entry) => ({
@@ -310,30 +360,83 @@ function useCommandCenterState(
     return [
       {
         id: "files",
-        band: PINNED_SECTION_BAND,
+        band: query.trim() ? PINNED_SECTION_BAND : -1,
         rank: 4,
         title: t("shell.commandCenter.files"),
         results,
       },
     ];
-  }, [fileSearchEntries, openFile, t]);
+  }, [fileSearchEntries, openFile, query, t]);
   const contributionSections = useMemo(
     () => buildContributionSections(snapshot.contributions, query),
     [query, snapshot.contributions],
   );
-  const projection = useMemo(
-    () =>
-      projectCommandCenterRows(
-        scope === "files"
-          ? fileSections
-          : [...contributionSections, ...fileSections, ...builtInSections],
-        listMetrics,
-      ),
-    [builtInSections, contributionSections, fileSections, listMetrics, scope],
+  const settingsSections = useMemo(
+    () => buildContributionSections(settings, query),
+    [settings, query],
   );
+  const providerSections = useMemo<CommandCenterResultSection[]>(
+    () =>
+      providerResults.map(({ provider, matches }) => ({
+        id: provider.id,
+        title: searchScopeLabel(provider.category, t),
+        rank: 5,
+        band: PINNED_SECTION_BAND,
+        results: matches.map((match): CommandCenterFileResult => ({
+          kind: "file",
+          id: `${provider.id}:${match.id}`,
+          filePath: match.location.path,
+          title: match.title,
+          subtitle: match.detail,
+          run: () => openFile(match.location.path, match.location.lineStart),
+        })),
+      })),
+    [providerResults, openFile, t],
+  );
+  const projection = useMemo(() => {
+    switch (scope) {
+      case "files":
+        return projectCommandCenterRows(fileSections, listMetrics);
+      case "settings":
+        return projectCommandCenterRows(settingsSections, listMetrics);
+      case "actions":
+        return projectCommandCenterRows(contributionSections, listMetrics);
+      case "workspaces":
+      case "agents":
+        return projectCommandCenterRows(
+          builtInSections.filter((section) => section.id === scope),
+          listMetrics,
+        );
+      case "text":
+      case "classes":
+      case "symbols":
+        return projectCommandCenterRows(providerSections, listMetrics);
+      default:
+        return projectCommandCenterRows(
+          [
+            ...contributionSections,
+            ...(query.trim() ? settingsSections : []),
+            ...fileSections,
+            ...providerSections,
+            ...builtInSections,
+          ],
+          listMetrics,
+        );
+    }
+  }, [
+    builtInSections,
+    contributionSections,
+    fileSections,
+    listMetrics,
+    providerSections,
+    query,
+    scope,
+    settingsSections,
+  ]);
+  const loading = fileSearchLoading || providerLoading;
   useLayoutEffect(() => {
-    interaction.update({ open, scope, query, projection, loading: fileSearchLoading });
-  }, [interaction, open, scope, query, projection, fileSearchLoading]);
+    interaction.update({ open, scope, query, projection, loading });
+  }, [interaction, open, scope, query, projection, loading]);
   const close = useCallback(() => setOpen(false), [setOpen]);
   const select = useCallback(
     (result: CommandCenterResult) => {
@@ -397,14 +500,18 @@ function useCommandCenterState(
     open,
     scope,
     clearScope: () => setScope(null),
+    scopes,
+    chooseScope,
     query,
     setQuery: interaction.setQuery,
     activeId,
     rows: projection.rows,
     offsets: projection.offsets,
     inputRef,
-    fileSearchLoading,
-    fileSearchError,
+    fileSearchLoading: loading,
+    fileSearchError:
+      fileSearchError ??
+      (scope ? (providerResults.find((result) => result.error)?.error ?? null) : null),
     close,
     select,
     key,
@@ -771,7 +878,7 @@ export function CommandCenter() {
     interaction,
   );
   const showBottomSheet = isCompact && isNative;
-  const modalLayer = useGlobalWebOverlayLayer("modal", state.open && !showBottomSheet);
+  const popupLayer = useGlobalWebOverlayLayer("floating", state.open && !showBottomSheet);
   const { sheetRef, handleSheetChange, handleSheetDismiss } = useIsolatedBottomSheetVisibility({
     visible: state.open,
     isEnabled: showBottomSheet,
@@ -872,6 +979,15 @@ export function CommandCenter() {
   const submit = useCallback(() => state.key("Enter"), [state]);
   const handleWebOverlayKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      if (event.key === "Tab" && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        const index = state.scopes.indexOf(state.scope);
+        const offset = event.shiftKey ? -1 : 1;
+        state.chooseScope(
+          state.scopes[(index + offset + state.scopes.length) % state.scopes.length],
+        );
+        event.preventDefault();
+        return true;
+      }
       if (!state.key(event.key)) return false;
       event.preventDefault();
       return true;
@@ -880,7 +996,8 @@ export function CommandCenter() {
   );
   const setWebOverlayScope = useWebOverlayRegistration({
     active: state.open && !showBottomSheet,
-    layer: modalLayer,
+    layer: popupLayer,
+    manageFocus: false,
     onKeyDown: handleWebOverlayKeyDown,
   });
   if (showBottomSheet) {
@@ -933,45 +1050,88 @@ export function CommandCenter() {
       </IsolatedBottomSheetModal>
     );
   }
-  if (!state.open) return null;
-  return (
-    <OverlayLayerProvider layer={modalLayer}>
-      <Modal visible transparent animationType="fade" onRequestClose={state.close}>
-        <View style={styles.overlay}>
-          <Pressable style={styles.backdrop} onPress={state.close} />
-          <View ref={setWebOverlayScope} testID="command-center-panel" style={styles.panel}>
-            <View style={[styles.header, styles.searchRow]} testID="command-center-header">
-              {state.scope === "files" ? (
-                <ScopeChip label={t("shell.commandCenter.files")} onRemove={state.clearScope} />
-              ) : null}
-              <ThemedTextInput
-                testID="command-center-input"
-                ref={state.inputRef}
-                initialValue={state.query}
-                onChangeText={state.setQuery}
-                placeholder={
-                  state.scope === "files"
-                    ? t("shell.commandCenter.filePlaceholder")
-                    : t("shell.commandCenter.placeholder")
-                }
-                style={[styles.input, styles.growingInput]}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
+  if (!state.open || typeof document === "undefined") return null;
+  return createPortal(
+    <OverlayLayerProvider layer={popupLayer}>
+      <View style={[styles.overlay, { zIndex: popupLayer }]} pointerEvents="box-none">
+        <Pressable style={styles.dismissArea} onPress={state.close} accessible={false} />
+        <View ref={setWebOverlayScope} testID="command-center-panel" style={styles.panel}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryRail}
+            contentContainerStyle={styles.categories}
+            accessibilityRole="tablist"
+          >
+            {state.scopes.map((scope) => (
+              <SearchCategory
+                key={scope ?? "all"}
+                scope={scope}
+                label={searchScopeLabel(scope, t)}
+                selected={scope === state.scope}
+                choose={state.chooseScope}
               />
-              <FileSearchLoadingIndicator
-                loading={state.fileSearchLoading}
-                label={t("shell.commandCenter.searchingFiles")}
-              />
-            </View>
-            {fileSearchError}
-            <FlatList ref={listRef} {...commonListProps} />
+            ))}
+          </ScrollView>
+          <View style={[styles.header, styles.searchRow]} testID="command-center-header">
+            <ThemedTextInput
+              testID="command-center-input"
+              ref={state.inputRef}
+              initialValue={state.query}
+              onChangeText={state.setQuery}
+              placeholder={
+                state.scope === "files"
+                  ? t("shell.commandCenter.filePlaceholder")
+                  : t("shell.commandCenter.placeholder")
+              }
+              style={[styles.input, styles.growingInput]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+            <FileSearchLoadingIndicator
+              loading={state.fileSearchLoading}
+              label={t("shell.commandCenter.searching")}
+            />
+          </View>
+          {fileSearchError}
+          <FlatList ref={listRef} {...commonListProps} />
+          <View style={styles.popupFooter}>
+            <Text style={styles.footerText}>{t("shell.commandCenter.navigationHint")}</Text>
           </View>
         </View>
-      </Modal>
-    </OverlayLayerProvider>
+      </View>
+    </OverlayLayerProvider>,
+    getOverlayRoot(),
   );
 }
+
+function SearchCategory({
+  scope,
+  label,
+  selected,
+  choose,
+}: {
+  scope: CommandCenterScope;
+  label: string;
+  selected: boolean;
+  choose(scope: CommandCenterScope): void;
+}) {
+  const onPress = useCallback(() => choose(scope), [choose, scope]);
+  const state = useMemo(() => ({ selected }), [selected]);
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={state}
+      aria-selected={selected}
+      onPress={onPress}
+      style={[styles.category, selected && styles.activeCategory]}
+    >
+      <Text style={styles.categoryLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 function FileSearchLoadingIndicator({ loading, label }: { loading: boolean; label: string }) {
   return (
     <View style={styles.fileSearchStatus} testID="command-center-file-search-status">
@@ -1007,15 +1167,37 @@ function ScopeChip({ label, onRemove }: { label: string; onRemove(): void }) {
 }
 const styles = StyleSheet.create((theme) => ({
   overlay: {
-    flex: 1,
-    justifyContent: "flex-start",
+    ...StyleSheet.absoluteFill,
+    justifyContent: "center",
     alignItems: "center",
-    paddingTop: theme.spacing[12],
   },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0, 0, 0, 0.5)" },
+  dismissArea: { ...StyleSheet.absoluteFill },
+  categoryRail: { flexGrow: 0, flexShrink: 0 },
+  categories: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: theme.spacing[2],
+    gap: theme.spacing[1],
+  },
+  category: {
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: theme.spacing[1.5],
+    borderRadius: theme.borderRadius.base,
+  },
+  activeCategory: {
+    backgroundColor: `color-mix(in srgb, ${theme.colors.accent} 18%, ${theme.colors.surface1})`,
+  },
+  categoryLabel: { color: theme.colors.foreground, fontSize: theme.fontSize.chrome },
+  popupFooter: {
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[1.5],
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  footerText: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm },
   panel: {
-    width: 640,
-    height: 560,
+    width: 720,
+    height: 510,
     maxWidth: "92%",
     maxHeight: "80%",
     borderWidth: 1,
@@ -1026,10 +1208,14 @@ const styles = StyleSheet.create((theme) => ({
     ...theme.shadow.lg,
   },
   header: {
-    paddingHorizontal: theme.spacing[4],
-    paddingVertical: theme.spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    marginHorizontal: theme.spacing[2],
+    marginBottom: theme.spacing[1],
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: theme.spacing[0.5],
+    borderWidth: 1,
+    borderColor: theme.colors.inputFocus,
+    borderRadius: theme.borderRadius.base,
+    backgroundColor: theme.colors.surface1,
   },
   bottomSheetHeader: {
     paddingHorizontal: theme.spacing[4],

@@ -3,7 +3,16 @@ import type { SidebarShortcutWorkspaceTarget } from "@/utils/sidebar-shortcuts";
 
 const SHORTCUT_BADGE_DELAY_MS = 150;
 
-export type CommandCenterScope = "files" | null;
+export type CommandCenterScope =
+  | "files"
+  | "text"
+  | "settings"
+  | "actions"
+  | "workspaces"
+  | "agents"
+  | "classes"
+  | "symbols"
+  | null;
 
 interface KeyboardShortcutsState {
   commandCenterOpen: boolean;

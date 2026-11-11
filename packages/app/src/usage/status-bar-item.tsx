@@ -1,3 +1,4 @@
+import { WORKSPACE_STATUS_BAR_HEIGHT } from "@/constants/layout";
 import {
   createContext,
   Fragment,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     overflow: "hidden",
     // Same row geometry and leading rail as Add project and the footer icons.
-    height: theme.spacing[7],
+    height: WORKSPACE_STATUS_BAR_HEIGHT,
 
     paddingHorizontal: theme.spacing[2],
   },

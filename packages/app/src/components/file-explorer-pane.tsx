@@ -19,6 +19,7 @@ import {
   Pressable,
   Text,
   View,
+  type ViewToken,
   type NativeSyntheticEvent,
   type PressableStateCallbackType,
   type TextInputKeyPressEventData,
@@ -243,12 +244,23 @@ function EntryNameInputRow({
 }
 const ENTRY_DRAG_SELECTION = { file: undefined, directory: { kind: "whole_folder" } } as const;
 
+function gitDecorationTone(status: GitDecoration) {
+  if (status === "U" || status === "A") return "added";
+  if (status === "D" || status === "!") return "deleted";
+  return "modified";
+}
+
+function gitDecorationColors(theme: Theme) {
+  return {
+    added: theme.colors.statusSuccess,
+    modified: theme.colors.statusDotRunning,
+    deleted: theme.colors.statusDanger,
+  };
+}
+
 function gitDecorationStyle(status?: GitDecoration, ignored?: boolean) {
   if (!status || ignored) return undefined;
-  let color = styles.gitModified;
-  if (status === "U" || status === "A") color = styles.gitAdded;
-  if (status === "D" || status === "!") color = styles.gitDeleted;
-  return [color, styles.gitChangedName];
+  return styles.gitLabel(gitDecorationTone(status));
 }
 function GitStatusBadge({
   status,
@@ -267,7 +279,7 @@ function GitStatusBadge({
       <View
         testID={testID ? `${testID}-git-status` : undefined}
         accessibilityLabel="Contains Git changes"
-        style={styles.gitFolderDot}
+        style={[styles.gitFolderDot, styles.gitDotColor(gitDecorationTone(status))]}
       />
     );
   return (
@@ -307,9 +319,6 @@ const TreeRowItem = memo(function TreeRowItem({
   onDeleteEntry,
   testID,
 }: TreeRowItemProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const showNameHover = useCallback(() => setIsHovered(true), []);
-  const hideNameHover = useCallback(() => setIsHovered(false), []);
   const isDirectory = entry.kind === "directory";
   const dragSourceRef = useWorkspaceFileDragSource({
     enabled: true,
@@ -392,8 +401,6 @@ const TreeRowItem = memo(function TreeRowItem({
         onLongPress={handleSelect}
         onContextMenu={handleSelect}
         style={pressableStyle}
-        onHoverIn={showNameHover}
-        onHoverOut={hideNameHover}
         accessibilityState={accessibilityState}
         aria-selected={isSelected}
         aria-expanded={isDirectory ? isExpanded : undefined}
@@ -417,9 +424,7 @@ const TreeRowItem = memo(function TreeRowItem({
           </View>
           <Text
             style={[
-              workspaceTreeRowStyles.name,
               styles.entryName,
-              isHovered && workspaceTreeRowStyles.nameHovered,
               gitDecorationStyle(gitDecoration, entry.gitIgnored),
               entry.gitIgnored && styles.ignoredEntryName,
             ]}
@@ -925,6 +930,16 @@ export function FileExplorerPane({
     return rows;
   }, [pendingEdit, treeRows]);
   const showInitialLoading = !directories.has(".") && requests.get(".")?.status === "loading";
+  const visibleEntryPaths = useRef(new Set<string>());
+  // FlatList requires this callback to keep its identity for the lifetime of the list.
+  const [onViewableItemsChanged] = useState(
+    () =>
+      ({ viewableItems }: { viewableItems: ViewToken<ExplorerListRow>[] }) => {
+        visibleEntryPaths.current = new Set(
+          viewableItems.flatMap(({ item }) => (item.type === "entry" ? [item.row.entry.path] : [])),
+        );
+      },
+  );
   const revealRequest = explorerState?.revealRequest;
   const lastRevealRequest = useRef<typeof revealRequest>(undefined);
   useEffect(() => {
@@ -935,7 +950,8 @@ export function FileExplorerPane({
     );
     if (index < 0) return;
     lastRevealRequest.current = revealRequest;
-    treeListRef.current.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+    if (!visibleEntryPaths.current.has(revealRequest.path))
+      treeListRef.current.scrollToIndex({ index, viewPosition: 0.5, animated: false });
   }, [listRows, revealRequest]);
   const showBackFromError = Boolean(error && selectedEntryPath);
   const renderTreeRow = useCallback(
@@ -1070,6 +1086,7 @@ export function FileExplorerPane({
         isRefreshFetching={isRefreshFetching}
         treeListRef={treeListRef}
         scrollbar={scrollbar}
+        onViewableItemsChanged={onViewableItemsChanged}
         renderTreeRow={renderTreeRow}
         handleToggleHiddenFiles={handleToggleHiddenFiles}
         handleRefresh={handleRefresh}
@@ -1129,6 +1146,7 @@ function RootCreationContextTarget({
     </View>
   );
 }
+const fullyVisibleRows = { itemVisiblePercentThreshold: 100 };
 interface FileExplorerPaneContentProps {
   workspaceRoot: string;
   error: string | null;
@@ -1141,6 +1159,7 @@ interface FileExplorerPaneContentProps {
   isRefreshFetching: boolean;
   treeListRef: RefObject<FlatList<ExplorerListRow> | null>;
   scrollbar: OverlayFlatListScrollbar;
+  onViewableItemsChanged: (info: { viewableItems: ViewToken<ExplorerListRow>[] }) => void;
   renderTreeRow: (info: ListRenderItemInfo<ExplorerListRow>) => ReactElement;
   handleToggleHiddenFiles: () => void;
   handleRefresh: () => void;
@@ -1325,6 +1344,8 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
               renderItem={renderTreeRow}
               keyExtractor={listRowKeyExtractor}
               onScrollToIndexFailed={handleScrollToIndexFailed}
+              onViewableItemsChanged={props.onViewableItemsChanged}
+              viewabilityConfig={fullyVisibleRows}
               testID="file-explorer-tree-scroll"
               contentContainerStyle={styles.entriesContent}
               onLayout={scrollbar.onLayout}
@@ -1675,30 +1696,33 @@ const styles = StyleSheet.create((theme) => ({
   entryName: {
     flex: 1,
     color: theme.colors.foreground,
-    opacity: 0.8,
     fontSize: theme.fontSize.chrome,
     fontFamily: theme.fontFamily.ui,
-    fontWeight: theme.fontWeight.normal,
+    fontWeight: theme.fontWeight.medium,
     lineHeight: fileExplorerRowMetrics(theme.fontSize.chrome).lineHeight,
     userSelect: "none",
   },
-  gitModified: { color: theme.colors.statusDotRunning },
-  gitAdded: { color: theme.colors.statusSuccess },
-  gitDeleted: { color: theme.colors.statusDanger },
-  gitChangedName: { opacity: 1 },
+  gitLabel: (tone: ReturnType<typeof gitDecorationTone>) => {
+    const color = gitDecorationColors(theme)[tone];
+    return {
+      color:
+        tone === "deleted" ? color : `color-mix(in srgb, ${color} 80%, ${theme.colors.foreground})`,
+    };
+  },
+  gitDotColor: (tone: ReturnType<typeof gitDecorationTone>) => ({
+    backgroundColor: gitDecorationColors(theme)[tone],
+  }),
   gitFolderDot: {
     width: 5,
     height: 5,
     borderRadius: 3,
     marginLeft: "auto",
     marginRight: 3,
-    backgroundColor: theme.colors.statusDotRunning,
     opacity: 0.45,
   },
   gitBadge: { marginLeft: "auto", paddingLeft: 8, fontSize: theme.fontSize.xs, fontWeight: "600" },
   ignoredEntryName: {
     color: theme.colors.foregroundExtraMuted,
-    opacity: 1,
   },
   desktopRow: { minHeight: fileExplorerRowMetrics(theme.fontSize.chrome).minHeight },
   draftInput: {

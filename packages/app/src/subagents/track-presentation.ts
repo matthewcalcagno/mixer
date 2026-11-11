@@ -129,6 +129,17 @@ export function countFinishedSubagents(rows: readonly SubagentRow[]): number {
   return rows.filter(isFinishedSubagent).length;
 }
 
+/**
+ * When the pill reports live work, its panel focuses on those children. Once nothing is working,
+ * keep the full list available for inspecting and opening completed subagents.
+ */
+export function rowsForSubagentsTrack(rows: readonly SubagentRow[]): readonly SubagentRow[] {
+  const workingRows = rows.filter(
+    (row) => buildSubagentRowPresentationData(row).statusBucket === "running",
+  );
+  return workingRows.length > 0 ? workingRows : rows;
+}
+
 export function resolveRowLabel(title: string | null | undefined): string | null {
   if (typeof title !== "string") {
     return null;

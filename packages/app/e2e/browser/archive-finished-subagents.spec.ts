@@ -1,6 +1,7 @@
 import { test } from "../support/fixtures";
 import { openAgentRoute } from "../support/helpers/mock-agent";
 import { seedWorkspace, type SeededWorkspace } from "../support/helpers/seed-client";
+import { PARENT_AGENT_ID_LABEL } from "@mixer/protocol/agent-labels";
 import {
   archiveFinishedSubagents,
   expectArchiveFinishedInProgress,
@@ -48,6 +49,44 @@ test.describe("Archive finished subagents", () => {
     await expectArchiveFinishedInProgress(page, 0, 1);
     await expectManagedSubagentUnarchived(workspace, agents.child.id);
     archiveGate.release();
+    await expectManagedSubagentArchived(workspace, agents.child.id);
+  });
+
+  test("focuses the track on working children and keeps finished children archivable", async ({
+    page,
+  }) => {
+    const agents = await seedParentWithSubagent(workspace, {
+      parentTitle: "Mixed subagent parent",
+      childTitle: "Finished child",
+    });
+    await workspace.client.waitForAgentUpsert(
+      agents.child.id,
+      (snapshot) => snapshot.status === "idle",
+    );
+    const workingChild = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: workspace.repoPath,
+      workspaceId: agents.workspaceId,
+      title: "Working child",
+      modeId: "load-test",
+      model: "five-minute-stream",
+      initialPrompt: "stay running",
+      labels: { [PARENT_AGENT_ID_LABEL]: agents.parent.id },
+    });
+    await workspace.client.waitForAgentUpsert(
+      workingChild.id,
+      (snapshot) => snapshot.status === "running",
+    );
+
+    await openAgentRoute(page, { workspaceId: agents.workspaceId, agentId: agents.parent.id });
+    await openSubagentsTrack(page);
+    await expectSubagentRowVisible(page, workingChild.id);
+    await expectSubagentRowGone(page, agents.child.id);
+
+    await archiveFinishedSubagents(page);
+
+    await expectSubagentRowGone(page, agents.child.id);
+    await expectSubagentRowVisible(page, workingChild.id);
     await expectManagedSubagentArchived(workspace, agents.child.id);
   });
 

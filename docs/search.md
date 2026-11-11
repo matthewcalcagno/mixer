@@ -1,4 +1,18 @@
-# Workspace search
+# Search
+
+## Search Everywhere
+
+The global Search entry opens a category popup. The Files category uses the daemon’s
+file suggestions, and Text uses the same workspace-scoped ripgrep RPC as Explorer.
+The popup cancels superseded text requests and limits the result count so a broad
+query cannot crowd out immediate file, settings, and action results.
+
+Host adapters register workspace search providers in `command-center/search-providers.ts`.
+A provider gets the active workspace, query, result budget, and cancellation signal.
+It returns file locations for the existing editor navigation path. Classes and Symbols
+appear when a provider registers the respective category.
+
+## Workspace Search in Explorer
 
 ## Ownership
 

@@ -3,10 +3,11 @@ import { ScrollView, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { buttonControlHeight } from "@/components/ui/control-geometry";
 import { WORKSPACE_SECONDARY_HEADER_HEIGHT, useIsCompactFormFactor } from "@/constants/layout";
 import { resolveWorkspaceTabChipBackdrop } from "../workspace-tab-chip-backdrop";
 import { ICON_SIZE } from "@/styles/theme";
+
+const ACTIVITY_TAB_SIZE = 24;
 
 export function ExplorerActivityRail({
   children,
@@ -55,7 +56,7 @@ export function ExplorerActivityTab({
     isFilled: selected || hovered,
   });
   const style = useMemo(
-    () => [styles.button, styles.fill(backdrop), { width: compact ? 44 : buttonControlHeight.xs }],
+    () => [styles.button, styles.fill(backdrop), { width: compact ? 44 : ACTIVITY_TAB_SIZE }],
     [backdrop, compact],
   );
   return (
@@ -92,10 +93,10 @@ const styles = StyleSheet.create((theme) => ({
     flexGrow: 0,
     backgroundColor: theme.colors.surfaceSidebar,
   },
-  items: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, gap: 4 },
+  items: { flexDirection: "row", alignItems: "center", paddingHorizontal: 4, gap: 2 },
   slot: { position: "relative" },
   button: {
-    height: buttonControlHeight.xs,
+    height: ACTIVITY_TAB_SIZE,
     paddingHorizontal: theme.spacing[1],
     borderRadius: theme.borderRadius.md,
     flexDirection: "row",

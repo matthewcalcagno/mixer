@@ -21,6 +21,11 @@ HTML into the app shell leaves the hidden startup frame waiting until recovery.
 Revision numbers prevent delayed host updates from replacing newer
 keystrokes. The HTML preview uses a separate, untrusted-content sandbox.
 
+The desktop editor bundles Error Lens. It reads Monaco markers, so diagnostics from
+local workers and language server plugins use the same inline presentation. Each line
+shows its highest severity message and a count of additional diagnostics. The editor
+keeps its normal squiggles and diagnostic hovers for the full details.
+
 ## Editor preferences
 
 App layout shortcuts take precedence while an editor has focus. Cmd+D deliberately splits a
@@ -31,8 +36,9 @@ same-origin access. HTML previews never participate. Find, Save, and other editi
 Settings → Editor stores per-client preferences, not workspace configuration. It
 does not write `.vscode` files or change formatting on disk. Blank font family and
 font size inherit Appearance; explicit editor overrides leave terminals and chat
-unchanged. Reset restores inheritance. Font ligatures require a font that provides
-them; the preference does not install a font.
+unchanged. Reset restores JetBrains Mono with system fallbacks, 14.3px text, and
+ligatures. Clear the font fields to inherit Appearance. Ligatures require a font
+that supports them.
 
 Apply changes to existing editor instances rather than recreating working copies.
 Selection, undo, drafts, and disk conflict state must survive a preference change.

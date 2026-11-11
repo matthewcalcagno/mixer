@@ -13,6 +13,7 @@ export const optionsSchema = z.object({
   includes: z.string().max(2000),
   excludes: z.string().max(2000),
   respectIgnore: z.boolean(),
+  limit: z.number().int().positive().max(1000).optional(),
 });
 export const matchSchema = z.object({
   line: z.number().int().positive(),

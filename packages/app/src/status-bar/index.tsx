@@ -1,3 +1,5 @@
+import { WORKSPACE_ISLAND_GAP } from "@/styles/workspace-islands";
+import { WORKSPACE_STATUS_BAR_HEIGHT } from "@/constants/layout";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { View } from "react-native";
 import { GitBranch } from "lucide-react-native";
@@ -168,13 +170,14 @@ function StatusBar({
 export const WorkspaceStatusBar = withUnistyles(StatusBar, (theme) => ({ theme }));
 const styles = StyleSheet.create((theme) => ({
   bar: {
-    height: theme.spacing[7],
+    height: WORKSPACE_STATUS_BAR_HEIGHT,
     width: "100%",
     flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: theme.colors.background,
-    paddingHorizontal: theme.spacing[1.5],
+    paddingHorizontal: WORKSPACE_ISLAND_GAP,
+    marginBottom: WORKSPACE_ISLAND_GAP,
   },
   left: {
     flex: 1,

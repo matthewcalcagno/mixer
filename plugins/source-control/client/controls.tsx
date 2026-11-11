@@ -408,6 +408,23 @@ function fileAppearance(
   return { color, backgroundColor, badge };
 }
 
+export function resourceLabelStyles(theme: PluginTheme) {
+  const fontFamily = theme.typography?.fontFamily;
+  return {
+    name: {
+      color: theme.colors.foreground,
+      fontFamily,
+      fontSize: theme.typography?.chrome ?? 13,
+      fontWeight: "500" as const,
+    },
+    path: {
+      color: theme.colors.foregroundMuted,
+      fontFamily,
+      fontSize: theme.typography?.small ?? 12,
+    },
+  };
+}
+
 export function FileRow({
   path,
   status,
@@ -449,6 +466,7 @@ export function FileRow({
   onKeyAction(action: ResourceKeyAction): void;
   onRowFocus(): void;
 }) {
+  const labels = resourceLabelStyles(theme);
   const [hover, setHover] = useState(false);
   const [focus, setFocus] = useState(false);
   const row = useRef<View>(null);
@@ -541,8 +559,7 @@ export function FileRow({
           <Text
             numberOfLines={1}
             style={{
-              color: theme.colors.foreground,
-              fontSize: 13,
+              ...labels.name,
               flexShrink: 1,
               textDecorationLine: status === "D" ? "line-through" : "none",
             }}
@@ -553,7 +570,10 @@ export function FileRow({
             <Text
               numberOfLines={1}
               ellipsizeMode="middle"
-              style={{ color: theme.colors.foregroundMuted, fontSize: 12, flex: 1 }}
+              style={{
+                ...labels.path,
+                flex: 1,
+              }}
             >
               {directory}
             </Text>

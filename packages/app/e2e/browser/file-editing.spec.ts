@@ -557,9 +557,17 @@ test("VS Code-sized shell text leaves chat and editor font preferences independe
     await openWorkspaceFile(page, "typography.ts");
     const tree = page.getByTestId("file-explorer-tree-scroll");
     await expect(tree.getByText("typography.ts", { exact: true })).toHaveCSS("font-size", "13px");
+    const unchangedFile = tree.getByText("README.md", { exact: true });
+    await expect(unchangedFile).toHaveCSS("font-weight", "500");
+    await expect(unchangedFile).toHaveCSS("opacity", "1");
     await expect(page.getByTestId("files-root-folder-name")).toHaveCSS("font-size", "13px");
     const tab = page.getByTestId("workspace-tab-file_typography.ts").filter({ visible: true });
-    await expect(tab.getByText("typography.ts", { exact: true })).toHaveCSS("font-size", "13px");
+    const tabLabel = tab.getByText("typography.ts", { exact: true });
+    await expect(tabLabel).toHaveCSS("font-size", "13px");
+    await expect(tabLabel).toHaveCSS("font-weight", "400");
+    const statusBar = page.getByTestId("workspace-status-bar");
+    await expect(statusBar).toHaveCSS("height", "22px");
+    await expect(statusBar).toHaveCSS("margin-bottom", "4px");
     const host = page.getByTestId("file-source-editor").filter({ visible: true });
     if (process.env.MIXER_WEB_PLATFORM === "electron")
       await expect(host.frameLocator("iframe").locator(".view-lines")).toHaveCSS(
@@ -946,7 +954,9 @@ test("editor preferences persist and control the workspace source editor", async
   await expect.poll(() => readFile(filename, "utf8")).toBe(content);
   await page.goto("/settings/editor");
   await page.getByRole("button", { name: "Reset", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Font size (px)", exact: true })).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: "Font size (px)", exact: true })).toHaveValue(
+    "14.3",
+  );
   await expect(page.getByRole("button", { name: "Line numbers: On", exact: true })).toBeVisible();
   await workspace.navigateTo();
   await openWorkspaceFile(page, "preferences.ts");
@@ -2519,12 +2529,16 @@ test.describe("Monaco Electron file editing", () => {
     const input = frame.locator(".view-lines");
     await expect(input).toBeVisible({ timeout: 30_000 });
     await expect(frame.locator(".squiggly-error")).toBeVisible({ timeout: 30_000 });
+    await expect(
+      frame.locator(".mixer-error-lens-error").filter({ hasText: "not assignable" }).first(),
+    ).toBeVisible();
     const keyword = frame.locator(".view-line span").filter({ hasText: /^const$/ });
-    await expect(keyword).toHaveCSS("color", "rgb(86, 156, 214)");
+    await expect(keyword).toHaveCSS("color", "rgb(249, 117, 131)");
     await input.click();
     await page.keyboard.press("Control+a");
     await page.keyboard.insertText("const answer = 43;\n");
     await expect.poll(() => readFile(sourcePath, "utf8")).toBe("const answer = 43;\r\n");
+    await expect(frame.locator(".mixer-error-lens-error")).toHaveCount(0);
     await writeFile(sourcePath, "const external = 44;\r\n", "utf8");
     await expect(frame.locator(".view-lines")).toContainText("external");
     await input.click();
@@ -2538,6 +2552,7 @@ test.describe("Monaco Electron file editing", () => {
       .filter({ visible: true })
       .frameLocator("iframe");
     await expect(jsonFrame.locator(".squiggly-error")).toBeVisible({ timeout: 30_000 });
+    await expect(jsonFrame.locator(".mixer-error-lens-error").first()).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("monaco-json-lsp.png") });
   });
 
@@ -3611,6 +3626,8 @@ test("file tree colors modified and untracked files and clears decorations after
   );
   await writeFile(path.join(workspace.repoPath, "tracked.ts"), "after\n");
   await writeFile(path.join(workspace.repoPath, "untracked.ts"), "new\n");
+  await mkdir(path.join(workspace.repoPath, "added-folder"));
+  await writeFile(path.join(workspace.repoPath, "added-folder", "new.ts"), "new\n");
   await workspace.navigateTo();
   await openFileExplorer(page);
   const tree = page.getByTestId("file-explorer-tree-scroll");
@@ -3625,6 +3642,14 @@ test("file tree colors modified and untracked files and clears decorations after
   expect(await trackedName.evaluate((element) => getComputedStyle(element).color)).not.toBe(
     await newName.evaluate((element) => getComputedStyle(element).color),
   );
+  const addedFolderDot = tree.getByLabel("Contains Git changes", { exact: true });
+  await expect(addedFolderDot).toHaveCSS("opacity", "0.45");
+  const dotColor = await addedFolderDot.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  const [red, green, blue] = dotColor.match(/\d+/g)!.map(Number);
+  expect(green).toBeGreaterThan(red);
+  expect(green).toBeGreaterThan(blue);
   await page.screenshot({ path: testInfo.outputPath("file-tree-git-decorations.png") });
   runGit("checkout", "--", "tracked.ts");
   await expect(tree.getByLabel("Git status M", { exact: true })).toHaveCount(0);

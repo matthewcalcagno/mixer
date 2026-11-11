@@ -1,5 +1,7 @@
 import { StyleSheet } from "react-native-unistyles";
 
+export const WORKSPACE_ISLAND_GAP = 4;
+
 export const workspaceIslandStyles = StyleSheet.create((theme) => ({
   frame: {
     borderWidth: theme.borderWidth[1],
@@ -10,6 +12,6 @@ export const workspaceIslandStyles = StyleSheet.create((theme) => ({
     minHeight: 0,
   },
   gutters: {
-    gap: theme.spacing[1.5],
+    gap: WORKSPACE_ISLAND_GAP,
   },
 }));

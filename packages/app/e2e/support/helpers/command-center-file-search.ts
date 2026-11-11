@@ -26,7 +26,7 @@ const SURFACE_SELECTORS = {
   input: '[data-testid="command-center-input"]',
   fileSearchStatus: '[data-testid="command-center-file-search-status"]',
   results: '[data-testid="command-center-results"]',
-  scope: '[data-testid="command-center-files-scope"]',
+  scope: '[data-testid="command-center-panel"] [role="tablist"]',
   fileRow: '[data-testid^="command-center-file-row-"]',
   fileIcon: '[data-testid="command-center-file-icon"]',
   fileLine: '[data-testid="command-center-file-line"]',
@@ -143,7 +143,16 @@ export async function startCommandCenterLayoutObservation(page: Page): Promise<v
       try {
         const performanceObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
-            observation.layoutShift += (entry as PerformanceEntry & { value?: number }).value ?? 0;
+            const shift = entry as PerformanceEntry & {
+              value?: number;
+              sources?: Array<{ node?: Node }>;
+            };
+            const panel = document.querySelector(selectors.panel);
+            // The floating popup leaves the workspace visible while it continues to load.
+            // Measure popup layout shifts separately from changes behind it.
+            if (shift.sources?.some(({ node }) => node && panel?.contains(node))) {
+              observation.layoutShift += shift.value ?? 0;
+            }
           }
         });
         performanceObserver.observe({ type: "layout-shift", buffered: false });

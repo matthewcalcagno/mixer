@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ContextMenu, Icon, type ContextMenuAction } from "@mixer/plugin/client/ui";
 import type { PluginTheme } from "@mixer/plugin";
-import { FileRow, IconButton } from "./controls.js";
+import { FileRow, IconButton, resourceLabelStyles } from "./controls.js";
 import { getFolderIconSvg } from "./vendor/file-icon-svg.js";
 import {
   conflictLabel,
@@ -163,10 +163,7 @@ function ResourceFolderRow(
     }),
     [depth],
   );
-  const textStyle = useMemo(
-    () => ({ color: theme.colors.foreground, fontSize: 13 }),
-    [theme.colors.foreground],
-  );
+  const textStyle = resourceLabelStyles(theme).name;
   const toggle = useCallback(() => onToggleFolder(node.path), [node.path, onToggleFolder]);
   const stage = useCallback(
     () => onStageFolder(node.files.map((file) => file.path)),

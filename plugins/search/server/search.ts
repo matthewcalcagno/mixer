@@ -93,6 +93,7 @@ export async function searchWorkspace(input: SearchInput): Promise<SearchResult>
   const { root, ripgrepPath, options, signal } = input;
   const started = performance.now();
   const args = searchArguments(options);
+  const limit = options.limit ?? MAX_RESULTS;
   const files = new Map<string, SearchMatch[]>();
   let count = 0;
   let reason: SearchResult["limitReason"] = null;
@@ -165,7 +166,7 @@ export async function searchWorkspace(input: SearchInput): Promise<SearchResult>
           end: Math.min(end - from, preview.length),
         });
         count++;
-        if (count >= MAX_RESULTS) {
+        if (count >= limit) {
           reason = "results";
           cancel();
           break;
