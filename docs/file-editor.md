@@ -31,8 +31,9 @@ same-origin access. HTML previews never participate. Find, Save, and other editi
 Settings → Editor stores per-client preferences, not workspace configuration. It
 does not write `.vscode` files or change formatting on disk. Blank font family and
 font size inherit Appearance; explicit editor overrides leave terminals and chat
-unchanged. Reset restores inheritance. Font ligatures require a font that provides
-them; the preference does not install a font.
+unchanged. Reset restores JetBrains Mono with system fallbacks, 14.3px text, and
+ligatures. Clear the font fields to inherit Appearance. Ligatures require a font
+that supports them.
 
 Apply changes to existing editor instances rather than recreating working copies.
 Selection, undo, drafts, and disk conflict state must survive a preference change.

@@ -2,11 +2,14 @@ import { z } from "zod";
 
 /** Local preferences, shared by storage and the trusted editor-frame boundary. */
 export const editorPreferencesSchema = z.object({
-  fontFamily: z.string().max(200).catch(""),
-  fontSize: z.number().min(8).max(40).nullable().catch(null),
+  fontFamily: z
+    .string()
+    .max(200)
+    .catch("JetBrains Mono, SF Mono, Menlo, Monaco, 'Courier New', monospace"),
+  fontSize: z.number().min(8).max(40).nullable().catch(14.3),
   lineHeight: z.number().min(1).max(3).catch(1.6),
   letterSpacing: z.number().min(-2).max(10).catch(0),
-  fontLigatures: z.boolean().catch(false),
+  fontLigatures: z.boolean().catch(true),
   tabSize: z.number().int().min(1).max(8).catch(4),
   insertSpaces: z.boolean().catch(true),
   detectIndentation: z.boolean().catch(true),

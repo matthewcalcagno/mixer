@@ -122,7 +122,8 @@ const PANE_MAXIMIZE_ACTION_RESERVED_WIDTH = smallIconButtonChromeFrameSize(false
 // the wrong width. Keep them together.
 // Actions remain outside the scrolling tab strip so their positions do not depend on tab widths.
 const TAB_CHIP_HORIZONTAL_PADDING = 8;
-const TAB_CHIP_GAP = 4;
+const TAB_CHIP_GAP = 2;
+const TAB_CHIP_HEIGHT = 24;
 const TAB_ROW_PADDING_HORIZONTAL = 4;
 const TAB_ICON_WIDTH = 14;
 const TAB_ICON_SIZES: Record<WorkspaceTabRailSurface, number> = {
@@ -1799,9 +1800,9 @@ const styles = StyleSheet.create((theme) => ({
     marginRight: PANE_SPLIT_ACTIONS_OUTER_MARGIN,
   },
   tab: {
-    height: buttonControlHeight.xs,
+    height: TAB_CHIP_HEIGHT,
     paddingHorizontal: TAB_CHIP_HORIZONTAL_PADDING,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.base,
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
@@ -1811,7 +1812,7 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors[backdrop],
   }),
   tabDense: {
-    height: buttonControlHeight.xs - theme.spacing[1],
+    height: TAB_CHIP_HEIGHT - theme.spacing[1],
     borderRadius: theme.borderRadius.sm,
   },
   fileTab: (showCloseButton: boolean) => ({
@@ -1900,8 +1901,8 @@ const styles = StyleSheet.create((theme) => ({
     right: 0,
     bottom: 0,
     width: isFileLabel ? FILE_TAB_TRAILING_WIDTH + TAB_CHIP_HORIZONTAL_PADDING : 48,
-    borderTopRightRadius: theme.borderRadius.md,
-    borderBottomRightRadius: theme.borderRadius.md,
+    borderTopRightRadius: theme.borderRadius.base,
+    borderBottomRightRadius: theme.borderRadius.base,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 2,

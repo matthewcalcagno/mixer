@@ -8,7 +8,8 @@ export const FOOTER_HEIGHT = 75;
 // This ensures both headers have the same visual height
 export const HEADER_INNER_HEIGHT = 36;
 export const HEADER_INNER_HEIGHT_MOBILE = 56;
-export const WORKSPACE_SECONDARY_HEADER_HEIGHT = 36;
+export const WORKSPACE_SECONDARY_HEADER_HEIGHT = 32;
+export const WORKSPACE_STATUS_BAR_HEIGHT = 22;
 export const HEADER_TOP_PADDING_MOBILE = 8;
 
 // Measured composer width; independent of the window's compact/wide breakpoint.

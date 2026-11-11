@@ -1,3 +1,4 @@
+import { WORKSPACE_STATUS_BAR_HEIGHT } from "@/constants/layout";
 import { useCallback, useRef, useState } from "react";
 import { View } from "react-native";
 import { CircleGauge, Server } from "lucide-react-native";
@@ -36,6 +37,7 @@ function Actions() {
           label={t("sidebar.footer.usage")}
           onPress={openUsage}
           tooltipSide="top"
+          style={styles.button}
           testID="sidebar-usage-icon"
         >
           <UsageIcon size={16} />
@@ -63,6 +65,7 @@ function Actions() {
             label={t("sidebar.actions.hosts")}
             onPress={showHosts}
             tooltipSide="top"
+            style={styles.button}
             testID="sidebar-hosts-trigger"
           >
             <HostsIcon size={15} />
@@ -76,6 +79,7 @@ function hostOptionTestID(serverId: string) {
   return `sidebar-host-row-${serverId}`;
 }
 const styles = StyleSheet.create((theme) => ({
+  button: { height: WORKSPACE_STATUS_BAR_HEIGHT },
   actions: {
     flexDirection: "row",
     alignItems: "center",

@@ -559,7 +559,10 @@ test("VS Code-sized shell text leaves chat and editor font preferences independe
     await expect(tree.getByText("typography.ts", { exact: true })).toHaveCSS("font-size", "13px");
     await expect(page.getByTestId("files-root-folder-name")).toHaveCSS("font-size", "13px");
     const tab = page.getByTestId("workspace-tab-file_typography.ts").filter({ visible: true });
-    await expect(tab.getByText("typography.ts", { exact: true })).toHaveCSS("font-size", "13px");
+    const tabLabel = tab.getByText("typography.ts", { exact: true });
+    await expect(tabLabel).toHaveCSS("font-size", "13px");
+    await expect(tabLabel).toHaveCSS("font-weight", "400");
+    await expect(page.getByTestId("workspace-status-bar")).toHaveCSS("height", "22px");
     const host = page.getByTestId("file-source-editor").filter({ visible: true });
     if (process.env.MIXER_WEB_PLATFORM === "electron")
       await expect(host.frameLocator("iframe").locator(".view-lines")).toHaveCSS(
@@ -946,7 +949,9 @@ test("editor preferences persist and control the workspace source editor", async
   await expect.poll(() => readFile(filename, "utf8")).toBe(content);
   await page.goto("/settings/editor");
   await page.getByRole("button", { name: "Reset", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Font size (px)", exact: true })).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: "Font size (px)", exact: true })).toHaveValue(
+    "14.3",
+  );
   await expect(page.getByRole("button", { name: "Line numbers: On", exact: true })).toBeVisible();
   await workspace.navigateTo();
   await openWorkspaceFile(page, "preferences.ts");

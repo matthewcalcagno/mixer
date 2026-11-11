@@ -8,8 +8,8 @@ import {
 export function sidebarSpacing({ spacing }: Pick<Theme, "spacing">) {
   const treeInset = -spacing[0.5];
   const row = {
-    minHeight: { xs: density.rowHeight.xs, md: spacing[7] },
-    paddingVertical: { xs: spacing[2], md: spacing[1] },
+    minHeight: { xs: density.rowHeight.xs, md: spacing[6] },
+    paddingVertical: { xs: spacing[2], md: spacing[0.5] },
     paddingLeft: spacing[2],
     paddingRight: { xs: spacing[3], md: spacing[2] },
     marginBottom: spacing[0.5],

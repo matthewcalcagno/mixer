@@ -14,7 +14,11 @@ const { runtime, updateTheme } = vi.hoisted(() => {
     updateTheme: updateThemeSpy,
   };
 });
-vi.mock("react-native-unistyles", () => ({ UnistylesRuntime: runtime }));
+vi.mock("react-native-unistyles", () => ({
+  UnistylesRuntime: runtime,
+  withUnistyles: (component: unknown) => component,
+  StyleSheet: { create: (styles: unknown) => styles },
+}));
 
 const ALL_THEME_KEYS = Object.keys(REGISTERED_THEMES);
 
@@ -91,8 +95,8 @@ describe("applyAppearance", () => {
   it("keeps sidebar rows on one spacing rhythm without shrinking compact touch targets", () => {
     const spacing = sidebarSpacing(darkTheme);
     expect(spacing.row).toEqual({
-      minHeight: { xs: 44, md: 28 },
-      paddingVertical: { xs: 8, md: 4 },
+      minHeight: { xs: 44, md: 24 },
+      paddingVertical: { xs: 8, md: 2 },
       paddingLeft: 8,
       paddingRight: { xs: 12, md: 8 },
       marginBottom: 2,
@@ -105,6 +109,7 @@ describe("applyAppearance", () => {
   it("keeps sidebar titles and metadata on separate aligned text roles", () => {
     expect(sidebarTypography(makeFakeTheme())).toEqual({
       primary: { fontSize: 13, lineHeight: 20 },
+      projectTitle: { fontSize: 14, lineHeight: 20 },
       secondary: { fontSize: 12, lineHeight: 16 },
       workspaceTitle: { fontSize: { xs: 13, md: 12 }, lineHeight: { xs: 20, md: 18 } },
       workspaceMetadata: { fontSize: { xs: 12, md: 11 }, lineHeight: { xs: 16, md: 15 } },
@@ -119,6 +124,7 @@ describe("applyAppearance", () => {
     theme.fontSize.xs = 15;
     expect(sidebarTypography(theme)).toEqual({
       primary: { fontSize: 18, lineHeight: 27 },
+      projectTitle: { fontSize: 14, lineHeight: 27 },
       secondary: { fontSize: 16, lineHeight: 21 },
       workspaceTitle: { fontSize: { xs: 18, md: 16 }, lineHeight: { xs: 27, md: 24 } },
       workspaceMetadata: { fontSize: { xs: 16, md: 15 }, lineHeight: { xs: 21, md: 20 } },
