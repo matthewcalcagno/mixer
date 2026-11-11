@@ -1,3 +1,4 @@
+import { WORKSPACE_ISLAND_GAP } from "@/styles/workspace-islands";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useIsExplorerSidebarOpen } from "@/workspace-tabs/explorer-sidebar";
@@ -113,7 +114,7 @@ import {
 import { getDaemonStartService } from "@/runtime/daemon-start-service";
 import { usePanelStore } from "@/stores/panel-store";
 import { flushDraftPersistStorage } from "@/stores/draft-store";
-import { getNextThemePreference, ICON_STROKE_WIDTH, SPACING } from "@/styles/theme";
+import { getNextThemePreference, ICON_STROKE_WIDTH } from "@/styles/theme";
 import { useSessionStore } from "@/stores/session-store";
 import { WorkspaceLayoutModePublisher } from "@/workspace-tabs/layout-mode-publisher";
 import { installWebScrollbarStyles } from "@/styles/install-web-scrollbar-styles";
@@ -412,8 +413,8 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
       rowStyle,
       !isCompactLayout && layoutStyles.desktopIslands,
       !isCompactLayout && {
-        paddingLeft: insets.left + SPACING[1.5],
-        paddingRight: insets.right + SPACING[1.5],
+        paddingLeft: insets.left + WORKSPACE_ISLAND_GAP,
+        paddingRight: insets.right + WORKSPACE_ISLAND_GAP,
       },
     ],
     [insets.left, insets.right, isCompactLayout],
@@ -846,7 +847,7 @@ export default function RootLayout() {
 const layoutStyles = StyleSheet.create((theme) => ({
   desktopIslands: {
     paddingVertical: theme.spacing[0.5],
-    gap: theme.spacing[1.5],
+    gap: WORKSPACE_ISLAND_GAP,
     backgroundColor: theme.colors.background,
   },
   surfaceFill: {

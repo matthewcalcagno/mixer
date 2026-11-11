@@ -1,3 +1,4 @@
+import { WORKSPACE_STATUS_BAR_HEIGHT } from "@/constants/layout";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -73,13 +74,13 @@ export function StatusEntry({
 }
 const styles = StyleSheet.create((theme) => ({
   item: {
-    height: theme.spacing[7],
+    height: WORKSPACE_STATUS_BAR_HEIGHT,
     minWidth: 0,
     maxWidth: 360,
-    paddingHorizontal: theme.spacing[2],
+    paddingHorizontal: 5,
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1.5],
+    gap: theme.spacing[1],
     flexShrink: 1,
   },
   text: { fontSize: theme.fontSize.sm, minWidth: 0, flexShrink: 1 },
@@ -87,8 +88,8 @@ const styles = StyleSheet.create((theme) => ({
   disabled: { opacity: 0.5 },
   tooltip: { color: theme.colors.foreground, fontSize: theme.fontSize.sm },
   custom: {
-    height: theme.spacing[7],
-    paddingHorizontal: theme.spacing[2],
+    height: WORKSPACE_STATUS_BAR_HEIGHT,
+    paddingHorizontal: 5,
     maxWidth: 400,
     minWidth: 0,
     overflow: "hidden",
