@@ -129,6 +129,7 @@ interface RemoteProviderConnection {
 
 interface PluginRuntimeDependencies {
   settingsDirectory?: string;
+  hostDataDirectory?: string;
   onSettingsChanged?: (pluginId: string, settingsId: string) => void;
   spawnChild?: () => PluginChild;
   sessionHost?: PluginMixerSessionHost;
@@ -900,6 +901,7 @@ export class PluginRuntime {
             pluginDirectory: input.pluginDirectory,
             appVersion: this.daemonVersion,
             bundle,
+            hostDataDirectory: this.dependencies.hostDataDirectory,
             settingsDirectory: this.dependencies.settingsDirectory
               ? path.join(this.dependencies.settingsDirectory, pluginId)
               : undefined,

@@ -1,0 +1,5 @@
+{
+  "id": "automations",
+  "name": "Automations",
+  "requirements": { "mixer": ">=0.1.0" }
+}

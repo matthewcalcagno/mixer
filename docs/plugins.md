@@ -6,6 +6,83 @@ Mixer executes `index.server.ts` in a subprocess and `index.client.tsx` in every
 
 > **Trust every plugin you add.** `mixer plugin add` and `mixer plugin install` mean “I trust this codebase.” Plugins are unsandboxed: server code and preparation commands run with the daemon user's access on the daemon host, and client contributions run inside Mixer. The repository's dependencies and future updates are part of that trust decision. With `--host`, preparation runs on that remote daemon host.
 
+## Mixer Automations
+
+The built-in Automations plugin starts with the host daemon and opens to Runs. Stop pauses
+new runs and closes the webhook listener while admitted runs finish. Start resumes intake.
+Restart reloads the Automations listener and polling on the current host. Its Workflows tab opens workflow
+files in the normal Mixer editor. Chat opens a Mixer agent in the workflow directory. Use a
+workflow’s History action to filter the Runs table. Select a run for output, proposed Safe Actions,
+and its Mixer agent session.
+
+Workflows live under `$MIXER_HOME/automations`. Markdown contains an agent prompt with optional
+YAML frontmatter. YAML runs ordered shell steps with `run`, optional `if`, `retry`, and timeouts.
+A workflow starts in a fresh scratch directory unless you configure an absolute host `cwd` or a
+`repository` such as `owner/project`. Repository runs use separate GitHub checkouts and the host's
+Git credentials. A same-repository pull request checks out the event commit. Use
+`workspace: scratch` for workflows that analyze fork pull requests without checking out their code.
+A repository list queues a run for each entry, except GitHub deliveries which select their matching
+repository. Shell steps use Bash or sh installed on the host.
+
+New workflow drafts start disabled. Save a workflow with `disabled: false` to run it. The host
+executes one queued run at a time. Pending runs are marked interrupted after a daemon restart.
+
+### Automation triggers
+
+Enable schedules in Automations settings for cron, Jira polling, and GitHub polling. Use
+`on: { schedule: { cron: "0 9 * * 1-5" } }` for a host-local schedule. Jira uses UTC unless the
+workflow sets `timezone`. Configure the Jira Data Center base URL and the name of a host environment
+variable containing its personal access token. Jira schedules accept `cron`, `jql`, `timezone`,
+`fields`, and an optional `cadence: { startDate: "2026-11-05", everyWeeks: 2 }`. Mixer queues matching issue versions once per subscription.
+
+For GitHub, configure either a polling token variable or a webhook signing secret variable.
+Polling reads recent repository events starting after its first observation. Signed webhooks
+deliver to `POST /webhooks/github`. Use `github.issue`, `github.pull-request`, `github.issue.comment`,
+`github.pr.review`, `github.pr.comment`, or `github.check` in `on`. Add `events` to select actions,
+and `where` to filter event facts. Combine conditions with nested `all`, `any`, and `not`.
+Predicates include authors, labels, branches, titles, PR state, check conclusions, and numeric
+comparisons. Regex predicates use RE2. Check-run filters that need PR metadata require the
+GitHub polling token variable, even with signed delivery. Mixer enriches a check only if it
+identifies one PR whose current head still matches the event SHA.
+
+Set a nonzero webhook port to open the listener on `127.0.0.1`. For generic JSON, set the bearer
+secret variable and send `POST /webhooks/<endpoint>` with `Authorization: Bearer …` and a stable
+`X-Delivery-ID`. Subscribe with `on: { webhook.received: { endpoints: [build-alerts] } }`.
+An optional `payload` mapping filters dotted fields against lists of exact scalar values. To
+receive remote requests, route only the webhook paths through an HTTPS reverse proxy or tunnel.
+Webhook payloads become data files exposed to shell steps through `MIXER_EVENT_FILE`. Mixer
+agents receive the path in their run prompt. Keep the workflow's authority separate from the
+event data, including issue bodies, comments, and repository content.
+
+### GitHub Safe Actions
+
+Set a dedicated GitHub Safe Actions token variable on the host, and declare the action in the
+workflow. Mixer supports `github.pr.approve` and immediate `github.pr.merge`. Each policy requires
+`max: 1` and explicit `allowedAuthors`. Merge policies also accept `method` and `minimumChecks`.
+
+An agent's final message or a successful shell run's last output line can propose one action.
+Both `MIXER_RESULT:` and the RoboPlane result prefix are accepted.
+
+```text
+MIXER_RESULT: {"version":1,"actions":[{"name":"github.pr.merge","input":{"version":1,"decision":"merge"}}]}
+```
+
+The proposal appears in Runs. Confirming it rechecks the current workflow policy and the live PR
+against the event repository, author, branches, and SHA. Merges also require mergeability and passing
+checks on that SHA. If GitHub does not confirm a submitted request, inspect the PR before retrying
+in a new run. Use GitHub branch protections for repository-wide enforcement.
+
+### Import RoboPlane
+
+In Automations settings, enter the absolute path to the RoboPlane home on that host. Mixer copies
+workflow files as disabled drafts and reads run records from RoboPlane's SQLite history. Imported
+records preserve their source status and the tail of their log. Existing files and run records are
+skipped on repeat imports. Review workflow definitions before enabling them. RoboPlane extension
+fields and custom webhook handlers require adaptation.
+
+The retention setting applies to completed run records and output. Imported runs count from
+their import date. The default retention is seven days. Mixer agent sessions have their own lifecycle.
+
 ## Install a directory source
 
 Create a typecheckable plugin project, install its development dependencies, then install it into

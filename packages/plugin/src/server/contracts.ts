@@ -29,6 +29,10 @@ export interface PluginSettings<Schema extends ZodType> {
 }
 
 export interface PluginServerContext extends PluginLifecycleRegistration {
+  /** Host API for work initiated outside an RPC, such as scheduled tasks. */
+  readonly mixer: MixerApi;
+  /** Root of host-owned Mixer data, when provided by the daemon. */
+  readonly hostDataDirectory?: string;
   registerLanguageServer(server: LanguageServerRegistration): void;
   registerSettings<Schema extends ZodType>(
     definition: import("../settings.js").SettingsDefinition<Schema>,

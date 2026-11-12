@@ -288,6 +288,8 @@ export function createPluginWorker(options: {
         )
       : null;
     const contributedCleanup = contribute({
+      mixer,
+      hostDataDirectory: message.hostDataDirectory,
       handle: (contract, handler) =>
         register(contract, (input, context) => handler(contract.input.parse(input), context)),
       registerProvider,
