@@ -902,11 +902,14 @@ test("Automations starts with external plugins disabled and opens workflows from
         values: { agentProvider: "codex", retentionDays: 1, schedulesEnabled: true },
       }),
     ).resolves.toMatchObject({ status: "saved" });
-    const { agentId } = (await client.invokePluginRpc("automations", "automations.chat.open", {
-      path: "review.md",
-    })) as { agentId: string };
-    await expect(client.fetchAgent({ agentId })).resolves.toMatchObject({
-      agent: { id: agentId, provider: "codex", cwd: await realpath(root) },
+    await expect(
+      client.invokePluginRpc("automations", "automations.chat.prepare", {
+        path: "review.md",
+      }),
+    ).resolves.toEqual({
+      workspaceId: expect.any(String),
+      title: "Automation: review.md",
+      systemPrompt: expect.stringContaining("review.md"),
     });
     expect((await stat(expiredPath)).isFile()).toBe(true);
     await expect
@@ -923,11 +926,11 @@ test("Automations starts with external plugins disabled and opens workflows from
     await expect(
       client.invokePluginRpc("automations", "automations.runtime.control", { action: "restart" }),
     ).rejects.toThrow("Missing environment variable MIXER_TEST_UNSET_CONFIG_TOKEN");
-    const editingChat = await client.invokePluginRpc("automations", "automations.chat.open", {
+    const editingChat = await client.invokePluginRpc("automations", "automations.chat.prepare", {
       path: "smoke.yaml",
     });
     expect(editingChat).toMatchObject({
-      agentId: expect.any(String),
+      title: "Automation: smoke.yaml",
       workspaceId: expect.any(String),
     });
   } finally {

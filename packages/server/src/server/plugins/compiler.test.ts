@@ -50,6 +50,33 @@ describe("asar esbuild binary resolution", () => {
     );
   });
 
+  it("keeps the platform binary adjacent to a nested esbuild package", () => {
+    const nested = path.join(
+      "Resources",
+      "app.asar",
+      "node_modules",
+      "@mixer",
+      "server",
+      "node_modules",
+    );
+    expect(
+      unpackedEsbuildBinaryFromPackageDir(path.join(nested, "esbuild"), "darwin", "arm64"),
+    ).toBe(
+      path.join(
+        "Resources",
+        "app.asar.unpacked",
+        "node_modules",
+        "@mixer",
+        "server",
+        "node_modules",
+        "@esbuild",
+        "darwin-arm64",
+        "bin",
+        "esbuild",
+      ),
+    );
+  });
+
   it("ignores package paths that are not inside app.asar", () => {
     expect(
       unpackedEsbuildBinaryFromPackageDir(path.join("node_modules", "esbuild"), "darwin", "arm64"),

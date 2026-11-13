@@ -12,6 +12,7 @@ export const AGENT_CHAT_LAUNCHER_CLEARANCE = 56;
 export function FloatingAgentChat({
   serverId,
   conversation,
+  draft,
   open,
   launcherVisible = true,
   onOpenChange,
@@ -63,7 +64,7 @@ export function FloatingAgentChat({
             <PaneHeaderAction icon="Minus" label="Minimize AI" onPress={minimize} />
           </PaneHeader>
           {notice && <Text style={styles.notice}>{notice}</Text>}
-          {conversation ? (
+          {conversation && (
             <AgentChat
               serverId={serverId}
               workspaceId={conversation.workspaceId}
@@ -74,9 +75,20 @@ export function FloatingAgentChat({
               onOpenFile={onOpenFile}
               onOpenAgent={onOpenAgent}
             />
-          ) : (
-            children
           )}
+          {!conversation && draft && (
+            <AgentChat
+              serverId={serverId}
+              workspaceId={draft.workspaceId}
+              draft={draft}
+              active={open}
+              focused={focused}
+              contextFile={contextFile}
+              onOpenFile={onOpenFile}
+              onOpenAgent={onOpenAgent}
+            />
+          )}
+          {!conversation && !draft && children}
         </div>
       </FloatingSurface>
       {launcherVisible && (

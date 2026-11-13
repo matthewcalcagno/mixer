@@ -113,6 +113,7 @@ function resolveDraftModeId(input: {
   return null;
 }
 async function submitDraftCreateRequest(input: {
+  agentConfig?: { systemPrompt?: string; title?: string };
   draftId: string;
   attempt: {
     clientMessageId: string;
@@ -176,7 +177,7 @@ async function submitDraftCreateRequest(input: {
   const imagesData = await encodeImages(images);
   const options = {
     idempotencyKey: input.draftId,
-    config,
+    config: { ...config, ...input.agentConfig },
     workspaceId,
     initialPrompt: text,
     clientMessageId: attempt.clientMessageId,
@@ -269,6 +270,7 @@ function resolveDraftWorkingDirectory(input: {
   return input.workspaceDirectory;
 }
 interface WorkspaceDraftAgentTabProps {
+  agentConfig?: { systemPrompt?: string; title?: string };
   serverId: string;
   workspaceId: string;
   tabId: string;
@@ -289,6 +291,7 @@ function resolveImportPillPress(
   return onOpenImportSheet ?? null;
 }
 export function WorkspaceDraftAgentTab({
+  agentConfig,
   serverId,
   workspaceId,
   tabId,
@@ -464,6 +467,7 @@ export function WorkspaceDraftAgentTab({
         return { agentId: result.id, result };
       }
       return submitDraftCreateRequest({
+        agentConfig,
         draftId,
         attempt,
         text,

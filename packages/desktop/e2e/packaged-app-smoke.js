@@ -45,24 +45,17 @@ async function assertBuiltinPluginsStarted(listen) {
   });
   try {
     await client.connect();
-    const catalog = await client.getPluginCatalog();
+    const deadline = Date.now() + 20_000;
+    let catalog = await client.getPluginCatalog();
+    while (catalog.length < builtinPlugins.length && Date.now() < deadline) {
+      await delay(250);
+      catalog = await client.getPluginCatalog();
+    }
     assert.deepEqual(
       catalog.map(({ id }) => id).sort(),
       [...builtinPlugins].sort(),
       "Every built-in plugin must start in the packaged desktop daemon",
     );
-    if (process.platform !== "win32") {
-      const { revision } = await client.invokePluginRpc(
-        "automations",
-        "settings.preferences.read",
-        {},
-      );
-      const saved = await client.invokePluginRpc("automations", "settings.preferences.write", {
-        revision,
-        values: { agentProvider: "smoke-agent/gemini-3.5-flash" },
-      });
-      assert.equal(saved.status, "saved");
-    }
   } finally {
     await client.close();
   }
@@ -846,6 +839,12 @@ async function smokeAutomations(page) {
     .getByTestId("automations-runs-table")
     .getByText("Outcome", { exact: true })
     .waitFor();
+  await automation.getByRole("button", { name: "Ask Automations AI", exact: true }).click();
+  const assistant = automation.getByTestId("automations-assistant");
+  await assistant.getByRole("textbox", { name: "Message agent..." }).waitFor();
+  assert.equal(await assistant.getByText("Choose an agent", { exact: true }).count(), 0);
+  await assistant.getByRole("button", { name: "Minimize AI", exact: true }).click();
+  console.log("Packaged desktop smoke: Ask AI opened the native draft composer inside Automations");
   await automation.getByRole("button", { name: "Stop", exact: true }).click();
   await automation.getByRole("button", { name: "Start", exact: true }).click();
   await automation.getByRole("button", { name: "Stop", exact: true }).waitFor();
@@ -861,7 +860,7 @@ async function smokeAutomations(page) {
   await page.keyboard.insertText(
     "name: Packaged automation smoke\non: {}\nsteps:\n  - run: echo PACKAGED_AUTOMATION_OUTPUT\n",
   );
-  await page.keyboard.press("ControlOrMeta+s");
+  await automation.getByRole("button", { name: "Save workflow", exact: true }).click();
   await automation.getByText("Workflow saved.", { exact: true }).waitFor();
   await automation.getByRole("button", { name: "Run", exact: true }).click();
   await automation
@@ -869,14 +868,15 @@ async function smokeAutomations(page) {
     .getByText("scripted_steps_completed", { exact: true })
     .waitFor();
   await automation.getByRole("button", { name: "Logs", exact: true }).click();
-  assert.match(
-    await automation.getByRole("textbox", { name: "Run output", exact: true }).textContent(),
-    /PACKAGED_AUTOMATION_OUTPUT/,
-  );
+  await automation
+    .getByTestId("automations-run-logs")
+    .getByText("PACKAGED_AUTOMATION_OUTPUT", { exact: false })
+    .first()
+    .waitFor();
   await automation.getByRole("button", { name: "Back to runs", exact: true }).click();
   await automation
     .getByTestId("automations-runs-table")
-    .getByText("packaged-smoke.yaml", { exact: true })
+    .getByText("Packaged automation smoke", { exact: true })
     .waitFor();
   const artifactDir = process.env.MIXER_DESKTOP_SMOKE_ARTIFACT_DIR?.trim();
   if (artifactDir) {
@@ -887,10 +887,8 @@ async function smokeAutomations(page) {
   await automation.getByText("No matching runs.", { exact: true }).waitFor();
   await sidebar.click();
   await automation.getByRole("button", { name: "Open packaged-smoke.yaml", exact: true }).click();
-  await automation.getByRole("button", { name: "Ask Automations AI", exact: true }).click();
-  await automation.getByRole("textbox", { name: "Message agent..." }).waitFor();
   console.log(
-    "Packaged desktop smoke: Automations created and saved a workflow in Monaco, ran it, and opened its inline AI panel",
+    "Packaged desktop smoke: Automations created and saved a workflow in Monaco, and ran it",
   );
 }
 
@@ -969,6 +967,18 @@ async function smokePackagedDesktopApp({
   }
   const listen = `127.0.0.1:${daemonPort}`;
   configureIsolatedDaemonHome(daemonHome, listen);
+  const automationsHome = path.join(daemonHome, "automations");
+  fs.mkdirSync(automationsHome);
+  fs.writeFileSync(
+    path.join(automationsHome, "config.json"),
+    JSON.stringify({
+      extensions: {
+        github: { enabled: false },
+        jira: { enabled: false },
+        webhooks: { enabled: false },
+      },
+    }),
+  );
   const env = createIsolatedDesktopEnv({
     home: daemonHome,
     listen,

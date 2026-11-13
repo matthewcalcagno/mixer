@@ -36,7 +36,7 @@ The selected file uses the normal file-attachment context. Save drafts before as
 editors pick up refreshed source; dirty editors keep their draft and reject stale
 saves. Use View runs to filter history to an exact workflow. Runs have Overview, Logs, Details,
 recorded steps, and Safe Actions when present. Engine runs use the engine's harness providers;
-Ask AI uses Mixer conversations. Original-definition replay, current-definition replay, and
+Ask AI opens Mixer’s New Agent composer inside Automations. The first message starts the selected agent with workflow authoring context. Original-definition replay, current-definition replay, and
 cancellation go through the engine rather than queueing approximations of the original event.
 Overview separates the result reason, workflow-reported notes, and unresolved items from raw logs.
 Reported notes are not evidence of executed verification. Details groups recorded execution facts

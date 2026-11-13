@@ -22,7 +22,7 @@ export function unpackedEsbuildBinaryFromPackageDir(
   return path.join(
     esbuildPackageDir.slice(0, asarIndex),
     "app.asar.unpacked",
-    "node_modules",
+    path.dirname(esbuildPackageDir.slice(asarIndex + asarSegment.length)),
     `@esbuild/${platform}-${arch}`,
     ...(platform === "win32" ? ["esbuild.exe"] : ["bin", "esbuild"]),
   );

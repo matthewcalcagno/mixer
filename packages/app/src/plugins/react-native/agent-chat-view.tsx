@@ -27,6 +27,7 @@ export default function AgentChatView({
   serverId,
   workspaceId,
   agentId,
+  draft,
   active,
   focused = active,
   contextFile,
@@ -35,24 +36,28 @@ export default function AgentChatView({
 }: AgentChatProps) {
   ensurePanelsRegistered();
   const toast = useToast();
+  const tabId = `plugin-chat:${agentId ?? draft?.id}`;
   const wasActive = useRef(false);
   const instance = useId();
   const source = `plugin-agent-chat:${instance}`;
   const timeline = useSessionStore((state) => state.sessions[serverId]?.viewedTimelineSync ?? null);
   useLayoutEffect(() => {
-    timeline?.replaceVisibleAgentIds(source, active ? [agentId] : []);
+    timeline?.replaceVisibleAgentIds(source, active && agentId ? [agentId] : []);
     return () => timeline?.replaceVisibleAgentIds(source, []);
   }, [timeline, source, active, agentId]);
   useEffect(() => {
     if (!active) return;
     const runtime = getHostRuntimeStore();
-    void Promise.all([
-      runtime.prepareAgentRoute(serverId, agentId),
-      runtime.prepareAgentTimeline(serverId, agentId),
-    ]).catch((error) =>
+    const prepare = agentId
+      ? Promise.all([
+          runtime.prepareAgentRoute(serverId, agentId),
+          runtime.prepareAgentTimeline(serverId, agentId),
+        ])
+      : runtime.prepareWorkspaceRoute(serverId, workspaceId);
+    void prepare.catch((error) =>
       toast.error(error instanceof Error ? error.message : "Could not load the conversation."),
     );
-  }, [active, serverId, agentId, toast]);
+  }, [active, serverId, workspaceId, agentId, toast]);
   useEffect(() => {
     const focus = active && !wasActive.current;
     wasActive.current = active;
@@ -60,14 +65,14 @@ export default function AgentChatView({
     void useDraftStore
       .getState()
       .attachWorkspaceFile({
-        draftKey: buildDraftStoreKey({ serverId, agentId }),
+        draftKey: buildDraftStoreKey({ serverId, agentId: agentId ?? tabId, draftId: draft?.id }),
         attachment: createWorkspaceFileAttachment({ path: contextFile }),
         focus,
       })
       .catch((error) =>
         toast.error(error instanceof Error ? error.message : "Could not attach the selected file."),
       );
-  }, [active, contextFile, serverId, agentId, toast]);
+  }, [active, contextFile, serverId, agentId, tabId, draft?.id, toast]);
   const [state, setState] = useState<WorkspacePaneContentModel["paneContextValue"]["state"]>();
   const openFile = useCallback(
     (request: WorkspaceFileOpenRequest) => onOpenFile(request.location.path),
@@ -87,27 +92,51 @@ export default function AgentChatView({
     },
     [onOpenAgent, onOpenFile, serverId, workspaceId],
   );
+  const retarget = useCallback(
+    (target: WorkspaceTabTarget) => {
+      if (draft && target.kind === "agent") draft.onCreated(target.agentId);
+      else open(target);
+    },
+    [draft, open],
+  );
+  const openConversation = useCallback(() => {
+    if (agentId) onOpenAgent(agentId);
+  }, [agentId, onOpenAgent]);
   const content = useMemo<WorkspacePaneContentModel>(
     () => ({
-      key: `${serverId}:${agentId}:plugin-chat`,
+      key: `${serverId}:${tabId}`,
       Component: AgentConversationPanel,
       paneContextValue: {
         serverId,
         workspaceId,
         host: "main",
-        tabId: `plugin-chat:${agentId}`,
-        target: { kind: "agent", agentId },
+        tabId,
+        target: draft ? { kind: "draft", draftId: draft.id } : { kind: "agent", agentId: agentId! },
+        draftAgentConfig: draft
+          ? { systemPrompt: draft.systemPrompt, title: draft.title }
+          : undefined,
         state,
         openTab: open,
         openPreferredTarget: open,
-        retargetCurrentTab: open,
+        retargetCurrentTab: retarget,
         setCurrentTabState: setState,
         openFileInWorkspace: openFile,
-        closeCurrentTab: () => onOpenAgent(agentId),
-        openImportSheet: () => onOpenAgent(agentId),
+        closeCurrentTab: openConversation,
+        openImportSheet: openConversation,
       },
     }),
-    [serverId, workspaceId, agentId, state, open, openFile, onOpenAgent],
+    [
+      serverId,
+      workspaceId,
+      agentId,
+      tabId,
+      draft,
+      state,
+      open,
+      openFile,
+      retarget,
+      openConversation,
+    ],
   );
   const sheetHost = useMemo<SheetPaneHost>(() => {
     const workspaceKey = buildWorkspaceTabPersistenceKey({ serverId, workspaceId });
@@ -130,10 +159,10 @@ export default function AgentChatView({
           onSetCurrentTabState: (value) =>
             useWorkspaceLayoutStore.getState().setTabState(workspaceKey, tab.tabId, value),
           onOpenWorkspaceFile: openFile,
-          onOpenImportSheet: () => onOpenAgent(agentId),
+          onOpenImportSheet: openConversation,
         }),
     };
-  }, [serverId, workspaceId, active, open, openFile, onOpenAgent, agentId]);
+  }, [serverId, workspaceId, active, open, openFile, openConversation]);
   return (
     <RetainedPanel active={active}>
       <AgentChatEnvironment host={sheetHost}>

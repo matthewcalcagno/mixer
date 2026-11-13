@@ -124,15 +124,20 @@ export declare const FormTextInput: ComponentType<
     size?: "xs" | "sm" | "md";
   }
 >;
-export interface AgentChatProps {
+export type AgentChatProps = {
   serverId: string;
   workspaceId: string;
-  agentId: string;
   active: boolean;
   focused?: boolean;
   contextFile?: string;
   onOpenFile(path: string): void;
   onOpenAgent(agentId: string): void;
+} & ({ agentId: string; draft?: never } | { agentId?: never; draft: AgentChatDraft });
+export interface AgentChatDraft {
+  id: string;
+  systemPrompt?: string;
+  title?: string;
+  onCreated(agentId: string): void;
 }
 /** The app's agent conversation panel, including its composer, tools, streaming, and permissions. */
 export declare const AgentChat: ComponentType<AgentChatProps>;
@@ -142,6 +147,7 @@ export declare const FloatingAgentChat: ComponentType<{
   accessibilityLabel?: string;
   serverId: string;
   conversation: { agentId: string; workspaceId: string } | null;
+  draft?: AgentChatDraft & { workspaceId: string };
   open: boolean;
   launcherVisible?: boolean;
   onOpenChange(open: boolean): void;

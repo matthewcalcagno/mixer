@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMixer, useRpc, useSettings, type PluginScreenProps } from "@mixer/plugin/client";
-import { Button, FloatingAgentChat, SettingsSelect, useToast } from "@mixer/plugin/client/ui";
-import { automationFileId, automationSettings, chatRpc } from "../shared/contracts.js";
-import { useConfiguration } from "./configuration.js";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMixer, useRpc, type PluginScreenProps } from "@mixer/plugin/client";
+import { Button, FloatingAgentChat, useToast } from "@mixer/plugin/client/ui";
+import { automationFileId, prepareChatRpc } from "../shared/contracts.js";
 
 export function AutomationAssistant({
   theme,
@@ -27,16 +26,30 @@ export function AutomationAssistant({
   openConversation(agentId: string): void;
 }) {
   const mixer = useMixer();
-  const chat = useRpc(chatRpc);
+  const prepare = useRpc(prepareChatRpc);
   const query = useQueryClient();
   const toast = useToast();
-  const configuration = useConfiguration();
-  const configured = !!configuration.data?.agentProvider;
-  const start = useMutation({ mutationFn: () => chat({}) });
-  const { mutate, isIdle, data } = start;
-  useEffect(() => {
-    if (visible && configured && isIdle) mutate();
-  }, [visible, configured, isIdle, mutate]);
+  const [agentId, setAgentId] = useState<string>();
+  const [draftId] = useState(() => globalThis.crypto.randomUUID());
+  const {
+    data: workspace,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["automations", host.id, "assistant-workspace"],
+    queryFn: () => prepare({}),
+    enabled: visible,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const data = useMemo(
+    () => (agentId && workspace ? { agentId, workspaceId: workspace.workspaceId } : null),
+    [agentId, workspace],
+  );
+  const draft = useMemo(
+    () => (workspace ? { ...workspace, id: draftId, onCreated: setAgentId } : undefined),
+    [draftId, workspace],
+  );
   useEffect(() => {
     if (!data) return;
     let disposed = false;
@@ -58,8 +71,8 @@ export function AutomationAssistant({
     };
   }, [mixer, data, query, toast]);
   const openAgent = useCallback(
-    (agentId: string) => {
-      openConversation(agentId);
+    (id: string) => {
+      openConversation(id);
     },
     [openConversation],
   );
@@ -73,12 +86,18 @@ export function AutomationAssistant({
         toast.error("Save your workflow drafts before leaving Automations.");
         return;
       }
-      if (data)
-        navigation?.openFile?.({ path: file, workspaceId: data.workspaceId, serverId: host.id });
+      if (workspace)
+        navigation?.openFile?.({
+          path: file,
+          workspaceId: workspace.workspaceId,
+          serverId: host.id,
+        });
     },
-    [selectFile, dirty, toast, data, navigation, host.id],
+    [selectFile, dirty, toast, workspace, navigation, host.id],
   );
-  const retry = useCallback(() => mutate(), [mutate]);
+  const retry = useCallback(() => {
+    void refetch();
+  }, [refetch]);
   const styles = useMemo(
     () => ({
       bootstrap: { padding: 16, gap: 12 },
@@ -90,7 +109,8 @@ export function AutomationAssistant({
   return (
     <FloatingAgentChat
       serverId={host.id}
-      conversation={data ?? null}
+      conversation={data}
+      draft={draft}
       open={visible}
       launcherVisible={launcherVisible}
       onOpenChange={onOpenChange}
@@ -103,16 +123,11 @@ export function AutomationAssistant({
       onOpenFile={openFile}
     >
       <View style={styles.bootstrap}>
-        {!configured && <AssistantAgentPicker host={host} theme={theme} visible={visible} />}
-        <Text style={styles.text}>
-          {start.isPending
-            ? "Starting agent…"
-            : "Choose an agent to start a conversation about your workflows."}
-        </Text>
-        {start.error && (
+        {!error && <Text style={styles.text}>Opening composer…</Text>}
+        {error && (
           <>
             <Text accessibilityRole="alert" style={styles.error}>
-              {start.error.message}
+              {error.message}
             </Text>
             <Button size="sm" variant="outline" onPress={retry}>
               Retry
@@ -121,66 +136,5 @@ export function AutomationAssistant({
         )}
       </View>
     </FloatingAgentChat>
-  );
-}
-
-function AssistantAgentPicker({
-  host,
-  theme,
-  visible,
-}: Pick<PluginScreenProps, "host" | "theme"> & { visible: boolean }) {
-  const mixer = useMixer();
-  const settings = useSettings(automationSettings);
-  const providers = useQuery({
-    queryKey: ["automations", host.id, "assistant-providers"],
-    queryFn: () => mixer.providers.listAvailable(),
-    enabled: visible,
-    staleTime: 30_000,
-  });
-  const selected = settings.status === "ready" ? settings.values.agentProvider : "";
-  const options = useMemo(() => {
-    const values =
-      providers.data?.providers
-        .filter((provider) => provider.available)
-        .map((provider) => ({ value: provider.provider, label: provider.provider })) ?? [];
-    if (selected && !values.some((option) => option.value === selected))
-      values.unshift({ value: selected, label: selected });
-    return [{ value: "", label: "Choose an agent" }, ...values];
-  }, [providers.data, selected]);
-  const change = useCallback(
-    (provider: string) => {
-      if (settings.status === "ready")
-        void settings.save({ ...settings.values, agentProvider: provider }, settings.revision);
-    },
-    [settings],
-  );
-  const errorStyle = useMemo(() => ({ color: theme.colors.statusDanger }), [theme]);
-  const noteStyle = useMemo(() => ({ color: theme.colors.foregroundMuted }), [theme]);
-  if (settings.status !== "ready")
-    return (
-      <Text style={noteStyle}>
-        {"error" in settings ? settings.error : "Loading agent settings…"}
-      </Text>
-    );
-  return (
-    <View>
-      <SettingsSelect
-        label="Ask AI agent"
-        value={selected}
-        options={options}
-        onValueChange={change}
-        disabled={settings.saving}
-      />
-      {settings.saveError && (
-        <Text accessibilityRole="alert" style={errorStyle}>
-          {settings.saveError}
-        </Text>
-      )}
-      {providers.error && (
-        <Text accessibilityRole="alert" style={errorStyle}>
-          {providers.error.message}
-        </Text>
-      )}
-    </View>
   );
 }

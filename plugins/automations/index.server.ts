@@ -1,8 +1,7 @@
-import { createHash } from "node:crypto";
 import type { PluginServerContext } from "@mixer/plugin/server";
 import {
   automationSettings,
-  chatRpc,
+  prepareChatRpc,
   createRpc,
   createDirectoryRpc,
   moveWorkflowRpc,
@@ -24,7 +23,6 @@ import {
   configurationInfoRpc,
   reconcileActionRpc,
 } from "./shared/contracts.js";
-import { resolveAgentProvider } from "./server/provider.js";
 import { createEngineRuntime } from "./server/engine-runtime.js";
 import { createWorkflowStore } from "./server/workflows.js";
 import { automationAuthoringContext } from "./server/authoring-context.js";
@@ -76,30 +74,17 @@ export default function contribute(server: PluginServerContext) {
   });
   server.handle(createDirectoryRpc, ({ path }) => store.createDirectory(path));
   server.handle(moveWorkflowRpc, (input) => store.move(input));
-  server.handle(chatRpc, async ({ path }, { mixer }) => {
+  server.handle(prepareChatRpc, async ({ path }, { mixer }) => {
     const root = path ? (await store.validate(path)).root : await store.initialize();
-    const preferences = await legacySettings.read();
-    if (preferences.status !== "ready") throw new Error(preferences.error);
-    const configuration = await runtime.configurationInfo(preferences.values.agentProvider);
-    const provider = await resolveAgentProvider(mixer, configuration.agentProvider, root);
     const workspace = await mixer.workspaces.open(root);
-    const hash = createHash("sha256")
-      .update(JSON.stringify([workspace.id, path, provider, "extension-authoring-v2"]))
-      .digest("hex");
-    const agent = await workspace.agents.create({
-      idempotencyKey: `automations-chat-${hash}`,
+    const instructions = path
+      ? `Help the user edit the workflow at workspace-relative path ${JSON.stringify(path)}. Read it for context. Only run it when the user asks.`
+      : "Help the user with their Mixer Automations workflows. Only run them when the user asks.";
+    return {
+      workspaceId: workspace.id,
       title: path ? `Automation: ${path}` : "Automations",
-      config: {
-        provider,
-        systemPrompt:
-          authoringContext +
-          "\n\n" +
-          (path
-            ? `Help the user edit the workflow at workspace-relative path ${JSON.stringify(path)}. Read it for context. Only run it when the user asks.`
-            : "Help the user with their Mixer Automations workflows. Only run them when the user asks."),
-      },
-    });
-    return { agentId: agent.id, workspaceId: workspace.id };
+      systemPrompt: `${authoringContext}\n\n${instructions}`,
+    };
   });
   return runtime.close;
 }
