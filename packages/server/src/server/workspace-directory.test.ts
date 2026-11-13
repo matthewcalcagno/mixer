@@ -569,10 +569,12 @@ describe("WorkspaceDirectory", () => {
 
 describe("WorkspaceDirectory empty projects", () => {
   function makeDirectory(input: {
+    isProjectRootVisibleToClient?(rootPath: string): boolean;
     projects: PersistedProjectRecord[];
     workspaces: PersistedWorkspaceRecord[];
   }): WorkspaceDirectory {
     return new WorkspaceDirectory({
+      isProjectRootVisibleToClient: input.isProjectRootVisibleToClient,
       logger: createTestLogger(),
       projectRegistry: { list: async () => input.projects },
       workspaceRegistry: { list: async () => input.workspaces },
@@ -581,12 +583,12 @@ describe("WorkspaceDirectory empty projects", () => {
       listProviderSubagentActivity: async () => [],
       listTerminalActivityContributions: async () => [],
       isProviderVisibleToClient: () => true,
-      buildWorkspaceDescriptor: async ({ workspace }) => ({
+      buildWorkspaceDescriptor: async ({ workspace, projectRecord }) => ({
         id: workspace.workspaceId,
         projectId: workspace.projectId,
         projectDisplayName: "project",
         projectCustomName: null,
-        projectRootPath: "/workspace/project",
+        projectRootPath: projectRecord?.rootPath ?? "/workspace/project",
         workspaceDirectory: workspace.cwd,
         projectKind: "non_git",
         workspaceKind: workspace.kind,
@@ -616,6 +618,52 @@ describe("WorkspaceDirectory empty projects", () => {
       ...input,
     } satisfies PersistedProjectRecord;
   }
+
+  test("hides the Automations runtime project from discovery while allowing exact workspace lookup", async () => {
+    const runtimeProject = project({ projectId: "runtime", rootPath: "/daemon/automations" });
+    const normalProject = project({ projectId: "automations" });
+    const isProjectRootVisibleToClient = (rootPath: string) =>
+      isUserProjectRoot(rootPath, "/daemon");
+    expect(isProjectRootVisibleToClient(runtimeProject.rootPath)).toBe(false);
+    expect(isProjectRootVisibleToClient(normalProject.rootPath)).toBe(true);
+    const directory = makeDirectory({
+      projects: [runtimeProject, normalProject],
+      workspaces: [
+        {
+          workspaceId: "runtime-workspace",
+          projectId: "runtime",
+          cwd: runtimeProject.rootPath,
+          kind: "directory",
+          displayName: "automations",
+          createdAt: NOW,
+          updatedAt: NOW,
+          archivedAt: null,
+        },
+      ],
+      isProjectRootVisibleToClient,
+    });
+    const listed = await directory.listFetchEntries({
+      type: "fetch_workspaces_request",
+      requestId: "list",
+      filter: { includeBackground: true },
+    });
+    expect(listed.entries).toEqual([]);
+    expect(listed.emptyProjects.map((item) => item.projectId)).toEqual(["automations"]);
+    const exact = await directory.listFetchEntries({
+      type: "fetch_workspaces_request",
+      requestId: "exact",
+      filter: { query: "runtime-workspace" },
+    });
+    expect(exact.entries.map((item) => item.id)).toEqual(["runtime-workspace"]);
+    const empty = makeDirectory({
+      projects: [runtimeProject, normalProject],
+      workspaces: [],
+      isProjectRootVisibleToClient,
+    });
+    expect((await empty.listEmptyProjects()).map((item) => item.projectId)).toEqual([
+      "automations",
+    ]);
+  });
 
   test("surfaces a project with no active workspaces through the compatibility projection", async () => {
     const directory = makeDirectory({
@@ -818,3 +866,4 @@ test("prompt recency reads archived records without projecting agents or exposin
     await rm(home, { recursive: true, force: true });
   }
 });
+import { isUserProjectRoot } from "./project-visibility.js";

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { PLUGIN_SDK_SPECIFIERS } from "./plugin-sdk-specifiers.js";
 const nodeRequire = createRequire(import.meta.url);
-export const SERVER_HOST_MODULES = [...PLUGIN_SDK_SPECIFIERS, "zod"];
+export const SERVER_HOST_MODULES = [...PLUGIN_SDK_SPECIFIERS, "zod", "@mixer/automations-engine"];
 const ESBUILD_BINARY_PATH = "ESBUILD_BINARY_PATH";
 
 // esbuild resolves its own platform binary via require.resolve() the first time its
@@ -22,7 +22,7 @@ export function unpackedEsbuildBinaryFromPackageDir(
   return path.join(
     esbuildPackageDir.slice(0, asarIndex),
     "app.asar.unpacked",
-    "node_modules",
+    path.dirname(esbuildPackageDir.slice(asarIndex + asarSegment.length)),
     `@esbuild/${platform}-${arch}`,
     ...(platform === "win32" ? ["esbuild.exe"] : ["bin", "esbuild"]),
   );

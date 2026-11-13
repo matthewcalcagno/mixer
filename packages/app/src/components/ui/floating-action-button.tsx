@@ -1,6 +1,5 @@
-import { forwardRef, useMemo } from "react";
+import { forwardRef, useMemo, type ComponentType } from "react";
 import { Text, type View } from "react-native";
-import type { LucideIcon } from "lucide-react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { PressHighlight } from "@/components/ui/press-highlight";
 import { ICON_SIZE } from "@/styles/theme";
@@ -15,7 +14,7 @@ export {
 } from "./floating-action-layout";
 
 export interface FloatingActionButtonProps {
-  icon: LucideIcon;
+  icon: ComponentType<{ size: number; color: string }>;
   /** Names the action for assistive technology. */
   accessibilityLabel: string;
   onPress: () => void;

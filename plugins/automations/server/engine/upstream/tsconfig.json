@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "@mixer/automations-sdk": ["./packages/sdk/src/index.ts"],
+      "@roboplane/core": ["./packages/core/src/index.ts"],
+      "@roboplane/extension-claude": ["./packages/extension-claude/src/index.ts"],
+      "@roboplane/extension-codex": ["./packages/extension-codex/src/index.ts"],
+      "@roboplane/extension-copilot": ["./packages/extension-copilot/src/index.ts"],
+      "@roboplane/extension-container": ["./packages/extension-container/src/index.ts"],
+      "@roboplane/extension-evaluations": ["./packages/extension-evaluations/src/index.ts"],
+      "@roboplane/extension-github": ["./packages/extension-github/src/index.ts"],
+      "@roboplane/extension-jira": ["./packages/extension-jira/src/index.ts"],
+      "@roboplane/extension-opencode": ["./packages/extension-opencode/src/index.ts"],
+      "@roboplane/extension-pi": ["./packages/extension-pi/src/index.ts"],
+      "@roboplane/extension-scheduler": ["./packages/extension-scheduler/src/index.ts"],
+      "@roboplane/extension-scratch": ["./packages/extension-scratch/src/index.ts"],
+      "@roboplane/extension-webhooks": ["./packages/extension-webhooks/src/index.ts"],
+      "@roboplane/extension-worktree": ["./packages/extension-worktree/src/index.ts"]
+    },
+    "lib": ["ES2024"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  }
+}

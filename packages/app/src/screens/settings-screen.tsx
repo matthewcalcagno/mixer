@@ -755,8 +755,8 @@ function SidebarSectionButton({
     </Pressable>
   );
 }
-interface SidebarHostSectionButtonProps {
-  itemId: HostSectionSlug;
+interface SidebarHostSectionButtonProps<T extends string> {
+  itemId: T;
   label: string;
   icon: ComponentType<{
     size: number;
@@ -764,15 +764,15 @@ interface SidebarHostSectionButtonProps {
     strokeWidth?: number;
   }>;
   isSelected: boolean;
-  onSelect: (section: HostSectionSlug) => void;
+  onSelect: (section: T) => void;
 }
-function SidebarHostSectionButton({
+function SidebarHostSectionButton<T extends string>({
   itemId,
   label,
   icon: IconComponent,
   isSelected,
   onSelect,
-}: SidebarHostSectionButtonProps) {
+}: SidebarHostSectionButtonProps<T>) {
   const { theme, rt } = useUnistyles();
   const handlePress = useCallback(() => {
     onSelect(itemId);

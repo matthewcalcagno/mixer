@@ -96,6 +96,7 @@ describe("toPluginTheme", () => {
         statusSuccess: lightTheme.colors.statusSuccess,
         statusWarning: lightTheme.colors.statusWarning,
         statusDanger: lightTheme.colors.statusDanger,
+        statusModified: `color-mix(in srgb, ${lightTheme.colors.statusDotRunning} 80%, ${lightTheme.colors.foreground})`,
       },
     });
   });

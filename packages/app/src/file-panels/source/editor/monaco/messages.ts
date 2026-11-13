@@ -28,6 +28,7 @@ export const editorConfigurationSchema = z.object({
   preferences: editorPreferencesSchema,
   projectLanguageServices: z.boolean(),
   historyOwner: z.enum(["document", "editor"]).optional(),
+  readOnly: z.boolean().optional(),
   languageProviders: z.array(LanguageProviderSchema).optional(),
   extendedLanguageFeatures: z.boolean().optional(),
   gitAnnotations: z.boolean().default(false),

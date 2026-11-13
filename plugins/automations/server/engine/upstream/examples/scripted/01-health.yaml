@@ -1,0 +1,12 @@
+name: Scripted health check
+on:
+  schedule:
+    cron: "0 * * * *"
+steps:
+  - id: check
+    name: Check the local runtime
+    timeout: 30s
+    run: node --version
+  - id: diagnose
+    if: failure
+    run: printf '%s\n' 'The runtime check failed.'

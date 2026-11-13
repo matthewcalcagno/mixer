@@ -1,0 +1,15 @@
+name: Prepare issue investigation
+repository: owner/repo
+on:
+  github.issue:
+    events: [opened]
+steps:
+  - id: prepare
+    run: printf '%s\n' '{"note":"Inspect the activated issue"}' > context.json
+  - id: investigate
+    run: |
+      mixer-automations automations run scripted/03-investigate-issue.md \
+        --repository "$MIXER_AUTOMATIONS_REPOSITORY" \
+        --input-file context.json \
+        --inherit-event \
+        --handoff-key investigate

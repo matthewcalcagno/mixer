@@ -35,6 +35,9 @@ console.log(result.status, result.lastMessage);
 
 超时不会取消 Agent。
 
+调用 `await agent.cancel()` 可请求中断当前轮次，不会归档会话或改变父子关系。
+取消操作不会撤销已经完成的外部操作。使用 `waitForFinish()` 观察本轮的最终状态。
+
 ## 为后续提示词保持会话 {#keep-a-session-alive-for-follow-ups}
 
 当提示词稍后才会到来时，创建一个空闲的会话：

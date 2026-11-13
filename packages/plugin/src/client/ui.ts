@@ -40,10 +40,12 @@ export declare const WorkspaceSidebar: ComponentType<{
 }>;
 
 export interface CodeEditorProps {
+  autoFocus?: boolean;
+  filename?: string;
   variables?: readonly { name: string; resolved: boolean; value: string; source: string }[];
   onInspectVariable?: (name: string) => void;
   value: string;
-  language: "text" | "json" | "html" | "xml" | "javascript" | "css";
+  language: "text" | "json" | "html" | "xml" | "javascript" | "css" | "markdown" | "yaml";
   label: string;
   readOnly?: boolean;
   search?: string;
@@ -54,7 +56,121 @@ export interface CodeEditorProps {
 /** In-memory code buffer with host syntax colors, editor preferences, search, and JSON linting. */
 export declare const CodeEditor: ComponentType<CodeEditorProps>;
 
+export interface SourceEditorProps {
+  autoFocus?: boolean;
+  filename: string;
+  value: string;
+  onChange(value: string): void;
+  onSave(): void;
+  readOnly?: boolean;
+}
+/** File-type-aware source buffer. Uses the bundled Monaco runtime on Electron. The caller owns persistence. */
+export declare const SourceEditor: ComponentType<SourceEditorProps>;
+export interface EditorTabsProps {
+  fixedTabs?: readonly { id: string; label: string }[];
+  files: readonly { path: string; dirty?: boolean; kind?: "file" | "agent"; label?: string }[];
+  selected: string;
+  onSelect(path: string): void;
+  onClose(path: string): void;
+}
+export declare const TreeNameInput: ComponentType<{
+  kind: "file" | "directory";
+  depth?: number;
+  initialName?: string;
+  accessibilityLabel?: string;
+  editable?: boolean;
+  onCommit(name: string): void;
+  onCancel(): void;
+}>;
+export interface FileTreeRowProps {
+  path: string;
+  depth: number;
+  expanded?: boolean;
+  selected?: boolean;
+  onPress(): void;
+}
+export declare const FileTreeRow: ComponentType<FileTreeRowProps>;
+export declare const TreeDragSource: ComponentType<{
+  scope: string;
+  path: string;
+  disabled?: boolean;
+  children: ReactNode;
+}>;
+export declare const TreeDropTarget: ComponentType<{
+  scope: string;
+  onDropPath(path: string): void;
+  children: ReactNode;
+  fill?: boolean;
+  disabled?: boolean;
+}>;
+export declare const EditorTabs: ComponentType<EditorTabsProps>;
+export declare function SegmentedControl<T extends string>(props: {
+  options: { value: T; label: string; disabled?: boolean }[];
+  value: T;
+  onValueChange(value: T): void;
+  size?: "xs" | "sm" | "md";
+}): ReactNode;
+export declare const SearchField: ComponentType<{
+  size?: "xs";
+  value: string;
+  onChangeText(value: string): void;
+  placeholder: string;
+  accessibilityLabel?: string;
+  clearAccessibilityLabel: string;
+}>;
+export declare const FormTextInput: ComponentType<
+  Omit<TextInputProps, "value" | "defaultValue"> & {
+    initialValue?: string;
+    size?: "xs" | "sm" | "md";
+  }
+>;
+export type AgentChatProps = {
+  serverId: string;
+  workspaceId: string;
+  active: boolean;
+  focused?: boolean;
+  contextFile?: string;
+  onOpenFile(path: string): void;
+  onOpenAgent(agentId: string): void;
+} & ({ agentId: string; draft?: never } | { agentId?: never; draft: AgentChatDraft });
+export interface AgentChatDraft {
+  id: string;
+  systemPrompt?: string;
+  title?: string;
+  onCreated(agentId: string): void;
+}
+/** The app's agent conversation panel, including its composer, tools, streaming, and permissions. */
+export declare const AgentChat: ComponentType<AgentChatProps>;
+export declare const FloatingAgentChat: ComponentType<{
+  notice?: string;
+  testID?: string;
+  accessibilityLabel?: string;
+  serverId: string;
+  conversation: { agentId: string; workspaceId: string } | null;
+  draft?: AgentChatDraft & { workspaceId: string };
+  open: boolean;
+  launcherVisible?: boolean;
+  onOpenChange(open: boolean): void;
+  contextFile?: string;
+  title: string;
+  onOpenFile(path: string): void;
+  onOpenAgent(agentId: string): void;
+  children?: ReactNode;
+}>;
+export declare const AGENT_CHAT_LAUNCHER_CLEARANCE: number;
+
+export declare const FloatingActionButton: ComponentType<{
+  icon: string;
+  accessibilityLabel: string;
+  label?: string;
+  onPress(): void;
+  disabled?: boolean;
+}>;
+export declare const FLOATING_ACTION_BUTTON_CLEARANCE: number;
+
 export interface ButtonProps {
+  /** Align a structural back control with the pane's leading content rail. */
+  flushStart?: boolean;
   children?: ReactNode;
   icon?: string;
   onPress?: () => void;
@@ -280,6 +396,7 @@ export interface ContextMenuAction {
   separatorBefore?: boolean;
 }
 export interface ContextMenuProps {
+  fill?: boolean;
   children: ReactNode;
   actions: readonly ContextMenuAction[];
   onOpen(): void;

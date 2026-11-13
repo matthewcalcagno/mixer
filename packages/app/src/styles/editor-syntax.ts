@@ -20,6 +20,8 @@ const dark = {
   warning: "#CD9731",
   error: "#F44747",
   debug: "#B267E6",
+  property: "#79C0FF",
+  objectKey: "#7EE787",
 };
 
 // Preserve the dark palette's hue roles with darker shades for light editor surfaces.
@@ -40,6 +42,8 @@ const light: typeof dark = {
   warning: "#735C0F",
   error: "#B31D28",
   debug: "#6F42C1",
+  property: "#005CC5",
+  objectKey: "#22863A",
 };
 
 function createEditorSyntaxTheme(type: "dark" | "light", palette: typeof dark): ThemeRegistration {
@@ -133,6 +137,33 @@ function createEditorSyntaxTheme(type: "dark" | "light", palette: typeof dark): 
       rule("token.warn-token", palette.warning),
       rule("token.error-token", palette.error),
       rule("token.debug-token", palette.debug),
+      // Match the VS Code Turbo overrides: object keys differ from member access.
+      rule(
+        [
+          "variable.other.property.js",
+          "variable.other.property.jsx",
+          "variable.other.property.ts",
+          "variable.other.property.tsx",
+          "variable.other.object.property.js",
+          "variable.other.object.property.jsx",
+          "variable.other.object.property.ts",
+          "variable.other.object.property.tsx",
+        ],
+        palette.property,
+      ),
+      rule(
+        [
+          "support.type.property-name.js",
+          "support.type.property-name.jsx",
+          "support.type.property-name.ts",
+          "support.type.property-name.tsx",
+          "meta.object-literal.key.js",
+          "meta.object-literal.key.jsx",
+          "meta.object-literal.key.ts",
+          "meta.object-literal.key.tsx",
+        ],
+        palette.objectKey,
+      ),
     ],
   };
 }

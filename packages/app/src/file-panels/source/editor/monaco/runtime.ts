@@ -297,6 +297,7 @@ async function configure(configuration: EditorConfiguration) {
       "semanticHighlighting.enabled": false,
       fixedOverflowWidgets: true,
       ...monacoPreferences(configuration.preferences, configuration.theme, configuration.filename),
+      readOnly: configuration.readOnly === true,
     });
     if (configuration.viewState) {
       try {
@@ -347,9 +348,10 @@ async function configure(configuration: EditorConfiguration) {
     });
   } else {
     if (textModel) monaco.editor.setModelLanguage(textModel, language);
-    editor.updateOptions(
-      monacoPreferences(configuration.preferences, configuration.theme, configuration.filename),
-    );
+    editor.updateOptions({
+      ...monacoPreferences(configuration.preferences, configuration.theme, configuration.filename),
+      readOnly: configuration.readOnly === true,
+    });
     updateContent(configuration);
   }
   applyModelPreferences(textModel, configuration.preferences);

@@ -157,8 +157,9 @@ imports are lazy. Tokenization preserves each line's grammar state, including
 multiline strings and comments. The token color map must retain TextMate's index
 positions when passed to Monaco. Rebuilding that map through Monaco's theme rules
 changes the indices and assigns the wrong colors.
-Desktop editor syntax uses GitHub Dark Turbo scopes, with darker shades for light
-mode. Keep these registrations syntax-only: Appearance still owns the editor
+Desktop editor syntax uses GitHub Dark Turbo scopes with the reference VS Code setup's
+JavaScript/TypeScript overrides: green object-literal keys and blue member access.
+Light mode uses darker shades. Keep these registrations syntax-only: Appearance still owns the editor
 background, cursor, selection, and widget colors. Do not import the upstream
 theme's UI colors or token backgrounds.
 Source Control diffs use the same adapter; see [diff syntax](source-control.md#diff-syntax)

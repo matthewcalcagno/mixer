@@ -27,6 +27,7 @@ export interface PluginTheme {
     readonly statusSuccess: string;
     readonly statusWarning: string;
     readonly statusDanger: string;
+    readonly statusModified?: string;
   };
 }
 

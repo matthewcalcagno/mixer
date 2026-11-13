@@ -1,0 +1,763 @@
+{
+  "repository": "https://github.com/matthewcalcagno/roboplane",
+  "revision": "804ad41a301e6674cc7f4e72093adaed8f58e293",
+  "branch": "main",
+  "adaptations": [
+    "Mixer Automations protocol namespace, SDK package name, workflow CLI helper, and user-facing branding. Persisted storage names and source module identities other than the public SDK remain unchanged.",
+    "Opt-in embedded storage paths, packaged SDK resolution and local extension dependency bundling, short private control socket, Electron Node subprocess flag, and draft-schema export."
+  ],
+  "files": {
+    "README.md": {
+      "upstreamSha256": "2afe51b05b1d95839e7534cf1b8a71b021fafbbd678f775f57633e6caf51c72e",
+      "importedSha256": "e7e236e7d867b736551656cd917170739fa36c7e726fbeb194aedcf078b5d5e5"
+    },
+    "docs/agents.md": {
+      "upstreamSha256": "bef2ff40ced6f91c801c5c6fff0ff0bb3b23328f68b625c12bf7d9942e1bbd88",
+      "importedSha256": "f53bb181cdda15c4533fafc9004b4902603e3e538d7a27b0f7527015cd74f2f7"
+    },
+    "docs/architecture.md": {
+      "upstreamSha256": "8a353a8a0b3bb0aeef8157b3f12af56c752005594fe88938c0de959fd68b1da7",
+      "importedSha256": "496001d483504f1fd14a2f8a42b22347dc45d25906e06637d29f00498818c736"
+    },
+    "docs/commands.md": {
+      "upstreamSha256": "bde4df6e898a3952ef82d7c4adaa0b417cf79431187e858723d9eb958d485650",
+      "importedSha256": "74b0d5a52a9ce160ee64a0e3163aa6e8659472b7b744813962a492e78b8ef8c7"
+    },
+    "docs/configuration.md": {
+      "upstreamSha256": "55988178984bc803d0e5b87918907ec595ca3ba69d864a1ef095c9eafee854e1",
+      "importedSha256": "df0494169216a3f08754e105d1dae7b63f3c120b30a25bc7e6ad74665314403f"
+    },
+    "docs/evaluations.md": {
+      "upstreamSha256": "b6501e0dbe5924229aebf8f7eb02e16e55b243a5770742e7573b77ff61680bf4",
+      "importedSha256": "3ca09082b2d12d49e4a718d86e7117b5193bb3999b45cf325d283149f384dd30"
+    },
+    "docs/events.md": {
+      "upstreamSha256": "811b3df111537d2e3da5f329d1a2866c8f759a63ef43fc964b568bd4d176efa0",
+      "importedSha256": "9a2240d64176a4069d08bc32b5f00e515038c80f34066434a9cb927be44dbada"
+    },
+    "docs/execution.md": {
+      "upstreamSha256": "37ad8e2c0d45df6c22d61f151122944910c7c89eb0d513ed7e78488ed93fb7be",
+      "importedSha256": "8295a4666643906d8772f186c5da2c1c0c8dc8b0cede3ec969d428572518b87a"
+    },
+    "docs/extension-authoring.md": {
+      "upstreamSha256": "b9a22f023564f414cbbd2e985fdeacd12730db6bfbb1a27d78d689794ffce08e",
+      "importedSha256": "ca3017bf32d51286d6d08a3cb37b38d9ff84962a2b0f20cd960f1f87147427ca"
+    },
+    "docs/extensions.md": {
+      "upstreamSha256": "2ca567e38e2781b08942c3ab439056ac483c98f1c57495f6e61b6dddffff7f61",
+      "importedSha256": "8b66acfb2467a525c3302e4abb1efe82297a4cf245beb0c8c1579c4983a59ec3"
+    },
+    "docs/github.md": {
+      "upstreamSha256": "0c634d6849a28e09214c9e945aaf3df6ef0c67d8b03357a9b95622898e893621",
+      "importedSha256": "36d78c100b1094364832fa28c807ec3704f08658bc07bf0d404de326181fd432"
+    },
+    "docs/hooks.md": {
+      "upstreamSha256": "781f5946ce67159eb49cd02102f5535e41448326b14875bf0eaa8c4a023403de",
+      "importedSha256": "a1566d5e17f69b650d3bed32febd43a1cfb0ba23c62e23926741d22167d57180"
+    },
+    "docs/jira.md": {
+      "upstreamSha256": "ec8efe6c43d3931b69b2761fe050fc63f2fb8dc34309708b52ae70a8373271ef",
+      "importedSha256": "25c816a1bcce434868390d98156adb994b81fadc43103f53aa99c8cf6b2c253a"
+    },
+    "docs/maintainer.md": {
+      "upstreamSha256": "963ede2ea22b6b80f7bd46fa9e189213bd787500703deb49ed2c6ecd5860b8c6",
+      "importedSha256": "2b90f132a4674049c8eef75058f04eb481882f45b557a85258c70fba3888892b"
+    },
+    "docs/operations.md": {
+      "upstreamSha256": "89b866667668e57af08d83cd8a126c3a8799b767826c77b1743900ee0e5254f7",
+      "importedSha256": "79cf7189eb3324fe27ef2130bac12a0597ee4da1e82bbd5dabcb5a8fd7f138f4"
+    },
+    "docs/process.md": {
+      "upstreamSha256": "b8ae75a16c7ba68420c62728e1132e25205fd92cc17b0d50e8debbad2360d56a",
+      "importedSha256": "c1b7f8018c2ce530a1dc0e827fa9f98e2e5bf092618dab4b94fa6e5a81178035"
+    },
+    "docs/safe-actions.md": {
+      "upstreamSha256": "651abd7860b5ead6d4688629cd21688ec638b5f5927c02712584f0623c3f398e",
+      "importedSha256": "416ccc5be7a7e1d38622582d53f883b0af1c64483d97937df7894080295c1db5"
+    },
+    "docs/scripted-workflows.md": {
+      "upstreamSha256": "3e93ab9a6b29a8fbe45d57a5305cc8408c52e19a61055e9c90ff20aae84fe4b3",
+      "importedSha256": "206723026aacc2ad6afaca5f45a8df3f3b4a7269515c7b66196d26854beefa0f"
+    },
+    "docs/sdk.md": {
+      "upstreamSha256": "24ef7c1e72ce0ea7420ae85c7cd996bd3898f4107528f1d06a4a0f4a001e0b39",
+      "importedSha256": "782b9659c95b379a9d7a573839c0e55e9c239a047870afdbf8c431d63b3d5530"
+    },
+    "docs/state.md": {
+      "upstreamSha256": "f38ab7b443479b63302d561ade6ef4af32c89033f8b0d4dec66ad842c02964ec",
+      "importedSha256": "55df4384e4f43dbfa17cba3a2ff7d13edc829f82263f988b1e035fb740709d27"
+    },
+    "docs/webhooks.md": {
+      "upstreamSha256": "ca3e21e6d05e3a819e9ef819c30e74c6e92865026aa37baaef283111a91cc0db",
+      "importedSha256": "432318ca093746104a15b5f8092d4ed007962cae3a775ad74ee6585f88dfc4cc"
+    },
+    "docs/workflow-authoring.md": {
+      "upstreamSha256": "0a3a0e11b921aba0d7d6a441bc6a85b0f66fda316451eaf5da7c4ab6f3104967",
+      "importedSha256": "f10d07237b4ed4649f68e0bc65b6a652a4e36dc10bc9d1a663aa33b6d423ac3b"
+    },
+    "docs/workflow-handoffs.md": {
+      "upstreamSha256": "6e2b3616da63cf6efdbc5b55c36635c3251d16bdb24cae57110ce5205b1fa4ff",
+      "importedSha256": "851bb582e387668c3c36b73526e88fcfbe121ac89c9a51e8f62092e98c14f7a5"
+    },
+    "docs/workflows.md": {
+      "upstreamSha256": "0bf02dfd09c0499aad03225ed888354af08c73f34a29e65c6cc39035b98fc3a9",
+      "importedSha256": "c8d507139a5275a5abc5d12770a23e2a963063ed522d7c0bbeeefb86fc32f607"
+    },
+    "docs/workspaces.md": {
+      "upstreamSha256": "0dc8f3f6ed867665df8fd709ba369ceb77150dd4a2e96feb464a188400dc400f",
+      "importedSha256": "edc02e371f77a2fd3b7b08f7e343946a5d9fbfe7699cab20edb330c11efab288"
+    },
+    "examples/evaluations/issue-triage-comments/evaluation.yaml": {
+      "upstreamSha256": "4d419bbee02709160cfd783115c0fc9854ceb31f2c45d06bd4a08b9873fa6ca0",
+      "importedSha256": "4d419bbee02709160cfd783115c0fc9854ceb31f2c45d06bd4a08b9873fa6ca0"
+    },
+    "examples/extensions/custom-cli-agent.ts": {
+      "upstreamSha256": "30d22df297f12fb86daa35d940312f63443ab85ae8acce37c2d745892cf62f13",
+      "importedSha256": "4e3b2bcff5558a0c49ff7e0fcbb7236bba3a12584b09a01b8f4116aa68ea22ba"
+    },
+    "examples/extensions/hello.ts": {
+      "upstreamSha256": "9218a511c9fbb8b9bc8c4c6c045547018e64a5cf2c9f6ae2dc41ce68992f6272",
+      "importedSha256": "d15ee99442d577605f62ce399742b177862e5bc7d2905574b090a38d086be825"
+    },
+    "examples/jira/read-refinement-candidates.md": {
+      "upstreamSha256": "699ed29a5c2ea5a93d83ddc2d8e852318127792a5a43ad2c350b00b69028f5f3",
+      "importedSha256": "f1f473a75c17b9b6a9630aec08994579b1ba16a06c6a2d88a52dbbed5bb75ce0"
+    },
+    "examples/maintainer/01-issue-intake.md": {
+      "upstreamSha256": "5d022fa28f457fef10611f983aadd763545c6025a9412abebc9b2ca1b29f1b3c",
+      "importedSha256": "5d022fa28f457fef10611f983aadd763545c6025a9412abebc9b2ca1b29f1b3c"
+    },
+    "examples/maintainer/02-issue-follow-up.md": {
+      "upstreamSha256": "5662c29e2037042921e0001684778f9c5d5d9f3a6473c0b4c6c81423f7fd5681",
+      "importedSha256": "5662c29e2037042921e0001684778f9c5d5d9f3a6473c0b4c6c81423f7fd5681"
+    },
+    "examples/maintainer/03-incoming-pr-review.md": {
+      "upstreamSha256": "f2258ddad6f3afaa602e463f0fa4fdcc5afc4f48a5ea338d82e9e1cc06ee0626",
+      "importedSha256": "f2258ddad6f3afaa602e463f0fa4fdcc5afc4f48a5ea338d82e9e1cc06ee0626"
+    },
+    "examples/maintainer/04-own-pr-shepherd.md": {
+      "upstreamSha256": "cbe7aa83e40182d350ac3848a13057e99c738e9151e8f4ef847a9b64a225a4a0",
+      "importedSha256": "cbe7aa83e40182d350ac3848a13057e99c738e9151e8f4ef847a9b64a225a4a0"
+    },
+    "examples/maintainer/05-own-pr-feedback.md": {
+      "upstreamSha256": "ff7109c45fa768bfc1a2a0ce12c6e1dec49e3157080c4b09a4a5bbcf93fb4c97",
+      "importedSha256": "ff7109c45fa768bfc1a2a0ce12c6e1dec49e3157080c4b09a4a5bbcf93fb4c97"
+    },
+    "examples/maintainer/06-own-pr-failed-check.md": {
+      "upstreamSha256": "71a0ec569f71c57fe21ce2649a70811157b7a9cd4bba33bcd7369f295f20f35f",
+      "importedSha256": "71a0ec569f71c57fe21ce2649a70811157b7a9cd4bba33bcd7369f295f20f35f"
+    },
+    "examples/maintainer/07-ci-health.md": {
+      "upstreamSha256": "5508ec5fb454d5c48251c17fde8bc276df2e5ee7fd257c2c3ffd59c467046ac2",
+      "importedSha256": "5508ec5fb454d5c48251c17fde8bc276df2e5ee7fd257c2c3ffd59c467046ac2"
+    },
+    "examples/maintainer/08-backlog-gardener.md": {
+      "upstreamSha256": "138a7207825e402ac6471b3565d2988630a9e5623e4e15046b3a7f8e7444abfa",
+      "importedSha256": "138a7207825e402ac6471b3565d2988630a9e5623e4e15046b3a7f8e7444abfa"
+    },
+    "examples/maintainer/09-maintenance-audit.md": {
+      "upstreamSha256": "ffa3fbee2b6af6f585d3897a9ce8dd1e3e9892d021447f0ec95d6a1a4403eb28",
+      "importedSha256": "ffa3fbee2b6af6f585d3897a9ce8dd1e3e9892d021447f0ec95d6a1a4403eb28"
+    },
+    "examples/maintainer/10-contributor-pr-follow-up.md": {
+      "upstreamSha256": "9be9bf311eb196d8fd10a6ccc18cd687e9764e04daae6d3163b2a940e39f141f",
+      "importedSha256": "9be9bf311eb196d8fd10a6ccc18cd687e9764e04daae6d3163b2a940e39f141f"
+    },
+    "examples/maintainer/11-dependabot-merge.md": {
+      "upstreamSha256": "3d69f561de466fae8bc0ff529493326a70792ecf27fd8e89c27336afd5991ca4",
+      "importedSha256": "142dca8ade5f04166392f4ac3c9b589f67eeef97dd39367722f077ccfb7fde84"
+    },
+    "examples/maintainer/12-approved-pr-merge.md": {
+      "upstreamSha256": "9d0b70283693c5e51cfbddd1de483fefb9f807df85ed543cccc7d51890ec285b",
+      "importedSha256": "9d0b70283693c5e51cfbddd1de483fefb9f807df85ed543cccc7d51890ec285b"
+    },
+    "examples/maintainer/README.txt": {
+      "upstreamSha256": "4c0fa4b147c0b589b470f0749f95d8ea609662239c2bf9d30538d490f6a26cfb",
+      "importedSha256": "7833a848d3f992cdde46b307412475bdd62d150e62c4333514d82a9f1abb57fb"
+    },
+    "examples/scripted/01-health.yaml": {
+      "upstreamSha256": "a5616eac93a302537f3cc5dd426f3922c07ba90a35f21d10ece64e1d62f2c94e",
+      "importedSha256": "a5616eac93a302537f3cc5dd426f3922c07ba90a35f21d10ece64e1d62f2c94e"
+    },
+    "examples/scripted/02-prepare-issue.yaml": {
+      "upstreamSha256": "a7c1646fb9dcc0673ba6d6e1064a844f92c28fbc2aa15f8a8e2f5a6467e2777e",
+      "importedSha256": "71f76dbb1c09816394e126a75b2614db4d5eebc37e70c8f3cf5be78ebbb16143"
+    },
+    "examples/scripted/03-investigate-issue.md": {
+      "upstreamSha256": "dd89014e0324a73301944167ddf0cfeba19324073a2204098681fc121fa329ac",
+      "importedSha256": "84f1d0cbbb41467491af4f09259b2a4bac8e1f97539cac96ec1bc61f889e3245"
+    },
+    "examples/scripted/04-check-merge-eligibility.yaml": {
+      "upstreamSha256": "613c79fd58fe61e3fe6ddded1d5b34ad96c83567f2a5e378821ebbfa632c6b49",
+      "importedSha256": "94c9eaddfb41ba80b27e27a0d530c0d164067c9fbf84180f4896054b3cd90a1f"
+    },
+    "examples/scripted/05-merge-or-investigate.yaml": {
+      "upstreamSha256": "fe602bb51cf8a6255170841045d3ddff32ce575971ae4d6a1d2feeda27a7bc85",
+      "importedSha256": "0af61a0417904f0d87b82b39029912a58b6182df75e11c7b6e70378a3043959e"
+    },
+    "examples/workflows/github-advanced-filter.md": {
+      "upstreamSha256": "ad17661fd62ce1b6930ad0c9fe967de0823e50fd1c5e0d35bd2fcf3a73131c9d",
+      "importedSha256": "ad17661fd62ce1b6930ad0c9fe967de0823e50fd1c5e0d35bd2fcf3a73131c9d"
+    },
+    "examples/workflows/github-pr-comment-resolve.md": {
+      "upstreamSha256": "335ebdc897d13f2960f26521e108831571e8b2bfb3e1a6dd768de294c3020c8f",
+      "importedSha256": "335ebdc897d13f2960f26521e108831571e8b2bfb3e1a6dd768de294c3020c8f"
+    },
+    "examples/workflows/github-pull-request-filter.md": {
+      "upstreamSha256": "fb4ee80a70d9cae83fcaa1cbe0a613410a7d6f645e772fdb062b7b8bb8e1900c",
+      "importedSha256": "fb4ee80a70d9cae83fcaa1cbe0a613410a7d6f645e772fdb062b7b8bb8e1900c"
+    },
+    "examples/workflows/maintenance-check.md": {
+      "upstreamSha256": "fa4e0d579db87250bae03d2487bdbb79c4fb7dd359a50958b0810b2222a3837c",
+      "importedSha256": "fa4e0d579db87250bae03d2487bdbb79c4fb7dd359a50958b0810b2222a3837c"
+    },
+    "examples/workflows/maintenance.md": {
+      "upstreamSha256": "b9e0a77085cf6fe2c438e7a87f5e114d9632a5baae74c58d569f50e8be75e7da",
+      "importedSha256": "b9e0a77085cf6fe2c438e7a87f5e114d9632a5baae74c58d569f50e8be75e7da"
+    },
+    "package.json": {
+      "upstreamSha256": "b743ab80a95d12de3635ab90c97b7f626075642e91d83176f7a558db79a9858e",
+      "importedSha256": "a211bacc1e78e1875c7015588e8433ceb6b293c4ea0648d8fdb7cd8194abdc6f"
+    },
+    "packages/cli/copy-docs.mjs": {
+      "upstreamSha256": "c3bec3f1c8cfd03a971faf6825c3afec7f3b02e10ba656639fdaf9dcc594b3f5",
+      "importedSha256": "c3bec3f1c8cfd03a971faf6825c3afec7f3b02e10ba656639fdaf9dcc594b3f5"
+    },
+    "packages/cli/package.json": {
+      "upstreamSha256": "93aa48eab26af6dfbf932d4b4bf47825f3a5930c14440bbfae0afc1289d483de",
+      "importedSha256": "4b77df8720a8f4a6d45251bf225653ac1001287f1f68ccada6b746b6bc37e141"
+    },
+    "packages/cli/src/automations-cli.test.ts": {
+      "upstreamSha256": "c2fe236e2b163bfbe86e7357d6f4f20472ea610b36ec7625dc98dac68dc017f1",
+      "importedSha256": "3d63a6ef4b65c84c3398d71815153cded965d758136216344b8fdcd6819adf58"
+    },
+    "packages/cli/src/builtins.test.ts": {
+      "upstreamSha256": "84b025af6fd964923f9e5b0c83dd547f0327714fd6ddde873d2447dfc4d18d99",
+      "importedSha256": "09ac43a53b86609ead9b57b26ff0476019f616ccdc8edf492dde2f3212e4d000"
+    },
+    "packages/cli/src/builtins.ts": {
+      "upstreamSha256": "be86d517f129a65d80cfc38517207c1ab68474a8968eddff73e99e6598414067",
+      "importedSha256": "be86d517f129a65d80cfc38517207c1ab68474a8968eddff73e99e6598414067"
+    },
+    "packages/cli/src/evaluations-cli.test.ts": {
+      "upstreamSha256": "d34608c496e6211743a6b27d8488752b7f36f7d83c7dd952a918dc295d9b7adb",
+      "importedSha256": "ba9c9404599707728000c7ce15902e7dd11ac252cc01b8e51c20bdf1983d3ae0"
+    },
+    "packages/cli/src/github-gaps-cli.test.ts": {
+      "upstreamSha256": "09759d2fcb096b7b11b3c866de85ca36a95b2960de60d5aa76e39a6b078c413f",
+      "importedSha256": "f4ede58a7c8047792917b2313fa9de622a326deb02b7ca486fade2a2c4295e47"
+    },
+    "packages/cli/src/index.ts": {
+      "upstreamSha256": "325342e1bfa020b54d9c3b3b79e5e8bc9c2d117f260b9186ce4ff719f6ae488b",
+      "importedSha256": "2627c03da523d2c8ff41abb154df2d9e8683926ecd9ce03c2cd27ffe98cded88"
+    },
+    "packages/cli/src/input.test.ts": {
+      "upstreamSha256": "1dfbd5f5de2d2cac9f186b58b3b640f1f8c8b9ababcd2446d04af49f266f9562",
+      "importedSha256": "1dfbd5f5de2d2cac9f186b58b3b640f1f8c8b9ababcd2446d04af49f266f9562"
+    },
+    "packages/cli/src/input.ts": {
+      "upstreamSha256": "1223bda28653e7e89dcc280eed7c6a91b952649965a4da5f7a780c8ae1928ed7",
+      "importedSha256": "68f8895c23b4080f3c607b6f7fb432a0d9989f555654c732725a8afc5afee353"
+    },
+    "packages/cli/src/layout-cli.test.ts": {
+      "upstreamSha256": "85912768233a3ae7b9a10d5588dc83779207c36c156e71ee941ddbc83a8bf340",
+      "importedSha256": "b2fd0899926f76f759dae770e21f5adf0c1714725b4d174baa700a90422c0ef3"
+    },
+    "packages/cli/src/run-outcomes.test.ts": {
+      "upstreamSha256": "2eea98fbfe555c830d99005a98392723e1b449157b614a610ba492852b4296b8",
+      "importedSha256": "a68f9398f80db101aab94f25bc9e7ab21c7a6b8cab917be82940b5db18738376"
+    },
+    "packages/cli/src/scripted-cli.test.ts": {
+      "upstreamSha256": "718293924ba1a359d4244d4d61e9e71e562f671d874e9b612607909e901df0c0",
+      "importedSha256": "9b0513da05022cd119ee8f5f331ed9d9d8632443af6fa792c5e006ddc1b245c0"
+    },
+    "packages/cli/src/scripted-docs.test.ts": {
+      "upstreamSha256": "ad9e25be8f3e885a094e32a1d1c4a62c6ba65a5d885a8d4495fa6dea2a272f1b",
+      "importedSha256": "ad9e25be8f3e885a094e32a1d1c4a62c6ba65a5d885a8d4495fa6dea2a272f1b"
+    },
+    "packages/cli/src/status-cli.test.ts": {
+      "upstreamSha256": "e5b188a4ea9ab11d1ea06cf82c67e998d337093ef87c7a9cbc9063c4b0acb9f3",
+      "importedSha256": "a237373b93fbb55565034cb77e42247e3ccdd9c47d701971632a046d1b83baaa"
+    },
+    "packages/cli/src/status.ts": {
+      "upstreamSha256": "5e3409010c40f4c1d4e0e4ab85ac51d73059fd7caf2f84ed34707472c973c5c4",
+      "importedSha256": "b5e238e0a9760e29033110f309de2b60847cff2da245dd37636f80870a16f67a"
+    },
+    "packages/cli/src/webhook-ownership.test.ts": {
+      "upstreamSha256": "1fdc4f6812d29dc4cb469ab4c160ec454ee79fff7dea465a66f1a1b8e1101bb7",
+      "importedSha256": "1fdc4f6812d29dc4cb469ab4c160ec454ee79fff7dea465a66f1a1b8e1101bb7"
+    },
+    "packages/cli/src/webhooks-cli.test.ts": {
+      "upstreamSha256": "49ddb1c142b4acf440893b4f7d10dfbdb4f9c90c915baaf4ef84265c48217f0b",
+      "importedSha256": "fbc583bf8137932fb8b0da6563ab53d8dfe9d805da9dfb980d6e871acda31f5f"
+    },
+    "packages/cli/src/workflow-docs.test.ts": {
+      "upstreamSha256": "51ebccb7fd66ec1b68c3bcb8d711116994cce564f139badd648a2574839e43d3",
+      "importedSha256": "ff824d819c4d3ee97165fdc45d334015a8d388b64c5b790f2f352967c93e614e"
+    },
+    "packages/cli/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/core/package.json": {
+      "upstreamSha256": "ebc9a020033a9c0a8bf86ea3eda96d4ee4795da7d5c0c66cc42d6f72cb409b1b",
+      "importedSha256": "39daa55fecb8729a9c5b2775a62e09dbdba273d042cd463c61ca894f79e7595e"
+    },
+    "packages/core/src/actions.ts": {
+      "upstreamSha256": "e34a301adbad54bd1b59a01fd0122fd5175d3abae11dc49139fe056b13523342",
+      "importedSha256": "560e06fd46af8146b20868be1ed396e530d44d40843815dad04869a6b6ee6d06"
+    },
+    "packages/core/src/communication.test.ts": {
+      "upstreamSha256": "1eeb30af8e5b85ef46a1cb132d122138f5c125d91c5744370d29d6972a4f0160",
+      "importedSha256": "fb52d2c9da1b7e6f82a1251b73e68d049001b0b301a8b58725c0ab64141c84f9"
+    },
+    "packages/core/src/communication.ts": {
+      "upstreamSha256": "bca2c4e02d5a89ebad1f8b1e18ae7c4baa98ab0f4d9e566904f7adacbeea8550",
+      "importedSha256": "d8485b1bf94b24c24f815b0e21020c331aee6316c2c7f7d7d1a5d0884a7c4051"
+    },
+    "packages/core/src/config.ts": {
+      "upstreamSha256": "985c55bf9e1d84e6424cfbca43d6b458bbc527479f517dc266dee2f446c5355d",
+      "importedSha256": "20f76ced651fe5a3fd78c310bd53df4f7f39586557fd2eee2d09ceac06e7ae77"
+    },
+    "packages/core/src/core.test.ts": {
+      "upstreamSha256": "d4451d9e83ee1285f1fa1ab218f14194b6b12b99118fc7a994e3ce1849d8d2a7",
+      "importedSha256": "b604cb35c6fe94e4cbeae96f9e4c2ce3f4f04a2d54c36fb0e6a9148b5f4f0418"
+    },
+    "packages/core/src/database.test.ts": {
+      "upstreamSha256": "885dc45c3220dac020bfb51622ee3542311b62c1fc8f0669e28775a731e47dfd",
+      "importedSha256": "8b895753118410bbfaaa3a44d90ff78fb48b86083d24b4d03e84630c9937ec87"
+    },
+    "packages/core/src/database.ts": {
+      "upstreamSha256": "a398ac7ced5ab41129a147ba4aa1650b6cd2e66bc8d13a01e8c570734a941e71",
+      "importedSha256": "c1238dcfe9cb9f293fa5620a09eea307320f33a906f52c9f6c22964500a0f3f1"
+    },
+    "packages/core/src/deferred-routing.test.ts": {
+      "upstreamSha256": "956530c34c513c08de87203bdb778d4f63d615405f3bc864bf1060f7d8b5252b",
+      "importedSha256": "e7a69d1054a4e3397d221b7b92ffb1b2cf5ae24873cb16fd527544b4d09964b7"
+    },
+    "packages/core/src/extensions.ts": {
+      "upstreamSha256": "5c6cfda62b14cb5a77b64bde5ca76644301555eb4744b186e1157fc60d1e1262",
+      "importedSha256": "72eadb77406b5cf7e78fcaeb6f7c66585a730adf44e0caadd4909a49c002259a"
+    },
+    "packages/core/src/index.ts": {
+      "upstreamSha256": "b1609454a2b4f5e100a2d5ebff115a3c1e1929bbd9f38688b68782a9af0ca063",
+      "importedSha256": "b1609454a2b4f5e100a2d5ebff115a3c1e1929bbd9f38688b68782a9af0ca063"
+    },
+    "packages/core/src/inputs.test.ts": {
+      "upstreamSha256": "a6d00d151acf9f3b6d6e8eb9ef85fa8f5e7021d7706176caff53bd4ea4e78a6a",
+      "importedSha256": "69da44db158da4595a8aac8690e1176172f979cc9e702d19ac0cde208819676c"
+    },
+    "packages/core/src/logger.ts": {
+      "upstreamSha256": "cf892e257c45bfccb76088f9d59f73f0aac497a8363471656137191fbea9c1b4",
+      "importedSha256": "35f97897e224d14c352ac8921bf55908b334c7142280aa52cd53f4343789ac11"
+    },
+    "packages/core/src/paths.test.ts": {
+      "upstreamSha256": "77d336e523b60e77c7f9408fd6f3ff21d1287741ab0d706a0a52667bde32337c",
+      "importedSha256": "77d336e523b60e77c7f9408fd6f3ff21d1287741ab0d706a0a52667bde32337c"
+    },
+    "packages/core/src/paths.ts": {
+      "upstreamSha256": "cb7ed277f571c0349ad4f5c77e80dc36cddf903baa25d2ee643fc6f4f53d8dbd",
+      "importedSha256": "094525f54c24a4a3fa195d72b62c2cd3d13db08de2620355b195d6b11d3cab64"
+    },
+    "packages/core/src/process.ts": {
+      "upstreamSha256": "866ce5bf4b0ea073912fceb4162df78d048a687e82e05091be3fa8f68f216414",
+      "importedSha256": "d9d51631637de09db1260ae0e6abd62b34a7f12f725190f2ac4dc591f83ba147"
+    },
+    "packages/core/src/proposal.test.ts": {
+      "upstreamSha256": "18f45390820aa5a165e363258fd7920da4ad4190ff83843d402126735c9b861e",
+      "importedSha256": "18f45390820aa5a165e363258fd7920da4ad4190ff83843d402126735c9b861e"
+    },
+    "packages/core/src/proposal.ts": {
+      "upstreamSha256": "bd75d31d4c92d2b45e1a245944d855ad068b374988cd2dd281597ce9dd71d726",
+      "importedSha256": "bd75d31d4c92d2b45e1a245944d855ad068b374988cd2dd281597ce9dd71d726"
+    },
+    "packages/core/src/protocol.ts": {
+      "upstreamSha256": "bd04b088035feedfebc4ccb53f58e2672398c881be8446c3e900f89f689efa2e",
+      "importedSha256": "298fbee19aa4362742b0e9a5acc77f04b086b1461dd1b18683ab019e9cf08153"
+    },
+    "packages/core/src/registry.ts": {
+      "upstreamSha256": "650cc0ca82beab2a5dc7a97940a8e9d312160cddcd7227ea43a2f6373946dd29",
+      "importedSha256": "168e65746bc92577bf50f3e6466b234e0f4f4121a3106d421ec7933329e01005"
+    },
+    "packages/core/src/runtime.ts": {
+      "upstreamSha256": "1e6a40e7de9bea0adb1bd1eafed9bd68e7adc7fddd3d0bf0cf97b6ca73c83aec",
+      "importedSha256": "5bebf79389b9bcd5804fe5e816e0f6caa22452018aec1becb00eb9b0b4e8c73b"
+    },
+    "packages/core/src/scripted-actions.test.ts": {
+      "upstreamSha256": "f6cb281ca2e59b2774e0f84ca4b564594ce3c0b3910cb541e79a02c979d8c818",
+      "importedSha256": "b8f7179b04c1197fbc537bcc66a458b076e2d60484a4d1dbeca3e42c9c5e7f97"
+    },
+    "packages/core/src/scripted-process.test.ts": {
+      "upstreamSha256": "91fe447151ced4da1c08aa933084504cfd98e7643c4a4067f83d84aaec2b0adc",
+      "importedSha256": "91fe447151ced4da1c08aa933084504cfd98e7643c4a4067f83d84aaec2b0adc"
+    },
+    "packages/core/src/scripted-state.test.ts": {
+      "upstreamSha256": "08f0591d4953f2dc117d08f0b14520f61ee39a7a61723cf6047dfa92b3dd9172",
+      "importedSha256": "aa2a58aa40772e00e591273577c07e56d0dbf015de23fb54b8fa875bd236233c"
+    },
+    "packages/core/src/scripted.test.ts": {
+      "upstreamSha256": "9bf0ac28d5ef061a98886bcaba125d9cff20ab4728eddcfa307253b613a2c392",
+      "importedSha256": "8988a2963fe6f98aa255e9939048cae8fa22ac8deedc2cd63d59ae78d8a5bed1"
+    },
+    "packages/core/src/trigger-reliability.test.ts": {
+      "upstreamSha256": "e20f99f4cf6afbcc73875708df704538a4cc050eb41d54724619bfb4fde20cf9",
+      "importedSha256": "6f58303b445d440e3d8645980b3b27c8348df7e45af572fcb6e541360d5c8089"
+    },
+    "packages/core/src/workflow-discovery.test.ts": {
+      "upstreamSha256": "974cbede6d72edca6e6747acb4a7d4efbbeb5c422b5380507f568a7f4f6d8356",
+      "importedSha256": "9ae86e00bda12a7d88634efd7a802a331bf2bb200229d509595700e3f36c832d"
+    },
+    "packages/core/src/workflows.ts": {
+      "upstreamSha256": "67228682bb62df3848da75dbabf0b3413f64fda018aefadc3c3855cf8bd0acf2",
+      "importedSha256": "87a23d6c5d3be8be3d6bd4670d0bfa895053b4a3c00ca6d34884c01adc1f96a7"
+    },
+    "packages/core/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-claude/package.json": {
+      "upstreamSha256": "694b5a922994388c51bd4048e6a8019e89fde130ecd6481a460a8e6899a1055e",
+      "importedSha256": "4caee425dfb7886efff876515241427fc39cbcb3f08886384db03a8eeee6f28b"
+    },
+    "packages/extension-claude/src/index.test.ts": {
+      "upstreamSha256": "c503a781a88d8fb23cf3922abfe3e1f573ceaadf002b3c7d4b617b43efe81ac3",
+      "importedSha256": "c503a781a88d8fb23cf3922abfe3e1f573ceaadf002b3c7d4b617b43efe81ac3"
+    },
+    "packages/extension-claude/src/index.ts": {
+      "upstreamSha256": "c37dce2340a0f74a34580fa1859b73b98e5950db8d68cbacaea925b5e9fc722d",
+      "importedSha256": "824dbbb24806722f30ee2b9ee193e1dabce6578f34084639e730c488b4fde318"
+    },
+    "packages/extension-claude/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-codex/package.json": {
+      "upstreamSha256": "8defef0ce8058243a15f26aa5094bca182230b4533e3d076ccb89256637ccc65",
+      "importedSha256": "fd58cc195002f09fd7f877625cff41de71e08ae55c610848d70206e29b062534"
+    },
+    "packages/extension-codex/src/index.test.ts": {
+      "upstreamSha256": "8bdc38fb64e86dd12f767c58fbe14162931ea3f874953da5ed87ea3932a1189e",
+      "importedSha256": "8bdc38fb64e86dd12f767c58fbe14162931ea3f874953da5ed87ea3932a1189e"
+    },
+    "packages/extension-codex/src/index.ts": {
+      "upstreamSha256": "a4c319ce8eee549757183cba103db8b2be5dce2ebb51ef1701135727c523e2cb",
+      "importedSha256": "5ce6efc5405dfc344bc0c45265dfdd1e7a5a408bf08b19253b799fe332799bab"
+    },
+    "packages/extension-codex/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-container/package.json": {
+      "upstreamSha256": "6082b287245e2f38f7a83759e5ba272a2423320cbbc06ebfaee583970ae7520a",
+      "importedSha256": "ce9c9ad53fa2a18795e02f334a95cad7f5e3726b3e17059472578b2e148f9ce8"
+    },
+    "packages/extension-container/src/index.test.ts": {
+      "upstreamSha256": "299e95b711976c593f3d74b2dce1678c18d2d4f68c95b1a240e24ec2e9562fbe",
+      "importedSha256": "04c57325380a914e823351d65a4c550edb8e8e836ba0561c83aa543a90782cfc"
+    },
+    "packages/extension-container/src/index.ts": {
+      "upstreamSha256": "f5848aa5267fec3c9c5b9a97ef2673ce5220f714e3edc16f63fee60e436c83b3",
+      "importedSha256": "070b4d75bf42cd566bc9e5cc410346b4e9ef22e2a78ccd519b1aa22f12810083"
+    },
+    "packages/extension-container/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-copilot/package.json": {
+      "upstreamSha256": "2a4e2e827b5828f60dc4ba6ad1d30e3d81ec4939be8d4f1e25484761d253b279",
+      "importedSha256": "f42655c72e86971d23daf632a488e282ade377b6e368853e87aa20efb3ea9cf2"
+    },
+    "packages/extension-copilot/src/index.test.ts": {
+      "upstreamSha256": "51027dd72cea5d69349866e7b801aea517c8988192a105589b63ef9b42646523",
+      "importedSha256": "51027dd72cea5d69349866e7b801aea517c8988192a105589b63ef9b42646523"
+    },
+    "packages/extension-copilot/src/index.ts": {
+      "upstreamSha256": "1d24221a8eda76317bc6a99d48517c340ca685d09cb5a648376c0965d58932f1",
+      "importedSha256": "1df97abee7f11d43ee9f2b855e121b457863303a33680894e1e8c30a3e72726d"
+    },
+    "packages/extension-copilot/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-evaluations/package.json": {
+      "upstreamSha256": "97f8479b847735ce09c01617b2b0e52dc9b79857bea6097947878a0b08c45180",
+      "importedSha256": "64819b060e6f4289eb0449752996f058d99abb4481bcad5615d892d07e4f0d7e"
+    },
+    "packages/extension-evaluations/src/definitions.ts": {
+      "upstreamSha256": "89eed8b244e2e22767e0d3c5ab0cb2b842fd92814a6e819aa0ea439fc64f36a1",
+      "importedSha256": "c443b86fb758bcdabc7ae14fcc9e9481ad5edafa4aabc69ecb22c1848af9edc6"
+    },
+    "packages/extension-evaluations/src/index.test.ts": {
+      "upstreamSha256": "9a35f56ff2b880bc3bd56d1ba838e998e0dacd13ac02186d5d379242cebbe624",
+      "importedSha256": "c5917dd026122d3f0538546329243cbaf2cf5a3147696a33b08b5b870f7bfae6"
+    },
+    "packages/extension-evaluations/src/index.ts": {
+      "upstreamSha256": "3bb53137d1ab16826764bacc56e8190ebd6eee2918bd3411812d8e6a0e291060",
+      "importedSha256": "6ad8482ea9f4f86e2efb8e0bfccc7201ea8f2424607469c3e490eee1886ed884"
+    },
+    "packages/extension-evaluations/src/model.ts": {
+      "upstreamSha256": "dc94ae0ae3f1bee25e41301a599c0c4879621ddfca12601771cd4660675f6573",
+      "importedSha256": "42e4ea576e87ac247695fa2f67ce8d1ae7227f493407a0a2f2f546c27a7fca50"
+    },
+    "packages/extension-evaluations/src/reports.ts": {
+      "upstreamSha256": "02d6a4fc6514b7e7f5c915e159c6a4439c19a62a1c9feadcb486749ffb71badc",
+      "importedSha256": "02d6a4fc6514b7e7f5c915e159c6a4439c19a62a1c9feadcb486749ffb71badc"
+    },
+    "packages/extension-github/package.json": {
+      "upstreamSha256": "be7a1be1128ddbf2621a3777e55335bd84ece38b7101ca17b34a9453c99db50d",
+      "importedSha256": "24e9803be3e8cfda4a8d1186baf6b8a2db834da2b4f2661e05086f7c1188e08c"
+    },
+    "packages/extension-github/src/comments.ts": {
+      "upstreamSha256": "c09a510db839115b297734bfaff2163b2cd98659dc58419c0c01f2e0bad8c907",
+      "importedSha256": "c09a510db839115b297734bfaff2163b2cd98659dc58419c0c01f2e0bad8c907"
+    },
+    "packages/extension-github/src/event-gaps.ts": {
+      "upstreamSha256": "c3f2881fbcd74c774cf454ec52c2032c5438c1fc7b8e33c3f01d89f7451ad803",
+      "importedSha256": "f77fe8a03dcb5c8e8ca895ec4a03319b4fd19f0169be104e38e5f3f3c0fffe6b"
+    },
+    "packages/extension-github/src/execution-policy.ts": {
+      "upstreamSha256": "68e1f2ad3d5dc2f8ab24e8bad2d63f0d94ce923faad9347c30b1bb76c5e284bb",
+      "importedSha256": "0546e4509bb708642b855ab68755ee3828be8152f2929cd7ae02f4af16960463"
+    },
+    "packages/extension-github/src/garbage-collection.test.ts": {
+      "upstreamSha256": "39d1effd705921fede8567ff3175ea7783081015821a84a0e962fa583a5cf96e",
+      "importedSha256": "7c2a808c7389cad376f70adc92d3f7b9885cde233fe86efd9fa72b156e9c4239"
+    },
+    "packages/extension-github/src/garbage-collection.ts": {
+      "upstreamSha256": "dc87681b3a9d5918719285c4fd69f649f655801764e73030d1c095b5616a8754",
+      "importedSha256": "33d6fdf908f655ebf0feada09d1ac36be8d8343a589375de24557b76f34edfa4"
+    },
+    "packages/extension-github/src/index.test.ts": {
+      "upstreamSha256": "d680ee5b247cb2b276584955775cf6ee56661967561c635d96473a6ccfb6cab2",
+      "importedSha256": "3e85dc8d868181483037be2d0621618e4bb75638a50d4b2dc39cbac5a8166c27"
+    },
+    "packages/extension-github/src/index.ts": {
+      "upstreamSha256": "a7e9795f5cb56e4d011a572dce460591eb680287a590406b61aa9e6df48be136",
+      "importedSha256": "39f817f8337147869bde6fceb3567130c0266bd8f845b7bfcc8ef50747a1425d"
+    },
+    "packages/extension-github/src/matcher.test.ts": {
+      "upstreamSha256": "d7c64cc467c53b80cd76d0b7c147525989af12e613d4d546226f549751d2b503",
+      "importedSha256": "17a36c94dcdfdfac94645189b7fd7d7461febb5fdff852030e6da9abca3a1fd8"
+    },
+    "packages/extension-github/src/matcher.ts": {
+      "upstreamSha256": "ef74bf25f9ea75fe9b9cd038ef55ed64591801eb9b375973d906e2168e636c50",
+      "importedSha256": "ef74bf25f9ea75fe9b9cd038ef55ed64591801eb9b375973d906e2168e636c50"
+    },
+    "packages/extension-github/src/memory.test.ts": {
+      "upstreamSha256": "514faca640571b2be4f7378e74a05ea19e455f405836e32c1e3b3e6a9b9c6598",
+      "importedSha256": "72a93ac0dc0d4a588d1666f4b8970af3fdd5310102d0a2fc7490cec5ad5b35db"
+    },
+    "packages/extension-github/src/memory.ts": {
+      "upstreamSha256": "218dd581f703b87076622b8384cd63705050022cbd57bc9f44d3311d3df55794",
+      "importedSha256": "86293b1a7b8a11f3e56d38782d77b8a747cfa8945177b6b8bd26c66a97479180"
+    },
+    "packages/extension-github/src/merge-check.test.ts": {
+      "upstreamSha256": "58523cd4144f1506ffc4975682dd5676effa8146acc71d947c795b9b4086cbf8",
+      "importedSha256": "58523cd4144f1506ffc4975682dd5676effa8146acc71d947c795b9b4086cbf8"
+    },
+    "packages/extension-github/src/merge-check.ts": {
+      "upstreamSha256": "ed0492f5cd13250bdf5ed04e3fe8b29bd94e6c08e6b6c48790374eda8f19f01b",
+      "importedSha256": "5445f705d766fc39b181bea3193ca5b1b1808bb1fe1dff66aea5b43f14c941b5"
+    },
+    "packages/extension-github/src/publication-comments.test.ts": {
+      "upstreamSha256": "3f8d0229cf1e1b000ec9e43b4ce017fab2fc55881dd01d38a895336f57b66253",
+      "importedSha256": "81d346d16fd40f831dc7bbb9fb89d7e7ec5277ec6dc166198a83fa5f279da405"
+    },
+    "packages/extension-github/src/publication-promotion.test.ts": {
+      "upstreamSha256": "1463d566779a5b92edf203a99db736eb776d5a0c9af59810d446ff4def0d833a",
+      "importedSha256": "105a1ab7db7b15068b7b9166e34744c1e23634c4b0ae7cae05b23b107c1358f8"
+    },
+    "packages/extension-github/src/publication.ts": {
+      "upstreamSha256": "07eb13fb334a7a947a605d6e9bea0f81aed0d975a3cbab80b1aca6603c7a5cdc",
+      "importedSha256": "421be4b0a46819bfb5e50748e7f5049e8fa86ffe7ea334b14a98089e6388489a"
+    },
+    "packages/extension-github/src/review-replies.test.ts": {
+      "upstreamSha256": "b7a893dfdb6984454cc5a5e28b5ad772e3755e582abd4df23dcbe8aeb6a25667",
+      "importedSha256": "0fe27461c22979cc74711e5230206a7fe2ac1c551561e07ed097456b0e83c835"
+    },
+    "packages/extension-github/src/scripted-authority.test.ts": {
+      "upstreamSha256": "eb332ac5a9fd6983d1378a688a811fdd7001593ca1d74540a1ff5b95b9ecf48d",
+      "importedSha256": "836977ca6f9418ef7da62803a3c4a0f40fcffc85d2e3b1e917376b3fe78f6651"
+    },
+    "packages/extension-github/src/scripted-merge.test.ts": {
+      "upstreamSha256": "22242b4df20499c5819e83f7e13a1cf23037904f1abcdec36795e230ab8bdd44",
+      "importedSha256": "389a0d05e1df6e4bf97b8a967aa395192d5237c515457ccb25895f06199edd85"
+    },
+    "packages/extension-github/src/trigger-reliability.test.ts": {
+      "upstreamSha256": "3f8518a059cdefae7356a86b9df3ef85fbe0a2a48c75a4f75ebe1b9b77fcbe1d",
+      "importedSha256": "f5bbe4a2713cc00d6e1c7cb03ff7a47c2fd20d4570de61330997391e23f20230"
+    },
+    "packages/extension-github/src/webhook-input.test.ts": {
+      "upstreamSha256": "4594a1f6534fe0d1496d3c13a2c9a30c3a1d1ae7a8b192ca6b404c1efcec7826",
+      "importedSha256": "b574d6c8ad6e4dc4142f59f2c9b8cf8ee9f58b45835be13c9d582fca4781f2fa"
+    },
+    "packages/extension-github/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-jira/package.json": {
+      "upstreamSha256": "d6ddb06b8ac23a746b5586be13cc9d1535281420bf1db928c62bc3a6e35d00aa",
+      "importedSha256": "e11f46168c0c5f7b73b2c93989b27065d3c49a25eff67cb52d465752141171fa"
+    },
+    "packages/extension-jira/src/client.ts": {
+      "upstreamSha256": "3aab81191d0ca7aca9cd39c695d6ef7331cff170620b795e0e47ff6ebd0c2b38",
+      "importedSha256": "6980266425536120e3dc5c25338dbad2cd0f947f33f9083e6786dc2d7e3ec524"
+    },
+    "packages/extension-jira/src/index.test.ts": {
+      "upstreamSha256": "0f928fae843e6f9b713f9c902dfda4cede541461a539865bd13bf9e1b8c96a11",
+      "importedSha256": "0f042cdbd13cf56cc5581433bab4454bb44d008b0cf7dcfda9e3c33f962af372"
+    },
+    "packages/extension-jira/src/index.ts": {
+      "upstreamSha256": "171f0e7d04f7cd29cea54e5dbe43d43749c1c64a453a3b17914dd9a906d381dc",
+      "importedSha256": "9c882f8faf8a82bd84036a04895dc1c9099f1e43816845552b606313a48ce133"
+    },
+    "packages/extension-jira/src/schedule.test.ts": {
+      "upstreamSha256": "b78aabc79db1fb661175afa2784f0b7e30f774eb955236c7f2e71c14946d5d49",
+      "importedSha256": "b78aabc79db1fb661175afa2784f0b7e30f774eb955236c7f2e71c14946d5d49"
+    },
+    "packages/extension-jira/src/schedule.ts": {
+      "upstreamSha256": "f6143a6376f811b36efbdbb2415ed250af5d9ba2cd72faa7e44376a5d3fd27d3",
+      "importedSha256": "7f0c0beb6c7c60c8367114cb7ab274def23c111673807c169ad0a730d26f7c23"
+    },
+    "packages/extension-jira/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-opencode/package.json": {
+      "upstreamSha256": "46ee4c3ecf3589c2e47d45c9a1a75facaf57053ffe3ca6db22bbb9cc1a90b3a4",
+      "importedSha256": "e4040953a9f85ece647697290f2a899bcfd46b357ff0c958d5a4c8017e8c9348"
+    },
+    "packages/extension-opencode/src/index.test.ts": {
+      "upstreamSha256": "8799024f3f3d9dcae31eaf339f5a2474c0efd346d2b1334013e57c2c8df8b607",
+      "importedSha256": "680555d39660987ba50990d342969a98cd42f01cdb93efe3cd636d3b354e1f7f"
+    },
+    "packages/extension-opencode/src/index.ts": {
+      "upstreamSha256": "50cbbe143b97611872255cef203a5e5694db77a28095521ed88503d4c40bc602",
+      "importedSha256": "83128b78005f61013538e7e6e8ffbe660109a3a584d5d30a15d2366f6d8433f9"
+    },
+    "packages/extension-opencode/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-pi/package.json": {
+      "upstreamSha256": "e355b23dfedda26671bb51f058e631162092fb5b5ba598ed737bb048222be241",
+      "importedSha256": "6231aab2e1c383267f8158b2e7f1906f74449577106ce63e1991ba123e87725a"
+    },
+    "packages/extension-pi/src/index.test.ts": {
+      "upstreamSha256": "5147cf680660300e2f8f596b653796fd991a9955f4a6fd56105989fba08c418a",
+      "importedSha256": "5147cf680660300e2f8f596b653796fd991a9955f4a6fd56105989fba08c418a"
+    },
+    "packages/extension-pi/src/index.ts": {
+      "upstreamSha256": "4ed1621a6ed14e6dc56da02e222279f05107573962ae9eda8696e5c73b0a93a0",
+      "importedSha256": "200051cda4e0035b0e1ea6e8ed6b27a7cbccb3624a90cd7b0cda23cd171c2834"
+    },
+    "packages/extension-pi/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-scheduler/package.json": {
+      "upstreamSha256": "44fefca8467181d6129be9798721dad8fffeccf45ce16db027f165d9dac55b89",
+      "importedSha256": "d28901f718283c158a24d51ffd4a4b85187c74df64bfcb7f359c7bb7a77bb9ca"
+    },
+    "packages/extension-scheduler/src/index.test.ts": {
+      "upstreamSha256": "7cbfe4572230d00adaefd07cdec22d99c08fe6b79ebbefdc956b67af3ca3c24b",
+      "importedSha256": "4aabd19692163c33c91a0493bbfde518b5abdbd6a809aa3c66af5aeb579a8b56"
+    },
+    "packages/extension-scheduler/src/index.ts": {
+      "upstreamSha256": "9df3ca99fa793795f78976c5d01e9e3fa5c7201830221c91efb0157282cc9bda",
+      "importedSha256": "b81af74a34e0c0cd6d6b097f1a749cc90cb379f865186d5443cd83671778bee3"
+    },
+    "packages/extension-scheduler/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/extension-scratch/package.json": {
+      "upstreamSha256": "095fd4921cddef8f988eafba50e3fdd81c3e4075a42722b80c5a63c2583b8938",
+      "importedSha256": "cf7cb714b6c19ddbb8bb1a0cdc5737d407731a0da7f3c1b83d3e6f50e48d48ae"
+    },
+    "packages/extension-scratch/src/index.test.ts": {
+      "upstreamSha256": "6f7aa855b21caad5b9c3682eafb7152269fbc3c6610531b867cc621cbcbc70b6",
+      "importedSha256": "04ab858954833f5d4bf6dbca9452467a4872dd3add9ac026b394f640ed10d010"
+    },
+    "packages/extension-scratch/src/index.ts": {
+      "upstreamSha256": "2ec03980cae7fb29debea7cc2213deb5415658f0e390c607f72160ea109e1c8e",
+      "importedSha256": "e049f42afee6fb5e730ef9aa3fc0a2ea07173840ad758ece5542af954597b181"
+    },
+    "packages/extension-steps/package.json": {
+      "upstreamSha256": "f28fa279ff6b6f8ba0be2b8f98c46c2876596da0af9cd24d66510fc25fc5f75c",
+      "importedSha256": "596c8d40845f5483d34f09334848569b2c8925ca4a9b12ba2450d3974f7dc4bd"
+    },
+    "packages/extension-steps/src/index.ts": {
+      "upstreamSha256": "da22ca4366d5adf01582447be5951773516591770c7ab6d953ebf165fefd9509",
+      "importedSha256": "debe42064c10d5545521dff66759c4d5eeefc14fa7a2161cee1e0748af1d439e"
+    },
+    "packages/extension-steps/src/schema.ts": {
+      "upstreamSha256": "4ed456a433a35d58541e991378432b77bb90bf11cf8fc17e9385313c4cec478b",
+      "importedSha256": "e7152e2291bf3e9f66beacbb6ccb479dc6f7ae860afb512b5ae28755c155e3e2"
+    },
+    "packages/extension-webhooks/package.json": {
+      "upstreamSha256": "fbfbcd0052c2b56253d66f0ab7b86940eab3a1152d8a70f776db978d8f1f287e",
+      "importedSha256": "cdd7aa067f3793fa3016f8de2dbcafe6d6a5fc91e70a775e2c7884040817c92a"
+    },
+    "packages/extension-webhooks/src/index.test.ts": {
+      "upstreamSha256": "d1360f1ed21c663326105bcca5453423aa3ecc73e6a79c56e592def9d370e515",
+      "importedSha256": "b28f42a446f427b42b45efcad30ba83e900bdef8706f8433a1786b015a0ab9d2"
+    },
+    "packages/extension-webhooks/src/index.ts": {
+      "upstreamSha256": "626de4ab0cbcb9337910d5d144e4d4e27b7c58fdd6391ebfca0f50fcba589528",
+      "importedSha256": "53d86c2fd227a1acc70b94f2eeb574281191f76cc13b34087e4759ff20d44dce"
+    },
+    "packages/extension-worktree/package.json": {
+      "upstreamSha256": "844df9db631b6b5f170e0fb5624acd62198068980a00543fac64c11b21f08684",
+      "importedSha256": "2a98cc96f4ebd58f35b2205d3d12b233eb5ac74009d0603d8c1102d11931b042"
+    },
+    "packages/extension-worktree/src/index.test.ts": {
+      "upstreamSha256": "8ffc23e56d3e6649cbc07062787915d97b156251069e73f164640d152da26975",
+      "importedSha256": "b69e6d3d2dcf228ddf3d692424b057d933b0316f6f34543872c88931844b1925"
+    },
+    "packages/extension-worktree/src/index.ts": {
+      "upstreamSha256": "8aa5c6993b621ed1a4fb015a65e21625d40fc3d33a88ee8c47823a55a2980ded",
+      "importedSha256": "640b76fb2d54a8a2e54af65ba51fa201697c20a645075db084a1177c4b324e8b"
+    },
+    "packages/extension-worktree/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "packages/sdk/package.json": {
+      "upstreamSha256": "48f7fa524fbe2498b7ec4bd5ec5d8080f8394f2cc4351d7560232a2e8e7a3fd1",
+      "importedSha256": "2cab60f3712653955f7df725f72934c1ba49a80a75634de59bf9b02c39d9dbfb"
+    },
+    "packages/sdk/src/index.ts": {
+      "upstreamSha256": "8bc0abca2605456891a067a4ac628a7de36f5c1681ca2e8fa00df63016ea4619",
+      "importedSha256": "9885aec648dea6780cb84db8f770f8e575a514a5383d94fec87a4bfab8389d8d"
+    },
+    "packages/sdk/tsconfig.json": {
+      "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",
+      "importedSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b"
+    },
+    "pnpm-lock.yaml": {
+      "upstreamSha256": "082dff9d25ea54df8c6d246118f0c0b072e9ba81b35057e05d17b5bf8b519ad5",
+      "importedSha256": "74ec81d76f4f456cfa746ae1bf48f99aa43e8e4d0aa35a9d8d52cc96e04bdd7c"
+    },
+    "pnpm-workspace.yaml": {
+      "upstreamSha256": "d115dc6c83ba283a7d17146ad456056f3f70b003edb8c312a52880b48b034001",
+      "importedSha256": "d115dc6c83ba283a7d17146ad456056f3f70b003edb8c312a52880b48b034001"
+    },
+    "scripts/rewrite-cli-references.mjs": {
+      "upstreamSha256": "a4f436b215e9eab45c335243dee700f67f5338464f096da400605e1b7441072a",
+      "importedSha256": "13aa4a5911809c792c4a3105d0a5ce88c99bfc436ebbef9acae9662c43d1b7a4"
+    },
+    "tsconfig.examples.json": {
+      "upstreamSha256": "6f9766bfe9cd47b8b1063fdbc85b9e3e19ae52d629bd0447b90f4b8fb8f6b64d",
+      "importedSha256": "6f9766bfe9cd47b8b1063fdbc85b9e3e19ae52d629bd0447b90f4b8fb8f6b64d"
+    },
+    "tsconfig.json": {
+      "upstreamSha256": "c9196d13e94af95d65a5f404f574499b6929a6a32a16022ca6e52b327831ec8c",
+      "importedSha256": "d055c0a23899555aca3ba3f3833dda16520e732741eb077dfdb418aa7657bcec"
+    },
+    "vitest.config.ts": {
+      "upstreamSha256": "15c51fb6263fc4e83ed945931bbd1c2a92ddeb35eead8bbd463735a65e7f727b",
+      "importedSha256": "7c7972448081dec08a2b4fb3ac561b645da85c9c68b3895086f4b25758bb41bc"
+    }
+  }
+}

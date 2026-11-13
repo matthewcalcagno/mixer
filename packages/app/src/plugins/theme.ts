@@ -25,6 +25,7 @@ export function toPluginTheme(theme: Theme): PluginTheme {
       statusSuccess: theme.colors.statusSuccess,
       statusWarning: theme.colors.statusWarning,
       statusDanger: theme.colors.statusDanger,
+      statusModified: `color-mix(in srgb, ${theme.colors.statusDotRunning} 80%, ${theme.colors.foreground})`,
     },
   };
 }

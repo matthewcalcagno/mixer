@@ -33,6 +33,50 @@ test.afterAll(async () => {
 });
 
 test.describe("File explorer collapse", () => {
+  test("keeps visible file selections stationary and reveals offscreen tab selections", async ({
+    page,
+    withWorkspace,
+  }) => {
+    const root = await withWorkspace({ prefix: "explorer-reveal-scroll-" });
+    await Promise.all(
+      Array.from({ length: 100 }, (_, index) =>
+        writeFile(
+          path.join(root.repoPath, `file-${String(index).padStart(3, "0")}.txt`),
+          `File ${index}\n`,
+        ),
+      ),
+    );
+    await root.navigateTo();
+    await openFileExplorer(page);
+    const tree = page.getByTestId("file-explorer-tree-scroll");
+    await expect(tree.getByText("file-030.txt", { exact: true })).toBeVisible();
+    await tree.evaluate((element) => {
+      element.scrollTop = 440;
+    });
+    await expect(tree).toHaveJSProperty("scrollTop", 440);
+    await openFileFromExplorer(page, "file-030.txt");
+    await expectFileTabOpen(page, "file-030.txt");
+    await page.getByTestId("workspace-tab-file_file-030.txt").dblclick();
+    await expect(tree).toHaveJSProperty("scrollTop", 440);
+    await openFileFromExplorer(page, "file-035.txt");
+    await expectFileTabOpen(page, "file-035.txt");
+    await expect(tree).toHaveJSProperty("scrollTop", 440);
+    await page.getByTestId("workspace-tab-file_file-030.txt").click();
+    await expect(
+      tree
+        .getByText("file-030.txt", { exact: true })
+        .locator("xpath=ancestor::*[@aria-selected][1]"),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(tree).toHaveJSProperty("scrollTop", 440);
+    await page.getByTestId("workspace-tab-file_file-035.txt").click();
+    await tree.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(tree.getByText("file-030.txt", { exact: true })).not.toBeInViewport();
+    await page.getByTestId("workspace-tab-file_file-030.txt").click();
+    await expect(tree.getByText("file-030.txt", { exact: true })).toBeInViewport({ ratio: 1 });
+  });
+
   test("matches VS Code Explorer row height, type and indentation without changing muted labels", async ({
     page,
     withWorkspace,

@@ -1,0 +1,19 @@
+workflow: shared/issues/issue-triage.md
+agent: opencode
+model: github-copilot/gpt-6.1-sol
+afterRuns: 10
+evidence:
+  retention: 14d
+criteria:
+  - description: The comment explains the next action.
+    passWhen: |
+      The reader understands what was established and what happens next.
+      If work cannot continue, the comment identifies the specific blocker.
+  - description: The comment sounds like a maintainer response.
+    passWhen: |
+      It avoids canned acknowledgements, repetitive status templates,
+      unnecessary text, and descriptions of internal automation mechanics.
+  - description: Claims are supported by evidence.
+    passWhen: |
+      Verified facts are distinguished from hypotheses.
+      Tests and fixes are described as successful only when verified.

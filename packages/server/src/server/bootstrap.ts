@@ -631,6 +631,7 @@ export async function createMixerDaemon(
     }),
     builtinPlugins: resolveBuiltinPluginLoader(dependencies),
     settingsDirectory: path.join(config.mixerHome, "plugin-settings"),
+    hostDataDirectory: config.mixerHome,
   });
   const serverId = getOrCreateServerId(config.mixerHome, { logger });
   const daemonKeyPair = await loadOrCreateDaemonKeyPair(config.mixerHome, logger);

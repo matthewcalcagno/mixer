@@ -219,6 +219,7 @@ import {
   type AgentUpdatesService,
 } from "./session/agent-updates/agent-updates-service.js";
 import { expandTilde } from "../utils/path.js";
+import { isUserProjectRoot } from "./project-visibility.js";
 import {
   searchDirectoryEntries,
   WORKSPACE_SEARCH_HIDDEN_DIRECTORIES,
@@ -1245,6 +1246,7 @@ export class Session {
       getGlobalServicePorts: () => this.daemonConfigStore.readServicePorts(),
     });
     this.workspaceDirectory = new WorkspaceDirectory({
+      isProjectRootVisibleToClient: (rootPath) => isUserProjectRoot(rootPath, this.mixerHome),
       logger: this.sessionLogger,
       projectRegistry: this.projectRegistry,
       workspaceRegistry: this.workspaceRegistry,
@@ -1457,10 +1459,12 @@ export class Session {
   }
   private async publishProjectUpdate(update: ProjectUpdate): Promise<void> {
     if (!this.wantsEvent("project.update")) return;
-    const projectedPayload =
-      update.kind === "upsert"
-        ? { kind: "upsert" as const, project: await this.buildProjectDescriptor(update.project) }
-        : update;
+    let projectedPayload: Extract<SessionOutboundMessage, { type: "project.update" }>["payload"];
+    if (update.kind === "upsert") {
+      projectedPayload = isUserProjectRoot(update.project.rootPath, this.mixerHome)
+        ? { kind: "upsert", project: await this.buildProjectDescriptor(update.project) }
+        : { kind: "remove", projectId: update.project.projectId };
+    } else projectedPayload = update;
     if (!this.wantsEvent("project.update")) return;
     const message: SessionOutboundMessage = {
       type: "project.update",
@@ -6421,7 +6425,9 @@ export class Session {
     try {
       const projects = await Promise.all(
         (await this.projectRegistry.list())
-          .filter((project) => !project.archivedAt)
+          .filter(
+            (project) => !project.archivedAt && isUserProjectRoot(project.rootPath, this.mixerHome),
+          )
           .map((project) => this.buildProjectDescriptor(project)),
       );
       const synchronized = request.sync

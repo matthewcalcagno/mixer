@@ -54,6 +54,37 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it("keeps folder actions scoped while the blank-area menu fills the library", async () => {
+  bridge.show.mockResolvedValueOnce("file").mockResolvedValueOnce("folder");
+  const selected: string[] = [];
+  const opened = vi.fn();
+  const selectRoot = vi.fn((id: string) => selected.push(`root:${id}`));
+  const selectIssues = vi.fn((id: string) => selected.push(`issues:${id}`));
+  render(
+    <ContextMenu
+      fill
+      actions={[{ id: "folder", label: "New folder" }]}
+      onOpen={opened}
+      onSelect={selectRoot}
+    >
+      <div data-testid="library-background">
+        <ContextMenu
+          actions={[{ id: "file", label: "New file" }]}
+          onOpen={opened}
+          onSelect={selectIssues}
+        >
+          <button type="button">issues</button>
+        </ContextMenu>
+      </div>
+    </ContextMenu>,
+  );
+  fireEvent.contextMenu(screen.getByRole("button", { name: "issues" }));
+  await waitFor(() => expect(selected).toEqual(["issues:file"]));
+  expect(bridge.show).toHaveBeenCalledTimes(1);
+  fireEvent.contextMenu(screen.getByTestId("library-background"));
+  await waitFor(() => expect(selected).toEqual(["issues:file", "root:folder"]));
+});
+
 it("delegates right click to the OS menu without drawing extra UI and preserves the opening action snapshot", async () => {
   const pending = Promise.withResolvers<string | null>();
   bridge.show.mockReturnValueOnce(pending.promise);

@@ -1,0 +1,44 @@
+{
+  "name": "@mixer/automations-engine",
+  "version": "0.1.1",
+  "private": true,
+  "files": [
+    "dist",
+    "index.ts",
+    "upstream",
+    "provenance.json"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../../../scripts/import-automations-engine.mjs --verify && node build.mjs && tsup index.ts --dts-only --format esm --tsconfig tsconfig.json && tsup upstream/packages/sdk/src/index.ts --dts-only --format esm --out-dir dist/sdk/dist --tsconfig tsconfig.json && node ../../../../packages/server/scripts/bundle-automations-engine.mjs",
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "verify": "node ../../../../scripts/import-automations-engine.mjs --verify"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "commander": "^14.0.0",
+    "cron-parser": "5.10.0",
+    "esbuild": "~0.28.0",
+    "execa": "^9.6.0",
+    "gray-matter": "^4.0.3",
+    "pino": "^9.9.0",
+    "re2js": "2.8.6",
+    "yaml": "2.9.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.3.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

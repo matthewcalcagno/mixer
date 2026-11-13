@@ -312,6 +312,7 @@ function DraftPanel() {
     target,
     openFileInWorkspace,
     openImportSheet,
+    draftAgentConfig,
     retargetCurrentTab,
   } = usePaneContext();
   const { isInteractive } = usePaneFocus();
@@ -335,7 +336,8 @@ function DraftPanel() {
       isPaneFocused={isInteractive}
       onOpenWorkspaceFile={openFileInWorkspace}
       onCreated={handleCreated}
-      onOpenImportSheet={openImportSheet}
+      agentConfig={draftAgentConfig}
+      onOpenImportSheet={draftAgentConfig ? undefined : openImportSheet}
     />
   );
 }

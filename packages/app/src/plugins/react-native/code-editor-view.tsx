@@ -19,8 +19,8 @@ import {
 import { variableExtensions } from "./code-editor-variables";
 const externalUpdate = Annotation.define<boolean>();
 const frameStyle = { height: "100%", minHeight: 0, minWidth: 0, overflow: "hidden" } as const;
-function filename(language: CodeEditorProps["language"]) {
-  return `buffer.${language === "javascript" ? "js" : language}`;
+function filename(language: CodeEditorProps["language"], sourceFilename?: string) {
+  return sourceFilename ?? `buffer.${language === "javascript" ? "js" : language}`;
 }
 function jsonErrors(view: EditorView): Diagnostic[] {
   const text = view.state.doc.toString();
@@ -110,9 +110,12 @@ function CodeEditorView(props: CodeEditorProps & { visualTheme: EditorVisualThem
     };
   }, [slots]);
   useEffect(() => {
+    if (props.autoFocus) editor.current?.focus();
+  }, [props.autoFocus]);
+  useEffect(() => {
     const view = editor.current;
     if (!view) return;
-    const language = getLanguageForFile(filename(props.language))?.extension ?? [];
+    const language = getLanguageForFile(filename(props.language, props.filename))?.extension ?? [];
     const validate = linter(
       (activeView) => {
         const diagnostics = jsonErrors(activeView);
@@ -149,7 +152,7 @@ function CodeEditorView(props: CodeEditorProps & { visualTheme: EditorVisualThem
           props.language === "json" && !props.readOnly ? [validate, lintGutter()] : [],
         ]),
         slots.options.reconfigure([
-          editorPreferenceExtensions(preferences, filename(props.language)),
+          editorPreferenceExtensions(preferences, filename(props.language, props.filename)),
           EditorState.readOnly.of(Boolean(props.readOnly)),
           EditorView.editable.of(!props.readOnly),
           EditorView.contentAttributes.of({
@@ -167,6 +170,7 @@ function CodeEditorView(props: CodeEditorProps & { visualTheme: EditorVisualThem
     themeSignature,
     variablesSignature,
     props.language,
+    props.filename,
     props.readOnly,
     props.wrap,
     props.label,

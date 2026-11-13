@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Pressable, View } from "react-native";
 import { Search, X } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -19,6 +19,7 @@ const ThemedTextInput = withUnistyles(TextInput, (theme: Theme) => ({
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 export interface SearchFieldProps {
+  size?: "xs";
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
@@ -37,6 +38,7 @@ export interface SearchFieldProps {
  * own X has been handed the wrong component.
  */
 export function SearchField({
+  size,
   value,
   onChangeText,
   placeholder,
@@ -47,6 +49,10 @@ export function SearchField({
 }: SearchFieldProps): ReactElement {
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<EditingTextInputHandle>(null);
+  useEffect(() => {
+    if (inputRef.current && inputRef.current.getText() !== value)
+      inputRef.current.replaceText(value);
+  }, [value]);
   const handleFocus = useCallback(() => setIsFocused(true), []);
   const handleBlur = useCallback(() => setIsFocused(false), []);
   const handleClear = useCallback(() => {
@@ -55,7 +61,9 @@ export function SearchField({
   }, [onChangeText]);
 
   return (
-    <View style={[styles.field, isFocused && styles.fieldFocused]}>
+    <View
+      style={[styles.field, size === "xs" && styles.compactField, isFocused && styles.fieldFocused]}
+    >
       <ThemedSearch size={14} uniProps={mutedColorMapping} />
       <ThemedTextInput
         testID={testID}
@@ -69,7 +77,7 @@ export function SearchField({
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
-        style={styles.input}
+        style={size === "xs" ? [styles.input, styles.compactInput] : styles.input}
       />
       {value.length > 0 ? (
         <Pressable
@@ -89,6 +97,13 @@ export function SearchField({
 const SEARCH_FIELD_MAX_WIDTH = 420;
 
 const styles = StyleSheet.create((theme) => ({
+  compactField: {
+    paddingVertical: theme.spacing[0.5],
+    paddingHorizontal: theme.spacing[1.5],
+    gap: theme.spacing[1],
+    borderRadius: theme.borderRadius.sm,
+  },
+  compactInput: { fontSize: theme.fontSize.chrome, height: 20 },
   field: {
     flexDirection: "row",
     alignItems: "center",

@@ -1430,18 +1430,71 @@ permanently deleted as a fallback. The desktop bridge requires a Mixer relaunch 
 
 Use `ActionMenu` for a resource’s overflow button. Pass `label`, `actions`, and `onSelect`, using
 the same action records as `ContextMenu`. It opens Mixer’s shared dropdown or native desktop menu.
+Set `fill` on `ContextMenu` when its blank-area trigger must fill the remaining panel, rather than
+only wrapping its content. Nested resource menus keep their own captured targets.
 
 `HoverCard`, `HoverCardTrigger`, and `HoverCardContent` expose Mixer’s shared interactive hover
 surface. Keep the content under the plugin runtime provider so portaled controls retain their context.
 
 Use `CodeEditor` for in-memory text rather than a workspace file. Pass `value`, `language`
-(`text`, `json`, `html`, `xml`, `javascript`, or `css`), `label`, and `onChange(text)`.
+(`text`, `json`, `html`, `xml`, `javascript`, `css`, `markdown`, or `yaml`), `label`, and `onChange(text)`.
+
 `readOnly`, `wrap`, `search`, and `onDiagnostics([{ message, line }])` are optional. It uses
 host editor fonts, syntax colors, undo, find, and JSON diagnostics; Shift+Alt+F formats JSON.
 The buffer stays owned by your plugin and never writes files. Give its container a bounded height.
 Pass `variables` with `{ name, resolved, value, source }` records to enable template completion and
 `{{variable}}` decorations. `onInspectVariable(name)` handles the tooltip’s edit action. Style
 `.cm-variable-resolved` and `.cm-variable-missing` in the plugin’s themed content.
+
+Use `SourceEditor` for filename-driven source buffers. Pass `filename`, `value`, `onChange`,
+`onSave`, and optional `readOnly`. Electron uses the same bundled Monaco runtime as the file editor;
+the browser uses CodeMirror. The caller owns reads, writes, version conflicts, and draft lifetime.
+The Save shortcut calls `onSave`; the component never writes a local file itself.
+
+Use `EditorTabs` above embedded source buffers rather than drawing a separate tab style. Pass
+`files: [{ path, dirty? }]`, `selected`, `onSelect`, and `onClose`. The host owns tab geometry,
+hover actions, filename tooltips, and unsaved indicators. The caller owns draft lifetime.
+Optional `fixedTabs: [{ id, label }]` stay first, outside the file-tab scroller, without close
+actions. Their IDs share the `selected` and `onSelect` contract with file paths.
+Use `SegmentedControl` for fixed page or inspection choices, with `options: [{ value, label }]`,
+`value`, `onValueChange`, and the same size tiers as buttons.
+
+`TreeNameInput` reuses the Files tree's inline creation row. Pass `kind: "file" | "directory"`,
+`onCommit(name)`, and `onCancel`. Enter or blur commits a nonempty name; Escape or an empty name
+cancels. Place it inside the target folder's children. Optional `depth`, `initialName`,
+`accessibilityLabel`, and `editable` support nesting, retries, and pending writes.
+
+`FileTreeRow` uses the Files tree's row pitch, indentation, Material icons, and disclosure chevron.
+Pass `path`, `depth`, `selected`, and `onPress`; provide `expanded` for directories and omit it for
+files. Wrap it in `ContextMenu` when actions are needed. `SearchField size="xs"` supplies the compact
+filter treatment for these tree panels without changing standalone search fields.
+
+Wrap draggable rows in `TreeDragSource` with `scope`, `path`, and optional `disabled`.
+`TreeDropTarget` accepts `scope`, `onDropPath(path)`, and optional `fill` for blank-area targets.
+Only matching scopes accept a drop; scope IDs should include the plugin, host, and tree identity.
+Nested folder targets take precedence over their parent. These controls only transport paths;
+the caller must validate writes, reject collisions, and update any open documents after moving.
+
+`SearchField` reuses the app's styled filter control and clear action. Pass `value`, `onChangeText`,
+`placeholder`, and `clearAccessibilityLabel`. `FormTextInput` reuses the app's form control with
+`initialValue`, `onChangeText`, and optional `size="xs"`, `"sm"`, or `"md"`.
+
+`AgentChat` embeds the app's normal conversation panel, composer, streaming, permissions, and tools.
+Pass the owning `serverId`, `workspaceId`, `agentId`, `active`, and `onOpenFile` and `onOpenAgent`
+callbacks. Optional `contextFile` adds a normal workspace-file attachment to the composer; unsaved
+editor text is not transferred. Timeline visibility is independent of workspace tabs and does not
+change the active workspace route.
+Updating file context does not move keyboard focus away from the editor.
+
+`FloatingAgentChat` hosts that panel in a non-modal window with a compact launcher. Pass `serverId`,
+`conversation: { agentId, workspaceId }` or `null`, `open`, `onOpenChange`, `title`, and the same open
+callbacks. Children provide setup or loading content before a conversation exists. It retains the
+normal composer draft when minimized and does not archive the agent. Reserve
+`AGENT_CHAT_LAUNCHER_CLEARANCE` below scrollable content.
+
+`FloatingActionButton` uses the host's floating action control. Pass an icon name,
+`accessibilityLabel`, `onPress`, and optional `label` and `disabled`. Reserve
+`FLOATING_ACTION_BUTTON_CLEARANCE` beneath scrollable content so the last row remains reachable.
 
 Import `Button` from `@mixer/plugin/client/ui` for host-styled actions. It accepts `onPress`,
 `children`, an optional Lucide `icon`, `disabled`, `loading`, `accessibilityLabel`, and `testID`.

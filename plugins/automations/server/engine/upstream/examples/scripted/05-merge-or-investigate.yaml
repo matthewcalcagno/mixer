@@ -1,0 +1,55 @@
+name: Merge or investigate Dependabot pull requests
+repository: owner/repo
+on:
+  github.pr.schedule:
+    cron: "0 * * * *"
+    where:
+      all:
+        - pull-request-author: dependabot[bot]
+        - base-branch: develop
+        - state: open
+        - draft: false
+        - fork: false
+        - labels:
+            none: [roboplane-ignore]
+github.mergeCheck: &merge-check
+  allowedAuthors: ["dependabot[bot]"]
+  excludedLabels: [roboplane-ignore]
+safeActions:
+  github.pr.merge:
+    max: 1
+    allowedAuthors: ["dependabot[bot]"]
+    method: squash
+    mode: immediate
+    approve: false
+    minimumChecks: 1
+    mergeCheck: *merge-check
+defaults:
+  run:
+    timeout: 5m
+steps:
+  - id: eligibility
+    run: |
+      mixer-automations github pr can-merge --event-file "$MIXER_AUTOMATIONS_EVENT_FILE" --output merge-report.json
+  - id: route
+    run: |
+      decision=$(node -p 'require("./merge-report.json").decision')
+      case "$decision" in
+        eligible)
+          mixer-automations actions request github.pr.merge \
+            --input-json '{"version":1,"decision":"merge"}' \
+            --request-key merge-ready
+          ;;
+        ineligible|unknown)
+          # Install a handoff-only caretaker.md for this repository before running.
+          mixer-automations automations run shared/pull-requests/dependabot-pr-caretaker/caretaker.md \
+            --repository "$MIXER_AUTOMATIONS_REPOSITORY" \
+            --input-file merge-report.json \
+            --inherit-event \
+            --handoff-key investigate
+          ;;
+        *)
+          echo "Unexpected eligibility decision" >&2
+          exit 1
+          ;;
+      esac

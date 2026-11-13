@@ -6,6 +6,7 @@ import * as pluginUsageRuntime from "@mixer/plugin/server/usage";
 import * as pluginServerRuntime from "@mixer/plugin/server";
 import type { PluginServerContribution } from "@mixer/plugin/server";
 import * as zod from "zod";
+import * as automationsEngine from "@mixer/automations-engine";
 import { isPluginClientOnlySdkSpecifier } from "./plugin-sdk-specifiers.js";
 
 const nodeRequire = createRequire(import.meta.url);
@@ -20,6 +21,7 @@ function runtimeRequire(name: string): unknown {
   if (name === "@mixer/plugin/server/acp") return pluginAcpRuntime;
   if (name === "@mixer/plugin/server/usage") return pluginUsageRuntime;
   if (name === "zod") return zod;
+  if (name === "@mixer/automations-engine") return automationsEngine;
   if (name === "@mixer/plugin/client/host") throw new Error(`${name} is private to the app host`);
   return nodeRequire(name);
 }

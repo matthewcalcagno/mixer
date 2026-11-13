@@ -380,6 +380,8 @@ export interface MixerAgentHandle {
   run(text: string, options?: MixerAgentRunOptions): Promise<MixerAgentRunResult>;
   /** Waits for the current turn, including one started with `prompt`. */
   waitForFinish(timeoutMs?: number): Promise<MixerAgentRunResult>;
+  /** Requests interruption of the current turn without archiving or detaching the agent. */
+  cancel(): Promise<void>;
   /**
    * Asks the running session for the slash commands and skills it actually
    * loaded. Providers answer from the live session, so this sees built-in and
@@ -1021,6 +1023,7 @@ function createAgentHandleFactory(
         return result;
       },
       commands: (options) => daemonClient.listCommands({ agentId: id, ...options }),
+      cancel: () => daemonClient.cancelAgent(id),
       archive: async () => {
         const result = await daemonClient.archiveAgent(id);
         if (current) {

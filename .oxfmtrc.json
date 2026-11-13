@@ -12,6 +12,10 @@
   "bracketSameLine": false,
   "bracketSpacing": true,
   "ignorePatterns": [
+    "plugins/automations/server/engine/generated/**",
+    "plugins/automations/server/engine/upstream/**",
+    "plugins/automations/server/engine/provenance.json",
+    "plugins/automations/server/engine/dist/**",
     "*.lock",
     "**/*.gen.ts",
     "**/*.gen.tsx",

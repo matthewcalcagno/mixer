@@ -118,6 +118,7 @@ export function WorkspacePaneContent({
       retargetCurrentTab,
       setCurrentTabState,
       openFileInWorkspace,
+      draftAgentConfig: paneContextValue.draftAgentConfig,
       openImportSheet,
     }),
     [
@@ -127,6 +128,7 @@ export function WorkspacePaneContent({
       openTab,
       openPreferredTarget,
       openTargetToSide,
+      paneContextValue.draftAgentConfig,
       paneContextValue.serverId,
       paneContextValue.panelRevision,
       paneContextValue.tabId,

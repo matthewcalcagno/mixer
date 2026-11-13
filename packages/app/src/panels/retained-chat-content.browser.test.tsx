@@ -36,10 +36,12 @@ import { render as renderEnvironment } from "@testing-library/react";
 import {
   SheetPaneHostProvider,
   useSheetPaneBridge,
+  useSheetPaneHost,
   type SheetPaneHost,
 } from "@/screens/workspace/sheet-pane";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAssistantFileLinkActions, type InlinePathTarget } from "@/assistant-file-links";
+import { AgentChatEnvironment } from "@/plugins/react-native/agent-chat-environment";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const SHEET_PANE_HOST: SheetPaneHost = {
@@ -142,6 +144,23 @@ it("retains modified panels beyond the LRU cap and evicts them normally after sa
 });
 
 describe("workspace sheet environment", () => {
+  it("provides sheet pages and a diff cache to embedded agent tracks outside a workspace screen", () => {
+    function SubagentSheetProbe() {
+      const bridge = useSheetPaneBridge();
+      const host = useSheetPaneHost();
+      useDiffDocumentWorkspaceCache();
+      return bridge(<span>Subagent sheets for {host.workspaceKey}</span>);
+    }
+    act(() =>
+      root.render(
+        <AgentChatEnvironment host={SHEET_PANE_HOST}>
+          <SubagentSheetProbe />
+        </AgentChatEnvironment>,
+      ),
+    );
+    expect(container.textContent).toBe("Subagent sheets for host:workspace");
+  });
+
   it("shares editing sessions and diff cache across the host, keeping resolver updates live", async () => {
     let bridge: ContextBridge = (children) => children;
     const observations = new Map<string, ReturnType<typeof useEnvironment>>();
