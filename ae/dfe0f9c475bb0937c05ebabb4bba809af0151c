@@ -1,0 +1,21 @@
+packages/app/src/plugins/installation-provider.test.tsx
+  s_85889ac4a6bacb::t_433bc3ab9631d4 5-6,8,12-20,28-70
+plugins/automations/shared/contracts.ts
+  s_85889ac4a6bacb::t_2881527dfb6bee 145-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "aedfe0f9c475bb0937c05ebabb4bba809af0151c",
+  "prompts": {},
+  "sessions": {
+    "s_85889ac4a6bacb": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2f58816dffe9KY8g7Va2T1OC3",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
