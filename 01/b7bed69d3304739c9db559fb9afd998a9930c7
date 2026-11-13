@@ -1,0 +1,495 @@
+.oxlintrc.json
+  s_85889ac4a6bacb::t_f1e441090b5265 6-11
+CLAUDE.md
+  s_85889ac4a6bacb::t_1fe198cb1207c1 48
+docs/automation-configuration.md
+  s_ea424d1706e781::t_1d493212377824 1-133
+package-lock.json
+  s_85889ac4a6bacb::t_d52e58f8f48541 14,5448-5451,8499-8505,8507-8510,8512-8515,8523-8530,8532-8536,8538-8541,8549,8551-8554,8562-8569,8571-8575,8577-8580,8588-8595,8597-8604,8606-8609,8613-8615,8620-8627,8629-8636,8638-8641,8645-8660,8668-8675,8677-8684,8686-8689,8691-8707,8716-8723,8725-8732,8734-8737,8739-8755,8764-8771,8773-8780,8782-8785,8796,8798-8803,8805-8814,8816,8820-8822,8824-8827,8835-8842,8844-8848,8850-8853,8861-8868,8870-8874,8876-8879,8881-8892,8895-8899,8901-8902,8905-8908,8910-8914,8916,8919-8922,8924-8929,8932-8935,8938,8940-8941,8944-8947,8950-8952,8955,8958-8961,8964,8967,8970-8973,8976-8977,8980,8983-8998,9001,9004,9007-9010,9013,9016,9019-9041,9044,9046-9047,9050-9549,9938-9947,12109-12115,13267-13282,13302-13311,13935-13941,16708-16720,16823-16888,17436-17447,17680-17694,17866-17877,18447-18489,19003-19011,19454-19462,19663-19674,19726-19737,20929-20941,20968-20977,23416-23428,23543-23554,23951-23978,24747-24758,25048-25057,25067-25078,25220-25262,25359-25373,27180-27225,27462-27474,27843-28093,28095-28102,28104-28107,28110-28118,28120,28123-28126,28129-28130,28133-28155,28158-28173,28175,28178-28198,28200-28201,28204,28207-28230,28233,28236,28239-28246,28248-28255,28257-28260,28263-28264,28267-28271,28274,28277-28280,28282-28283,28286-28290,28293-28296,28300-28301,28304,28307-28319,28322,28325-28328,28331-28344,28346-28351,28353-28357,28359,28362-28365,28367-28369,28371,28374-28377,28379-28394,28396,28399,28402-28406,28409-28410,28413-28428,28430-28433,28436-28447,28449-28452,28455-28459,28462-28465,28467-28470,28473-28476,28478-28481,28487-28491,28493-28499,28502-28505,28507-28511,28514-28517,28519-28522,28524-28527,28530,28533-28537,28539-28542,28545-28548,28552-28555,28558-28561,28563-28574,28577-28580,28583-28595,28598-28608,28611-28621,28624,28627-28632,28634,28637-28653,28655-28662,28665-28668,28671-28675,28678-28681,28683-28685,28687,28690-28693,28696-28699,28702-28712,28716-28719,28723-28727,28730-28742,28744,28747-28751,28753-28757,28759,28762-28765,28769-28770,28773-28776,28779,28781,28783-28784,28787-28790,28793-28794,28798-28800,28803-28807,28809-28812,28814-28815,28817-28818,28821-28830,28834,28837-28840,28844,28847,28850-28853,28856,28859,28862-28871,28875,28878-28916,28918-28919,28922-28925,28928-28929,28932,28935,28938-28942,28945,28948-28951,28955,28958-28961,28964-28965,28967-28968,28971-28981,28985,28988-28996,28998-29002,29004-29007,29010-29013,29016-29023,29025-29028,29031,29033-29034,29036,29038,29041-29046,29048,29051,29054-29058,29061,29064,29067-29070,29072-29073,29076-29090,29093,29096,29099-29107,29109-29112,29114-29122,29125-29128,29132,29134-29135,29138-29142,29144,29147-29158,29161-29162,29165-29173,29176-29179,29183-29186,29189-29192,29196,29199,29202-29212,29215-29235,29238,29240-29258,29261-29273,29275,29278-29285,29287-29290,29292,29295-29301,29304-29309,29312-29318,29320-29326,29329-29335,29338-29341,29346-29353,29355-29358,29360,29363-29369,29372-29375,29377,29380-29386,29389-29392,29394,29397-29403,29406-29411,29414-29420,29422-29429,29431-29437,29440-29443,29445,29448-29454,29457-29462,29465-29480,29482-29489,29491-29494,29496,29499-29506,29508-29511,29513,29516-29531,29533-29539,29542-29545,29547,29550-29556,29558-29562,29564,29567-29573,29576-29579,29581,29584-29591,29593-29598,29601-29608,29610-29615,29618-29624,29627-29630,29632,29635-29642,29644-29649,29652-29658,29660-29666,29669-29675,29678-29681,29683,29686-29693,29695-29698,29700,29703-29706,29709-29710,29713,29715-29716,29719-29722,29724,29726-29764,29767-29768,29770-29772,29775-29780,30102-30113,31958-31969,32764-32766,32772,33435,33443,33449-33490,33492-33494,33501-33586
+packages/app/e2e/browser/plugin-management.spec.ts
+  s_ea424d1706e781::t_9d058c3ccb2d31 34-670
+packages/app/src/components/file-explorer-pane.tsx
+  s_ea424d1706e781::t_d3ff263ca329f7 29,66-70,166-167,174-176,231-232,332-334,410-419,421-465,467-488,491-516,994,1762
+packages/app/src/components/ui/editor-tab-geometry.ts
+  s_85889ac4a6bacb::t_4a58c57f713e67 1-30
+packages/app/src/components/ui/search-field.tsx
+  s_85889ac4a6bacb::t_3060ab540396fd 1,22,41,52-55,64-66,80,100-106
+packages/app/src/desktop/startup-gate.tsx
+  s_85889ac4a6bacb::t_8e96325374263d 86
+packages/app/src/file-explorer/geometry.test.ts
+  s_ea424d1706e781::t_dcb99a7b1b455d 1-47
+packages/app/src/file-panels/source/editor/syntax.test.ts
+  s_85889ac4a6bacb::t_0060c9b7d80219 14-16,25-66
+packages/app/src/panels/retained-chat-content.browser.test.tsx
+  s_85889ac4a6bacb::t_fe479ef3e6f073 39,44,147-163
+packages/app/src/plugins/react-native/agent-chat-environment.tsx
+  s_85889ac4a6bacb::t_640ee76341dd28 1-18
+packages/app/src/plugins/react-native/agent-chat.tsx
+  s_85889ac4a6bacb::t_a0f35845534974 1-10
+packages/app/src/plugins/react-native/context-menu.tsx
+  s_85889ac4a6bacb::t_5557c8ea052136 33-38,49
+packages/app/src/plugins/react-native/editor-tabs.tsx
+  s_85889ac4a6bacb::t_261cf0dad08ee9 1-165
+packages/app/src/plugins/react-native/source-editor.electron.tsx
+  s_85889ac4a6bacb::t_d31127b34de85d 1-180
+packages/app/src/plugins/react-native/source-editor.tsx
+  s_85889ac4a6bacb::t_1cff8ae9ec91b4 1-38
+packages/app/src/plugins/react-native/tree-drag-drop.tsx
+  s_85889ac4a6bacb::t_9a704ea2ab12a8 1-100
+packages/app/src/plugins/react-native/tree-name-input.tsx
+  s_85889ac4a6bacb::t_b633b6360bb956 1-8
+packages/app/src/stores/draft-store/index.ts
+  s_85889ac4a6bacb::t_8d7da0c29ed89b 55-56,379,396-401
+packages/desktop/e2e/packaged-app-smoke.js
+  s_85889ac4a6bacb::t_8f63ef70ff3386 852-859,862,865,867-875,889-891,893
+packages/server/package.json
+  s_85889ac4a6bacb::t_f4edc88dc1a476 109,166-168
+packages/server/scripts/bundle-automations-engine.mjs
+  s_85889ac4a6bacb::t_0d9f25fff155a1 1-89
+packages/server/src/server/plugins/builtin/index.test.ts
+  s_85889ac4a6bacb::t_5676b608c24fe9 6-16,27,31-57,60-65,74,79-757,763,781,783,796-819,825-826,830,832,834-839,853,855-863,882,911,917,919-932,936,951-965,968-977,979-1000,1002,1004,1036-1065,1128,1221,1224-1225,1233-1243,1362-1363
+packages/server/src/server/session.ts
+  s_85889ac4a6bacb::t_faccc57d24942c 222,1249,1462-1467,6428-6430
+packages/server/src/server/workspace-directory.test.ts
+  s_85889ac4a6bacb::t_c1c7e641f90015 572,577,586,591,622-667,869
+packages/server/src/server/workspace-directory.ts
+  s_85889ac4a6bacb::t_7ca2c5508ecd4b 72,584-587,631-635
+plugins/automations/client/configuration.ts
+  s_85889ac4a6bacb::t_d01718797c68d9 1-12
+plugins/automations/client/workflows.tsx
+  s_85889ac4a6bacb::t_fe326ab9d1d378 1-335
+plugins/automations/index.server.ts
+  s_ea424d1706e781::t_4d44ad05234b1a 7-10,20-25,28,30,34-37,41-46,48-51,55-66,73-75,77-78,81,83-84,87,94-99,102
+plugins/automations/server/definition.ts
+  s_85889ac4a6bacb::t_1d913007a8e074 36-44,80-83
+plugins/automations/server/engine-runtime.ts
+  s_85889ac4a6bacb::t_e88396535d8b76 2-4,6-19,22-66,68-77,79-84,86-94,96-120,122-125,127-128,131-138,140-143,145-147,149,151-155,157-160,162,164-165,167,169,172-211,213-215,218-223,225,227-230,232,234-262,264-280,282-288,290-291,293-294,296,298,301-303,305-315,318-331,334-343,347-384,387-389
+plugins/automations/server/engine/build.mjs
+  s_85889ac4a6bacb::t_4741efdf0801a9 1-96
+plugins/automations/server/engine/esbuild-host.ts
+  s_85889ac4a6bacb::t_416ddefc08e7be 1-20
+plugins/automations/server/engine/package.json
+  s_85889ac4a6bacb::t_40cc5429142426 1-44
+plugins/automations/server/engine/provenance.json
+  s_85889ac4a6bacb::t_5b9c57ecfa3b0b 1-763
+plugins/automations/server/engine/sqlite.ts
+  s_85889ac4a6bacb::t_fb367b3a531bb6 1-54
+plugins/automations/server/engine/tsconfig.json
+  s_85889ac4a6bacb::t_b52d279d06a978 1-11
+plugins/automations/server/engine/upstream/README.md
+  s_85889ac4a6bacb::t_55fe22988e7544 1-166
+plugins/automations/server/engine/upstream/docs/agents.md
+  s_85889ac4a6bacb::t_2f72141ff191be 1-66
+plugins/automations/server/engine/upstream/docs/architecture.md
+  s_85889ac4a6bacb::t_fb7ddd21348318 1-41
+plugins/automations/server/engine/upstream/docs/commands.md
+  s_85889ac4a6bacb::t_9250b7178400f4 1-257
+plugins/automations/server/engine/upstream/docs/configuration.md
+  s_85889ac4a6bacb::t_edd98baef579d4 1-124
+plugins/automations/server/engine/upstream/docs/evaluations.md
+  s_85889ac4a6bacb::t_9914207f854c6a 1-123
+plugins/automations/server/engine/upstream/docs/events.md
+  s_85889ac4a6bacb::t_67d9e7df98d2a0 1-40
+plugins/automations/server/engine/upstream/docs/execution.md
+  s_85889ac4a6bacb::t_0df2fdc10c9fdc 1-24
+plugins/automations/server/engine/upstream/docs/extension-authoring.md
+  s_85889ac4a6bacb::t_0fcb40fd4d1872 1-178
+plugins/automations/server/engine/upstream/docs/extensions.md
+  s_85889ac4a6bacb::t_485b4a95ae0cae 1-105
+plugins/automations/server/engine/upstream/docs/github.md
+  s_85889ac4a6bacb::t_9da978bdb49fce 1-419
+plugins/automations/server/engine/upstream/docs/hooks.md
+  s_85889ac4a6bacb::t_d15bbd2da9fce6 1-21
+plugins/automations/server/engine/upstream/docs/jira.md
+  s_85889ac4a6bacb::t_9ea6c2d5fa8d87 1-102
+plugins/automations/server/engine/upstream/docs/maintainer.md
+  s_85889ac4a6bacb::t_13b7838d7c2f44 1-78
+plugins/automations/server/engine/upstream/docs/operations.md
+  s_85889ac4a6bacb::t_cb6a95c4909d00 1-39
+plugins/automations/server/engine/upstream/docs/process.md
+  s_85889ac4a6bacb::t_1007b770799ef4 1-9
+plugins/automations/server/engine/upstream/docs/safe-actions.md
+  s_85889ac4a6bacb::t_f3533475139785 1-104
+plugins/automations/server/engine/upstream/docs/scripted-workflows.md
+  s_85889ac4a6bacb::t_ef9c27f1b0c000 1-233
+plugins/automations/server/engine/upstream/docs/sdk.md
+  s_85889ac4a6bacb::t_6974d37baf22ee 1-128
+plugins/automations/server/engine/upstream/docs/state.md
+  s_85889ac4a6bacb::t_89c9dadd88ab19 1-40
+plugins/automations/server/engine/upstream/docs/webhooks.md
+  s_85889ac4a6bacb::t_841efffd2d86ba 1-132
+plugins/automations/server/engine/upstream/docs/workflow-authoring.md
+  s_85889ac4a6bacb::t_b66760900b1f8e 1-709
+plugins/automations/server/engine/upstream/docs/workflow-handoffs.md
+  s_85889ac4a6bacb::t_862182d777e15f 1-86
+plugins/automations/server/engine/upstream/docs/workflows.md
+  s_85889ac4a6bacb::t_e3c6e4142b93eb 1-48
+plugins/automations/server/engine/upstream/docs/workspaces.md
+  s_85889ac4a6bacb::t_932356f650c453 1-56
+plugins/automations/server/engine/upstream/examples/evaluations/issue-triage-comments/evaluation.yaml
+  s_85889ac4a6bacb::t_56dd0c32f3d10c 1-19
+plugins/automations/server/engine/upstream/examples/extensions/custom-cli-agent.ts
+  s_85889ac4a6bacb::t_8612acb4a34c53 1-34
+plugins/automations/server/engine/upstream/examples/extensions/hello.ts
+  s_85889ac4a6bacb::t_c181465c0402b5 1-14
+plugins/automations/server/engine/upstream/examples/jira/read-refinement-candidates.md
+  s_85889ac4a6bacb::t_9865227b9c05bd 1-20
+plugins/automations/server/engine/upstream/examples/maintainer/01-issue-intake.md
+  s_85889ac4a6bacb::t_0642dc200aac69 1-33
+plugins/automations/server/engine/upstream/examples/maintainer/02-issue-follow-up.md
+  s_85889ac4a6bacb::t_253f0ea36e120b 1-29
+plugins/automations/server/engine/upstream/examples/maintainer/03-incoming-pr-review.md
+  s_85889ac4a6bacb::t_de0389391807ab 1-33
+plugins/automations/server/engine/upstream/examples/maintainer/04-own-pr-shepherd.md
+  s_85889ac4a6bacb::t_c6caa2490505f8 1-29
+plugins/automations/server/engine/upstream/examples/maintainer/05-own-pr-feedback.md
+  s_85889ac4a6bacb::t_06c3ec48efb5e4 1-50
+plugins/automations/server/engine/upstream/examples/maintainer/06-own-pr-failed-check.md
+  s_85889ac4a6bacb::t_a6d8070b6432df 1-30
+plugins/automations/server/engine/upstream/examples/maintainer/07-ci-health.md
+  s_85889ac4a6bacb::t_3c75c168ba5b93 1-23
+plugins/automations/server/engine/upstream/examples/maintainer/08-backlog-gardener.md
+  s_85889ac4a6bacb::t_c93bd959734b55 1-22
+plugins/automations/server/engine/upstream/examples/maintainer/09-maintenance-audit.md
+  s_85889ac4a6bacb::t_9ec25d024a7f99 1-23
+plugins/automations/server/engine/upstream/examples/maintainer/10-contributor-pr-follow-up.md
+  s_85889ac4a6bacb::t_54835f6df85fc5 1-28
+plugins/automations/server/engine/upstream/examples/maintainer/11-dependabot-merge.md
+  s_85889ac4a6bacb::t_b0bfb4e3dcab7f 1-79
+plugins/automations/server/engine/upstream/examples/maintainer/12-approved-pr-merge.md
+  s_85889ac4a6bacb::t_fab62ca2bbb214 1-62
+plugins/automations/server/engine/upstream/examples/maintainer/README.txt
+  s_85889ac4a6bacb::t_aa3d28131e79b1 1-176
+plugins/automations/server/engine/upstream/examples/scripted/01-health.yaml
+  s_85889ac4a6bacb::t_f8b75445ecbb0a 1-12
+plugins/automations/server/engine/upstream/examples/scripted/02-prepare-issue.yaml
+  s_85889ac4a6bacb::t_70e3fa6c5e8627 1-15
+plugins/automations/server/engine/upstream/examples/scripted/03-investigate-issue.md
+  s_85889ac4a6bacb::t_04f7e7e946c13c 1-8
+plugins/automations/server/engine/upstream/examples/scripted/04-check-merge-eligibility.yaml
+  s_85889ac4a6bacb::t_68a0f94e280910 1-63
+plugins/automations/server/engine/upstream/examples/scripted/05-merge-or-investigate.yaml
+  s_85889ac4a6bacb::t_fb4590923faf17 1-55
+plugins/automations/server/engine/upstream/examples/workflows/github-advanced-filter.md
+  s_85889ac4a6bacb::t_1c4f17056dd18a 1-27
+plugins/automations/server/engine/upstream/examples/workflows/github-pr-comment-resolve.md
+  s_85889ac4a6bacb::t_23b1eff4c656ee 1-20
+plugins/automations/server/engine/upstream/examples/workflows/github-pull-request-filter.md
+  s_85889ac4a6bacb::t_82a82ca6324d9b 1-19
+plugins/automations/server/engine/upstream/examples/workflows/maintenance-check.md
+  s_85889ac4a6bacb::t_a15b4bb43d2484 1-10
+plugins/automations/server/engine/upstream/examples/workflows/maintenance.md
+  s_85889ac4a6bacb::t_6bc34e8c31b05a 1-12
+plugins/automations/server/engine/upstream/package.json
+  s_85889ac4a6bacb::t_2670be45e3d540 1-28
+plugins/automations/server/engine/upstream/packages/cli/copy-docs.mjs
+  s_85889ac4a6bacb::t_7f0b244c416764 1-22
+plugins/automations/server/engine/upstream/packages/cli/package.json
+  s_85889ac4a6bacb::t_652b822b001cff 1-33
+plugins/automations/server/engine/upstream/packages/cli/src/automations-cli.test.ts
+  s_85889ac4a6bacb::t_799437efb5e807 1-201
+plugins/automations/server/engine/upstream/packages/cli/src/builtins.test.ts
+  s_85889ac4a6bacb::t_0410a014c768e5 1-169
+plugins/automations/server/engine/upstream/packages/cli/src/builtins.ts
+  s_85889ac4a6bacb::t_694747ad88c76e 1-31
+plugins/automations/server/engine/upstream/packages/cli/src/evaluations-cli.test.ts
+  s_85889ac4a6bacb::t_098160317378a6 1-70
+plugins/automations/server/engine/upstream/packages/cli/src/github-gaps-cli.test.ts
+  s_85889ac4a6bacb::t_a26573c879c61e 1-43
+plugins/automations/server/engine/upstream/packages/cli/src/index.ts
+  s_85889ac4a6bacb::t_ba93804d7c1918 1-1049
+plugins/automations/server/engine/upstream/packages/cli/src/input.test.ts
+  s_85889ac4a6bacb::t_8b121e8da24fc9 1-23
+plugins/automations/server/engine/upstream/packages/cli/src/input.ts
+  s_85889ac4a6bacb::t_a697a650443912 1-42
+plugins/automations/server/engine/upstream/packages/cli/src/layout-cli.test.ts
+  s_85889ac4a6bacb::t_ada2029d84cf6d 1-108
+plugins/automations/server/engine/upstream/packages/cli/src/run-outcomes.test.ts
+  s_85889ac4a6bacb::t_a7cacb0f925818 1-100
+plugins/automations/server/engine/upstream/packages/cli/src/scripted-cli.test.ts
+  s_85889ac4a6bacb::t_76715b91bc7a8c 1-231
+plugins/automations/server/engine/upstream/packages/cli/src/scripted-docs.test.ts
+  s_85889ac4a6bacb::t_8456f6072c5af3 1-33
+plugins/automations/server/engine/upstream/packages/cli/src/status-cli.test.ts
+  s_85889ac4a6bacb::t_111fbf0343ba8f 1-179
+plugins/automations/server/engine/upstream/packages/cli/src/status.ts
+  s_85889ac4a6bacb::t_219aa05ba18b45 1-150
+plugins/automations/server/engine/upstream/packages/cli/src/webhook-ownership.test.ts
+  s_85889ac4a6bacb::t_76cd23d2eee521 1-46
+plugins/automations/server/engine/upstream/packages/cli/src/webhooks-cli.test.ts
+  s_85889ac4a6bacb::t_80231a77a4770b 1-93
+plugins/automations/server/engine/upstream/packages/cli/src/workflow-docs.test.ts
+  s_85889ac4a6bacb::t_eabc0374a57401 1-166
+plugins/automations/server/engine/upstream/packages/cli/tsconfig.json
+  s_85889ac4a6bacb::t_5808069b59cce2 1-4
+plugins/automations/server/engine/upstream/packages/core/package.json
+  s_85889ac4a6bacb::t_fe1cb3294be40e 1-32
+plugins/automations/server/engine/upstream/packages/core/src/actions.ts
+  s_85889ac4a6bacb::t_ca2463ae7281fa 1-250
+plugins/automations/server/engine/upstream/packages/core/src/communication.test.ts
+  s_85889ac4a6bacb::t_b8179a74581228 1-80
+plugins/automations/server/engine/upstream/packages/core/src/communication.ts
+  s_85889ac4a6bacb::t_82e91ed8f92000 1-182
+plugins/automations/server/engine/upstream/packages/core/src/config.ts
+  s_85889ac4a6bacb::t_485b79451f3739 1-86
+plugins/automations/server/engine/upstream/packages/core/src/core.test.ts
+  s_85889ac4a6bacb::t_dfb91c55cc80cd 1-1030
+plugins/automations/server/engine/upstream/packages/core/src/database.test.ts
+  s_85889ac4a6bacb::t_6a51c2bc455756 1-245
+plugins/automations/server/engine/upstream/packages/core/src/database.ts
+  s_85889ac4a6bacb::t_273d32986c028e 1-1287
+plugins/automations/server/engine/upstream/packages/core/src/deferred-routing.test.ts
+  s_85889ac4a6bacb::t_0024bb4e5687b7 1-222
+plugins/automations/server/engine/upstream/packages/core/src/extensions.ts
+  s_85889ac4a6bacb::t_96e63217343bc4 1-80
+plugins/automations/server/engine/upstream/packages/core/src/index.ts
+  s_85889ac4a6bacb::t_ea6b0105d5d797 1-13
+plugins/automations/server/engine/upstream/packages/core/src/inputs.test.ts
+  s_85889ac4a6bacb::t_4ca60707d6076c 1-104
+plugins/automations/server/engine/upstream/packages/core/src/logger.ts
+  s_85889ac4a6bacb::t_99eff150cfbaaf 1-43
+plugins/automations/server/engine/upstream/packages/core/src/paths.test.ts
+  s_85889ac4a6bacb::t_0b32c2db861aa0 1-39
+plugins/automations/server/engine/upstream/packages/core/src/paths.ts
+  s_85889ac4a6bacb::t_c22cf1810853c4 1-32
+plugins/automations/server/engine/upstream/packages/core/src/process.ts
+  s_85889ac4a6bacb::t_aeeb8d4f701aa3 1-81
+plugins/automations/server/engine/upstream/packages/core/src/proposal.test.ts
+  s_85889ac4a6bacb::t_d2e3bd20bdec31 1-44
+plugins/automations/server/engine/upstream/packages/core/src/proposal.ts
+  s_85889ac4a6bacb::t_34e6c9434bbe12 1-84
+plugins/automations/server/engine/upstream/packages/core/src/protocol.ts
+  s_85889ac4a6bacb::t_7d633fbcd99460 1-125
+plugins/automations/server/engine/upstream/packages/core/src/registry.ts
+  s_85889ac4a6bacb::t_6a22642299206c 1-156
+plugins/automations/server/engine/upstream/packages/core/src/runtime.ts
+  s_85889ac4a6bacb::t_1254136ce4291c 1-1164
+plugins/automations/server/engine/upstream/packages/core/src/scripted-actions.test.ts
+  s_85889ac4a6bacb::t_e655939d1992c1 1-124
+plugins/automations/server/engine/upstream/packages/core/src/scripted-process.test.ts
+  s_85889ac4a6bacb::t_843afc6a77cc3e 1-42
+plugins/automations/server/engine/upstream/packages/core/src/scripted-state.test.ts
+  s_85889ac4a6bacb::t_f38697f48b06d3 1-78
+plugins/automations/server/engine/upstream/packages/core/src/scripted.test.ts
+  s_85889ac4a6bacb::t_4a14a8d657b080 1-296
+plugins/automations/server/engine/upstream/packages/core/src/trigger-reliability.test.ts
+  s_85889ac4a6bacb::t_32c0ba89dd81e7 1-212
+plugins/automations/server/engine/upstream/packages/core/src/workflow-discovery.test.ts
+  s_85889ac4a6bacb::t_9e93c14fe26efd 1-65
+plugins/automations/server/engine/upstream/packages/core/src/workflows.ts
+  s_85889ac4a6bacb::t_739d387742e0a3 1-202
+plugins/automations/server/engine/upstream/packages/core/tsconfig.json
+  s_85889ac4a6bacb::t_3919e30992c4e0 1-4
+plugins/automations/server/engine/upstream/packages/extension-claude/package.json
+  s_85889ac4a6bacb::t_1d63cb6808ab38 1-12
+plugins/automations/server/engine/upstream/packages/extension-claude/src/index.test.ts
+  s_85889ac4a6bacb::t_6866666e35d268 1-7
+plugins/automations/server/engine/upstream/packages/extension-claude/src/index.ts
+  s_85889ac4a6bacb::t_0459650490521e 1-39
+plugins/automations/server/engine/upstream/packages/extension-claude/tsconfig.json
+  s_85889ac4a6bacb::t_a91b6bdee95277 1-4
+plugins/automations/server/engine/upstream/packages/extension-codex/package.json
+  s_85889ac4a6bacb::t_69217627cbeebe 1-12
+plugins/automations/server/engine/upstream/packages/extension-codex/src/index.test.ts
+  s_85889ac4a6bacb::t_b72709025f5d79 1-7
+plugins/automations/server/engine/upstream/packages/extension-codex/src/index.ts
+  s_85889ac4a6bacb::t_c99239fcc7d9d1 1-39
+plugins/automations/server/engine/upstream/packages/extension-codex/tsconfig.json
+  s_85889ac4a6bacb::t_c5d233cc5b25dd 1-4
+plugins/automations/server/engine/upstream/packages/extension-container/package.json
+  s_85889ac4a6bacb::t_7b77742b0d3e3c 1-12
+plugins/automations/server/engine/upstream/packages/extension-container/src/index.test.ts
+  s_85889ac4a6bacb::t_e6cf04131a3fe1 1-143
+plugins/automations/server/engine/upstream/packages/extension-container/src/index.ts
+  s_85889ac4a6bacb::t_55060c6f833a88 1-227
+plugins/automations/server/engine/upstream/packages/extension-container/tsconfig.json
+  s_85889ac4a6bacb::t_bd3130e835f7d4 1-4
+plugins/automations/server/engine/upstream/packages/extension-copilot/package.json
+  s_85889ac4a6bacb::t_30ed0e475751c9 1-12
+plugins/automations/server/engine/upstream/packages/extension-copilot/src/index.test.ts
+  s_85889ac4a6bacb::t_c79a8a5ea72284 1-7
+plugins/automations/server/engine/upstream/packages/extension-copilot/src/index.ts
+  s_85889ac4a6bacb::t_8210490c7b2f99 1-39
+plugins/automations/server/engine/upstream/packages/extension-copilot/tsconfig.json
+  s_85889ac4a6bacb::t_1b9ae12aab7714 1-4
+plugins/automations/server/engine/upstream/packages/extension-evaluations/package.json
+  s_85889ac4a6bacb::t_3058c5e159c22c 1-13
+plugins/automations/server/engine/upstream/packages/extension-evaluations/src/definitions.ts
+  s_85889ac4a6bacb::t_82785e45b5ab3c 1-113
+plugins/automations/server/engine/upstream/packages/extension-evaluations/src/index.test.ts
+  s_85889ac4a6bacb::t_82f5fb9556ff64 1-366
+plugins/automations/server/engine/upstream/packages/extension-evaluations/src/index.ts
+  s_85889ac4a6bacb::t_829c6d0f080c65 1-364
+plugins/automations/server/engine/upstream/packages/extension-evaluations/src/model.ts
+  s_85889ac4a6bacb::t_120f9c1e150b5a 1-119
+plugins/automations/server/engine/upstream/packages/extension-evaluations/src/reports.ts
+  s_85889ac4a6bacb::t_0e600b86d24874 1-76
+plugins/automations/server/engine/upstream/packages/extension-github/package.json
+  s_85889ac4a6bacb::t_2de7a435d92688 1-12
+plugins/automations/server/engine/upstream/packages/extension-github/src/comments.ts
+  s_85889ac4a6bacb::t_b1012713829973 1-42
+plugins/automations/server/engine/upstream/packages/extension-github/src/event-gaps.ts
+  s_85889ac4a6bacb::t_4f841588e63031 1-81
+plugins/automations/server/engine/upstream/packages/extension-github/src/execution-policy.ts
+  s_85889ac4a6bacb::t_edaa94a0005c11 1-26
+plugins/automations/server/engine/upstream/packages/extension-github/src/garbage-collection.test.ts
+  s_85889ac4a6bacb::t_caebdb2341f8c6 1-161
+plugins/automations/server/engine/upstream/packages/extension-github/src/garbage-collection.ts
+  s_85889ac4a6bacb::t_b52e402539a06c 1-275
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.test.ts
+  s_85889ac4a6bacb::t_b0e2f951c7b2e3 1-1575
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.ts
+  s_85889ac4a6bacb::t_19b45b131854c1 1-2502
+plugins/automations/server/engine/upstream/packages/extension-github/src/matcher.test.ts
+  s_85889ac4a6bacb::t_7016e40e221e8c 1-369
+plugins/automations/server/engine/upstream/packages/extension-github/src/matcher.ts
+  s_85889ac4a6bacb::t_ede63cfc2963bd 1-331
+plugins/automations/server/engine/upstream/packages/extension-github/src/memory.test.ts
+  s_85889ac4a6bacb::t_c479c69fa009f1 1-75
+plugins/automations/server/engine/upstream/packages/extension-github/src/memory.ts
+  s_85889ac4a6bacb::t_17533c064c658b 1-98
+plugins/automations/server/engine/upstream/packages/extension-github/src/merge-check.test.ts
+  s_85889ac4a6bacb::t_44392cf9c6ca48 1-164
+plugins/automations/server/engine/upstream/packages/extension-github/src/merge-check.ts
+  s_85889ac4a6bacb::t_aeb683e589f1d4 1-202
+plugins/automations/server/engine/upstream/packages/extension-github/src/publication-comments.test.ts
+  s_85889ac4a6bacb::t_386ca8eca2c5c1 1-300
+plugins/automations/server/engine/upstream/packages/extension-github/src/publication-promotion.test.ts
+  s_85889ac4a6bacb::t_fe03811c1540a7 1-120
+plugins/automations/server/engine/upstream/packages/extension-github/src/publication.ts
+  s_85889ac4a6bacb::t_9807f657726fdd 1-498
+plugins/automations/server/engine/upstream/packages/extension-github/src/review-replies.test.ts
+  s_85889ac4a6bacb::t_abb688a8e4d423 1-259
+plugins/automations/server/engine/upstream/packages/extension-github/src/scripted-authority.test.ts
+  s_85889ac4a6bacb::t_7819af3665903c 1-50
+plugins/automations/server/engine/upstream/packages/extension-github/src/scripted-merge.test.ts
+  s_85889ac4a6bacb::t_a6877f02aaece2 1-102
+plugins/automations/server/engine/upstream/packages/extension-github/src/trigger-reliability.test.ts
+  s_85889ac4a6bacb::t_0212bba5d348f6 1-247
+plugins/automations/server/engine/upstream/packages/extension-github/src/webhook-input.test.ts
+  s_85889ac4a6bacb::t_a4e028be1355e2 1-75
+plugins/automations/server/engine/upstream/packages/extension-github/tsconfig.json
+  s_85889ac4a6bacb::t_d1138f929ce2be 1-4
+plugins/automations/server/engine/upstream/packages/extension-jira/package.json
+  s_85889ac4a6bacb::t_07d8629f90d54b 1-15
+plugins/automations/server/engine/upstream/packages/extension-jira/src/client.ts
+  s_85889ac4a6bacb::t_06ade6fd8b1366 1-78
+plugins/automations/server/engine/upstream/packages/extension-jira/src/index.test.ts
+  s_85889ac4a6bacb::t_d74c2c3a880341 1-364
+plugins/automations/server/engine/upstream/packages/extension-jira/src/index.ts
+  s_85889ac4a6bacb::t_a7463a54f2ea31 1-190
+plugins/automations/server/engine/upstream/packages/extension-jira/src/schedule.test.ts
+  s_85889ac4a6bacb::t_2b68a6c259969f 1-49
+plugins/automations/server/engine/upstream/packages/extension-jira/src/schedule.ts
+  s_85889ac4a6bacb::t_2dee403475fe36 1-42
+plugins/automations/server/engine/upstream/packages/extension-jira/tsconfig.json
+  s_85889ac4a6bacb::t_a1cdb207a57a2e 1-4
+plugins/automations/server/engine/upstream/packages/extension-opencode/package.json
+  s_85889ac4a6bacb::t_8293aa5613f2ea 1-12
+plugins/automations/server/engine/upstream/packages/extension-opencode/src/index.test.ts
+  s_85889ac4a6bacb::t_a6e18f94129437 1-45
+plugins/automations/server/engine/upstream/packages/extension-opencode/src/index.ts
+  s_85889ac4a6bacb::t_f4cfaa5a616b75 1-41
+plugins/automations/server/engine/upstream/packages/extension-opencode/tsconfig.json
+  s_85889ac4a6bacb::t_c4b9e8672c8fcd 1-4
+plugins/automations/server/engine/upstream/packages/extension-pi/package.json
+  s_85889ac4a6bacb::t_dea0865fe7b3f3 1-12
+plugins/automations/server/engine/upstream/packages/extension-pi/src/index.test.ts
+  s_85889ac4a6bacb::t_28e90fa6fc0c29 1-7
+plugins/automations/server/engine/upstream/packages/extension-pi/src/index.ts
+  s_85889ac4a6bacb::t_00f267c2e0ecd3 1-39
+plugins/automations/server/engine/upstream/packages/extension-pi/tsconfig.json
+  s_85889ac4a6bacb::t_92449a9c687bb7 1-4
+plugins/automations/server/engine/upstream/packages/extension-scheduler/package.json
+  s_85889ac4a6bacb::t_7c4599adf6d2ee 1-16
+plugins/automations/server/engine/upstream/packages/extension-scheduler/src/index.test.ts
+  s_85889ac4a6bacb::t_03b9a81797df22 1-106
+plugins/automations/server/engine/upstream/packages/extension-scheduler/src/index.ts
+  s_85889ac4a6bacb::t_92403af5a80fdf 1-129
+plugins/automations/server/engine/upstream/packages/extension-scheduler/tsconfig.json
+  s_85889ac4a6bacb::t_612c4911fc6b29 1-4
+plugins/automations/server/engine/upstream/packages/extension-scratch/package.json
+  s_85889ac4a6bacb::t_18cad1e4fe4f9f 1-24
+plugins/automations/server/engine/upstream/packages/extension-scratch/src/index.test.ts
+  s_85889ac4a6bacb::t_524a9994e557c1 1-69
+plugins/automations/server/engine/upstream/packages/extension-scratch/src/index.ts
+  s_85889ac4a6bacb::t_c9e30c89fc3b31 1-81
+plugins/automations/server/engine/upstream/packages/extension-steps/package.json
+  s_85889ac4a6bacb::t_75c5024631dc3e 1-13
+plugins/automations/server/engine/upstream/packages/extension-steps/src/index.ts
+  s_85889ac4a6bacb::t_fb85bedc5a92bb 1-128
+plugins/automations/server/engine/upstream/packages/extension-steps/src/schema.ts
+  s_85889ac4a6bacb::t_ddc1d8b10784da 1-51
+plugins/automations/server/engine/upstream/packages/extension-webhooks/package.json
+  s_85889ac4a6bacb::t_c5ff3abc780307 1-13
+plugins/automations/server/engine/upstream/packages/extension-webhooks/src/index.test.ts
+  s_85889ac4a6bacb::t_31a4dba5a4243e 1-211
+plugins/automations/server/engine/upstream/packages/extension-webhooks/src/index.ts
+  s_85889ac4a6bacb::t_9072bbe8654481 1-300
+plugins/automations/server/engine/upstream/packages/extension-worktree/package.json
+  s_85889ac4a6bacb::t_0ed53ad7be35f5 1-12
+plugins/automations/server/engine/upstream/packages/extension-worktree/src/index.test.ts
+  s_85889ac4a6bacb::t_7d64b6242fd4be 1-199
+plugins/automations/server/engine/upstream/packages/extension-worktree/src/index.ts
+  s_85889ac4a6bacb::t_7368fb3d74b6f8 1-286
+plugins/automations/server/engine/upstream/packages/extension-worktree/tsconfig.json
+  s_85889ac4a6bacb::t_1221189f86df91 1-4
+plugins/automations/server/engine/upstream/packages/sdk/package.json
+  s_85889ac4a6bacb::t_f467a952e65b4d 1-23
+plugins/automations/server/engine/upstream/packages/sdk/src/index.ts
+  s_85889ac4a6bacb::t_5bf2c3f18b65ec 1-744
+plugins/automations/server/engine/upstream/packages/sdk/tsconfig.json
+  s_85889ac4a6bacb::t_ad20a1cfd6cfff 1-4
+plugins/automations/server/engine/upstream/pnpm-lock.yaml
+  s_85889ac4a6bacb::t_3d3d45fd166749 1-2595
+plugins/automations/server/engine/upstream/pnpm-workspace.yaml
+  s_85889ac4a6bacb::t_bdc692fbcde5f2 1-2
+plugins/automations/server/engine/upstream/scripts/rewrite-cli-references.mjs
+  s_85889ac4a6bacb::t_923a7c0ab100bb 1-93
+plugins/automations/server/engine/upstream/tsconfig.examples.json
+  s_85889ac4a6bacb::t_5e18f8d0583927 1-4
+plugins/automations/server/engine/upstream/tsconfig.json
+  s_85889ac4a6bacb::t_c37b65b81fdcd8 1-34
+plugins/automations/server/engine/upstream/vitest.config.ts
+  s_85889ac4a6bacb::t_7986beb612379e 1-31
+plugins/automations/server/github-enrichment.ts
+  s_85889ac4a6bacb::t_f0aedd2bba8f8a 23,33-42,44
+plugins/automations/server/github-poll.ts
+  s_85889ac4a6bacb::t_103d93e208cba0 24,27-31,47-49,51-54,70
+plugins/automations/server/jira.ts
+  s_85889ac4a6bacb::t_d8ac0f90b9c84b 2-3,5-17,25,52-55,112-139
+plugins/automations/server/steps.ts
+  s_85889ac4a6bacb::t_2c0e3f68e6ae71 14-15,25-28,38,44
+plugins/automations/shared/configuration-template.ts
+  s_85889ac4a6bacb::t_3b404dadd9fdba 1-20
+plugins/automations/shared/run-inspection.test.ts
+  s_ea424d1706e781::t_852ade2076356b 1-56
+plugins/automations/shared/run-inspection.ts
+  s_ea424d1706e781::t_368cb641e676c1 1-108
+plugins/vitest.config.ts
+  s_85889ac4a6bacb::t_1c4580b99d2e56 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "01b7bed69d3304739c9db559fb9afd998a9930c7",
+  "prompts": {},
+  "sessions": {
+    "s_85889ac4a6bacb": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2f58816dffe9KY8g7Va2T1OC3",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    },
+    "s_ea424d1706e781": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bafd9d6ffekeajJ6ibD6jAPi",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
