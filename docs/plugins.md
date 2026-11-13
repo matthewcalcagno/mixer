@@ -461,6 +461,10 @@ params.
 RPC contracts validate inputs and outputs in both the app and plugin subprocess. `useRpc` returns a
 typed async function. Use the host-provided `@tanstack/react-query` for request state and caching;
 Mixer gives each plugin installation its own query client.
+Embedded host conversations restore the host query client inside that boundary, because provider
+and model updates are pushed into the host cache. Keep plugin RPC queries in the installation cache.
+For a draft in a hidden workspace, supply its owning directory through `AgentChatDraft.cwd`;
+the normal workspace directory replica deliberately excludes those workspaces.
 
 `useMixer()` and the handler's `{ mixer }` context expose the same `MixerApi`: projects,
 workspaces, agents, terminals, providers, and daemon config. They do not expose connection lifecycle.

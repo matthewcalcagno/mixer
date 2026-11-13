@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/data/query-client";
 import { DiffDocumentWorkspaceCacheProvider } from "@/git/diff-document/workspace-cache";
 import { SheetPaneHostProvider, type SheetPaneHost } from "@/screens/workspace/sheet-pane/host";
 
@@ -11,8 +13,10 @@ export function AgentChatEnvironment({
   children: ReactNode;
 }) {
   return (
-    <DiffDocumentWorkspaceCacheProvider>
-      <SheetPaneHostProvider value={host}>{children}</SheetPaneHostProvider>
-    </DiffDocumentWorkspaceCacheProvider>
+    <QueryClientProvider client={queryClient}>
+      <DiffDocumentWorkspaceCacheProvider>
+        <SheetPaneHostProvider value={host}>{children}</SheetPaneHostProvider>
+      </DiffDocumentWorkspaceCacheProvider>
+    </QueryClientProvider>
   );
 }

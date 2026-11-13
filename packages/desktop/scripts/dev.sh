@@ -5,6 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DESKTOP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ROOT_DIR="$(cd "$DESKTOP_DIR/../.." && pwd)"
 
+# Resolve Node before spawning npm, Metro, or the dev runner.
+NODE_VERSION="$(awk '$1 == "nodejs" { print $2; exit }' "$ROOT_DIR/.tool-versions")"
+if [ "$(node -p 'process.versions.node')" != "$NODE_VERSION" ] && command -v fnm >/dev/null 2>&1; then
+  exec fnm exec --using="$NODE_VERSION" bash "$SCRIPT_DIR/dev.sh" "$@"
+fi
+
 source "$ROOT_DIR/scripts/dev-home.sh"
 
 export PATH="$ROOT_DIR/node_modules/.bin:$PATH"

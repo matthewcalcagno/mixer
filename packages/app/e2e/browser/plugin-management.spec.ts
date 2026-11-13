@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import overviewCorpus from "../../../protocol/tests/fixtures/plugin-overview.json";
 import { pluginRequirements } from "../support/helpers/plugin-fixture";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -96,6 +96,57 @@ base.beforeEach(async ({ e2eWorkerClient }, testInfo) => {
     action: "restart",
   });
 });
+
+base(
+  "Automations Ask AI submits its first draft using live host defaults",
+  async ({ page, e2eWorkerClient }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "@mixer:create-agent-preferences",
+        JSON.stringify({
+          provider: "mock",
+          providerPreferences: { mock: { model: "ten-second-stream" } },
+        }),
+      );
+    });
+    const before = new Set(
+      (await e2eWorkerClient.fetchAgents({ scope: "active" })).entries.map(({ agent }) => agent.id),
+    );
+    await gotoAppShell(page);
+    await page.getByRole("button", { name: "Automations", exact: true }).click();
+    const screen = page.getByTestId("automations-screen").filter({ visible: true });
+    await screen.getByRole("button", { name: "Ask Automations AI", exact: true }).click();
+    const assistant = screen.getByTestId("automations-assistant");
+    const message = assistant.getByRole("textbox", { name: "Message agent...", exact: true });
+    await expect(message).toBeVisible();
+    await expect(
+      assistant.getByRole("button", { name: "Select model (Ten second stream)", exact: true }),
+    ).toBeVisible();
+    await message.fill("AUTOMATIONS_COMPOSER_DEFAULTS_OK");
+    await assistant.getByRole("button", { name: "Minimize AI", exact: true }).click();
+    await screen.getByRole("button", { name: "Ask Automations AI", exact: true }).click();
+    await expect(message).toHaveValue("AUTOMATIONS_COMPOSER_DEFAULTS_OK");
+    await message.press("Enter");
+    const home = process.env.E2E_MIXER_HOME;
+    if (!home) throw new Error("Missing isolated daemon home");
+    const cwd = await realpath(path.join(home, "automations"));
+    await expect
+      .poll(async () => {
+        const { entries } = await e2eWorkerClient.fetchAgents({ scope: "active" });
+        return entries
+          .filter(({ agent }) => !before.has(agent.id))
+          .map(({ agent }) => ({ provider: agent.provider, cwd: agent.cwd }));
+      })
+      .toEqual([{ provider: "mock", cwd }]);
+    await expect(
+      assistant.getByText("Model defaults are still loading", { exact: true }),
+    ).toHaveCount(0);
+    await expect(assistant.getByText("Workspace directory not found", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page).toHaveURL(/\/plugin\/automations\//);
+  },
+);
 
 base(
   "Automations keeps Runs first and moves workflow files between folders and root",

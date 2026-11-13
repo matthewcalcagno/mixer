@@ -908,6 +908,7 @@ test("Automations starts with external plugins disabled and opens workflows from
       }),
     ).resolves.toEqual({
       workspaceId: expect.any(String),
+      cwd: await realpath(root),
       title: "Automation: review.md",
       systemPrompt: expect.stringContaining("review.md"),
     });
@@ -931,6 +932,7 @@ test("Automations starts with external plugins disabled and opens workflows from
     });
     expect(editingChat).toMatchObject({
       title: "Automation: smoke.yaml",
+      cwd: await realpath(root),
       workspaceId: expect.any(String),
     });
   } finally {

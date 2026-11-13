@@ -113,7 +113,7 @@ function resolveDraftModeId(input: {
   return null;
 }
 async function submitDraftCreateRequest(input: {
-  agentConfig?: { systemPrompt?: string; title?: string };
+  agentConfig?: { cwd?: string; systemPrompt?: string; title?: string };
   draftId: string;
   attempt: {
     clientMessageId: string;
@@ -262,15 +262,16 @@ function buildDraftInitialValues(input: {
 }
 function resolveDraftWorkingDirectory(input: {
   workspaceDirectory: string | null;
+  agentDirectory: string | undefined;
   initialSetup: WorkspaceDraftTabSetup | null;
 }): string | null {
   if (input.initialSetup) {
     return input.initialSetup.cwd;
   }
-  return input.workspaceDirectory;
+  return input.agentDirectory ?? input.workspaceDirectory;
 }
 interface WorkspaceDraftAgentTabProps {
-  agentConfig?: { systemPrompt?: string; title?: string };
+  agentConfig?: { cwd?: string; systemPrompt?: string; title?: string };
   serverId: string;
   workspaceId: string;
   tabId: string;
@@ -305,14 +306,11 @@ export function WorkspaceDraftAgentTab({
   const { t } = useTranslation();
   const client = useHostRuntimeClient(serverId);
   const isConnected = useHostRuntimeIsConnected(serverId);
-  const workspaceFields = useWorkspaceFields(serverId, workspaceId, (w) => ({
-    workspaceDirectory: w.workspaceDirectory,
-    id: w.id,
-  }));
-  const workspaceDirectory = workspaceFields?.workspaceDirectory || null;
+  const workspaceDirectory = useWorkspaceFields(serverId, workspaceId, (w) => w.workspaceDirectory);
   const draftSetup = initialSetup ?? null;
   const draftWorkingDirectory = resolveDraftWorkingDirectory({
     workspaceDirectory,
+    agentDirectory: agentConfig?.cwd,
     initialSetup: draftSetup,
   });
   const draftInitialValues = buildDraftInitialValues({
@@ -476,7 +474,7 @@ export function WorkspaceDraftAgentTab({
         cwd,
         client,
         workspaceDirectory: draftWorkingDirectory,
-        workspaceId: workspaceFields?.id ?? null,
+        workspaceId,
         autoSubmitConfig,
         composerState,
         hostDisconnectedMessage: t("workspace.terminal.hostDisconnected"),
