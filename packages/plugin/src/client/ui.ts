@@ -134,6 +134,8 @@ export type AgentChatProps = {
   onOpenAgent(agentId: string): void;
 } & ({ agentId: string; draft?: never } | { agentId?: never; draft: AgentChatDraft });
 export interface AgentChatDraft {
+  /** Working directory supplied by the owning workspace, including hidden workspaces. */
+  cwd?: string;
   id: string;
   systemPrompt?: string;
   title?: string;

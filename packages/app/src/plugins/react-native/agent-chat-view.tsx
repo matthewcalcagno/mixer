@@ -113,7 +113,7 @@ export default function AgentChatView({
         tabId,
         target: draft ? { kind: "draft", draftId: draft.id } : { kind: "agent", agentId: agentId! },
         draftAgentConfig: draft
-          ? { systemPrompt: draft.systemPrompt, title: draft.title }
+          ? { cwd: draft.cwd, systemPrompt: draft.systemPrompt, title: draft.title }
           : undefined,
         state,
         openTab: open,

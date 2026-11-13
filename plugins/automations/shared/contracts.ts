@@ -142,7 +142,12 @@ export const moveWorkflowRpc = defineRpc({
 export const prepareChatRpc = defineRpc({
   name: "automations.chat.prepare",
   input: z.object({ path: workflowId.optional() }),
-  output: z.object({ workspaceId: z.string(), title: z.string(), systemPrompt: z.string() }),
+  output: z.object({
+    workspaceId: z.string(),
+    cwd: z.string(),
+    title: z.string(),
+    systemPrompt: z.string(),
+  }),
 });
 
 export const runId = z.union([z.string().uuid(), z.string().regex(/^rp_[a-f0-9]{12}$/)]);

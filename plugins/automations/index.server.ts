@@ -82,6 +82,7 @@ export default function contribute(server: PluginServerContext) {
       : "Help the user with their Mixer Automations workflows. Only run them when the user asks.";
     return {
       workspaceId: workspace.id,
+      cwd: root,
       title: path ? `Automation: ${path}` : "Automations",
       systemPrompt: `${authoringContext}\n\n${instructions}`,
     };

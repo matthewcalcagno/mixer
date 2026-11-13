@@ -21,7 +21,7 @@ export interface PaneContextValue {
   retargetCurrentTab: (target: WorkspaceTabTarget) => void;
   setCurrentTabState: (state: JsonValue) => void;
   openFileInWorkspace: (request: WorkspaceFileOpenRequest) => void;
-  draftAgentConfig?: { systemPrompt?: string; title?: string };
+  draftAgentConfig?: { cwd?: string; systemPrompt?: string; title?: string };
   openImportSheet: () => void;
 }
 

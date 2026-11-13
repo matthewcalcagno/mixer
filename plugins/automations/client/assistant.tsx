@@ -36,7 +36,7 @@ export function AutomationAssistant({
     error,
     refetch,
   } = useQuery({
-    queryKey: ["automations", host.id, "assistant-workspace"],
+    queryKey: ["automations", host.id, "assistant-workspace-v2"],
     queryFn: () => prepare({}),
     enabled: visible,
     staleTime: Infinity,
