@@ -849,31 +849,30 @@ async function smokeAutomations(page) {
   await automation.getByRole("button", { name: "Stop", exact: true }).click();
   await automation.getByRole("button", { name: "Start", exact: true }).click();
   await automation.getByRole("button", { name: "Stop", exact: true }).waitFor();
-  await automation.getByRole("button", { name: "Workflows", exact: true }).click();
-  await automation.getByTestId("automations-workflows-table").waitFor();
-  await automation.getByRole("textbox", { name: "Workflow name" }).fill("packaged-smoke");
-  await automation.getByRole("button", { name: "Agent · Markdown", exact: true }).click();
-  await automation.getByRole("button", { name: "New workflow", exact: true }).click();
-
-  const editor = page.getByTestId("file-source-editor").filter({ visible: true });
-  const lines = editor.frameLocator("iframe").locator(".view-lines");
-  await lines.getByText("disabled:", { exact: false }).waitFor();
-  await lines.click();
+  await automation.getByRole("button", { name: "New file", exact: true }).click();
+  await automation.getByRole("textbox", { name: "Workflow filename" }).fill("packaged-smoke.yaml");
+  await automation.getByRole("textbox", { name: "Workflow filename", exact: true }).press("Enter");
+  const editor = automation
+    .getByTestId("plugin-source-editor")
+    .frameLocator("iframe")
+    .locator(".view-lines");
+  await editor.click();
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.insertText(
-    "name: Packaged automation smoke\nsteps:\n  - run: echo PACKAGED_AUTOMATION_OUTPUT\n",
+    "name: Packaged automation smoke\non: {}\nsteps:\n  - run: echo PACKAGED_AUTOMATION_OUTPUT\n",
   );
   await page.keyboard.press("ControlOrMeta+s");
-
-  await sidebar.click();
-  await automation.getByRole("button", { name: "Workflows", exact: true }).click();
-  await automation.getByText("Packaged automation smoke", { exact: true }).waitFor();
-  await automation.getByRole("button", { name: "Edit", exact: true }).click();
-  await lines.getByText("PACKAGED_AUTOMATION_OUTPUT", { exact: false }).waitFor();
-  await sidebar.click();
-  await automation.getByRole("button", { name: "Workflows", exact: true }).click();
+  await automation.getByText("Workflow saved.", { exact: true }).waitFor();
   await automation.getByRole("button", { name: "Run", exact: true }).click();
-  await automation.getByText("PACKAGED_AUTOMATION_OUTPUT", { exact: false }).waitFor();
+  await automation
+    .getByTestId("automations-run-inspector")
+    .getByText("scripted_steps_completed", { exact: true })
+    .waitFor();
+  await automation.getByRole("button", { name: "Logs", exact: true }).click();
+  assert.match(
+    await automation.getByRole("textbox", { name: "Run output", exact: true }).textContent(),
+    /PACKAGED_AUTOMATION_OUTPUT/,
+  );
   await automation.getByRole("button", { name: "Back to runs", exact: true }).click();
   await automation
     .getByTestId("automations-runs-table")
@@ -887,11 +886,11 @@ async function smokeAutomations(page) {
   await automation.getByRole("textbox", { name: "Filter runs" }).fill("no-such-automation");
   await automation.getByText("No matching runs.", { exact: true }).waitFor();
   await sidebar.click();
-  await automation.getByRole("button", { name: "Workflows", exact: true }).click();
-  await automation.getByRole("button", { name: "Chat", exact: true }).click();
-  await page.getByRole("textbox", { name: "Message agent..." }).waitFor();
+  await automation.getByRole("button", { name: "Open packaged-smoke.yaml", exact: true }).click();
+  await automation.getByRole("button", { name: "Ask Automations AI", exact: true }).click();
+  await automation.getByRole("textbox", { name: "Message agent..." }).waitFor();
   console.log(
-    "Packaged desktop smoke: Automations created and edited a workflow in Monaco, ran it, and opened Mixer chat",
+    "Packaged desktop smoke: Automations created and saved a workflow in Monaco, ran it, and opened its inline AI panel",
   );
 }
 

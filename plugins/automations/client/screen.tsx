@@ -1,39 +1,65 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pressable, ScrollView, Text, View, type PressableStateCallbackType } from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PluginTheme } from "@mixer/plugin";
 import {
   useRpc,
   useSettings,
+  useMixer,
   type PluginScreenProps,
   type PluginSurfaceProps,
 } from "@mixer/plugin/client";
-import { Button, confirmDialog, FileIcon, PaneHeader, TextInput } from "@mixer/plugin/client/ui";
+import {
+  Button,
+  Icon,
+  CodeEditor,
+  AGENT_CHAT_LAUNCHER_CLEARANCE,
+  Markdown,
+  PaneHeaderAction,
+  TextInput,
+  WorkspaceIsland,
+  WorkspaceLayout,
+  WorkspaceSidebar,
+  SegmentedControl,
+  SettingsSection,
+  SettingsCard,
+  SettingsRow,
+  EditorTabs,
+  AgentChat,
+  type AgentChatProps,
+  useToast,
+  type EditorTabsProps,
+} from "@mixer/plugin/client/ui";
+import { Workflows } from "./workflows.js";
+import { WorkflowLibrary } from "./library.js";
+import { AutomationAssistant } from "./assistant.js";
+import { useConfiguration } from "./configuration.js";
+import { inspectRunResult, runOverviewSummary, runStatusTone } from "../shared/run-inspection.js";
+import { RunLogs } from "./run-logs.js";
 import {
   automationSettings,
-  applyActionRpc,
-  chatRpc,
-  createRpc,
+  automationFileId,
   getRunRpc,
   importRpc,
   integrationSettings,
-  listRpc,
   listRunsRpc,
-  openRpc,
-  startRunRpc,
   runtimeStatusRpc,
   runtimeControlRpc,
+  startRunRpc,
+  replayRunRpc,
+  cancelRunRpc,
 } from "../shared/contracts.js";
 
 function useStyles(theme: PluginTheme) {
   return useMemo(() => {
     const c = theme.colors;
+    const baseSize = theme.typography?.base ?? 14;
+    const smallSize = theme.typography?.small ?? 12;
     return {
       screen: { flex: 1, minHeight: 0 },
       form: { flexDirection: "row" as const, gap: 8, alignItems: "center" as const, padding: 12 },
       settings: { padding: 16, gap: 8 },
       input: { padding: 8, color: c.foreground, backgroundColor: c.surface1 },
-      nameInput: { flex: 1, padding: 8, color: c.foreground, backgroundColor: c.surface1 },
       text: { color: c.foreground, fontSize: theme.typography?.chrome ?? 13 },
       name: { flex: 1, color: c.foreground, fontSize: theme.typography?.chrome ?? 13 },
       note: { color: c.foregroundMuted, padding: 12 },
@@ -43,9 +69,9 @@ function useStyles(theme: PluginTheme) {
         alignItems: "center" as const,
         justifyContent: "space-between" as const,
         flexWrap: "wrap" as const,
-        gap: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 6,
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
         borderBottomWidth: 1,
         borderBottomColor: c.border,
       },
@@ -53,38 +79,138 @@ function useStyles(theme: PluginTheme) {
         flexDirection: "row" as const,
         flexWrap: "wrap" as const,
         alignItems: "center" as const,
+        gap: 4,
+      },
+      content: {
+        flex: 1,
+        minHeight: 0,
+        padding: 16,
+        paddingBottom: AGENT_CHAT_LAUNCHER_CLEARANCE,
+      },
+      fill: { flex: 1, minHeight: 0 },
+      reading: {
+        width: "100%" as const,
+        maxWidth: 1280,
+        alignSelf: "center" as const,
+        gap: 16,
+        paddingVertical: 16,
+      },
+      inspector: {
+        flex: 1,
+        minHeight: 0,
+        width: "100%" as const,
+        alignSelf: "stretch" as const,
+        gap: 16,
+      },
+      inspectorContent: {
+        width: "100%" as const,
+        maxWidth: 1280,
+        alignSelf: "center" as const,
+      },
+      inspectorTabs: {
+        flexDirection: "row" as const,
+        flexWrap: "wrap" as const,
+        alignItems: "center" as const,
+        gap: 4,
+        width: "100%" as const,
+        maxWidth: 1280,
+        alignSelf: "center" as const,
+      },
+      inspectorLogs: {
+        flex: 1,
+        minHeight: 0,
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: theme.typography?.radius ?? 6,
+        overflow: "hidden" as const,
+        width: "100%" as const,
+        maxWidth: 1280,
+        alignSelf: "center" as const,
+      },
+      inspectorReading: {
+        width: "100%" as const,
+        maxWidth: 1280,
+        alignSelf: "center" as const,
+        gap: 16,
+        paddingVertical: 16,
+      },
+      runTitle: {
+        color: c.foreground,
+        fontSize: (baseSize * 20) / 14,
+        fontWeight: "600" as const,
+      },
+      runHeading: { gap: 8 },
+      metadata: {
+        flexDirection: "row" as const,
+        flexWrap: "wrap" as const,
+        alignItems: "center" as const,
         gap: 8,
       },
-      content: { flex: 1, minHeight: 0, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 12 },
+      metadataText: { color: c.foregroundMuted, fontSize: smallSize },
+      runSuccess: { color: c.statusSuccess, fontSize: smallSize },
+      runFailure: { color: c.statusDanger, fontSize: smallSize },
+      runWarning: { color: c.statusWarning, fontSize: smallSize },
+      runStatus: { color: c.foregroundMuted, fontSize: smallSize },
+      cardBody: { padding: 16, gap: 12 },
+      resultText: {
+        color: c.foreground,
+        fontSize: baseSize,
+        lineHeight: baseSize * 1.6,
+      },
+      logs: {
+        flex: 1,
+        minHeight: 0,
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: theme.typography?.radius ?? 6,
+        overflow: "hidden" as const,
+      },
+      contextEditor: { height: 260, minHeight: 0 },
+      section: { gap: 12, paddingVertical: 12 },
+      hidden: { display: "none" as const },
       field: { gap: 8, marginBottom: 16 },
       fieldLabel: { color: c.foregroundMuted, fontSize: 12 },
-      ask: { alignSelf: "flex-end" as const, marginHorizontal: 16, marginBottom: 16 },
       success: { color: c.statusSuccess },
       danger: { color: c.statusDanger },
+      warning: { color: c.statusWarning },
       muted: { color: c.foregroundMuted },
       runHeader: {
         flexDirection: "row" as const,
         alignItems: "center" as const,
-        gap: 8,
-        paddingHorizontal: 10,
+        gap: 16,
+        minHeight: 40,
+        paddingHorizontal: 16,
+        backgroundColor: c.surface1,
         borderBottomWidth: 1,
         borderBottomColor: c.border,
       },
       runRow: {
         flexDirection: "row" as const,
         alignItems: "center" as const,
-        gap: 8,
-        paddingHorizontal: 10,
+        gap: 16,
+        minHeight: 52,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: c.border,
       },
-      output: {
-        color: c.foreground,
-        padding: 12,
-        fontFamily: "monospace",
-        backgroundColor: c.surface1,
+      runRowTarget: { position: "relative" as const },
+      runRowHover: { backgroundColor: c.surface2 },
+      runRowFocus: { backgroundColor: c.surface2, borderBottomColor: c.inputFocus },
+      runRowPressed: { backgroundColor: c.surface1 },
+      runId: { fontFamily: theme.typography?.monoFontFamily, fontSize: smallSize },
+      runDisclosure: { width: 16, alignItems: "center" as const },
+      runDisclosureHidden: { opacity: 0 },
+      table: {
+        flex: 1,
+        minWidth: 1010,
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: theme.typography?.radius ?? 6,
+        overflow: "hidden" as const,
+        alignSelf: "flex-start" as const,
       },
-      table: { flex: 1, minWidth: 740 },
       tableScroll: { flexGrow: 1 },
-      tableHeader: { color: c.foregroundMuted },
+      tableHeader: { color: c.foregroundMuted, fontSize: smallSize, fontWeight: "500" as const },
       filter: {
         paddingHorizontal: 10,
         height: 36,
@@ -92,29 +218,6 @@ function useStyles(theme: PluginTheme) {
         borderColor: c.border,
         borderRadius: 6,
         color: c.foreground,
-      },
-      workflowCell: {
-        flex: 1,
-        minWidth: 0,
-        flexDirection: "row" as const,
-        alignItems: "center" as const,
-        gap: 8,
-      },
-      workflowActions: {
-        width: 206,
-        flexDirection: "row" as const,
-        alignItems: "center" as const,
-        gap: 4,
-      },
-      workflowInfo: { flex: 1, minWidth: 0, paddingVertical: 8 },
-      workflowDetail: { color: c.foregroundMuted, fontSize: 12 },
-      row: {
-        flexDirection: "row" as const,
-        alignItems: "center" as const,
-        gap: 8,
-        paddingHorizontal: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: c.border,
       },
     };
   }, [theme]);
@@ -124,153 +227,40 @@ type Styles = ReturnType<typeof useStyles>;
 function Action({
   label,
   onPress,
-  color,
   disabled,
 }: {
   label: string;
   onPress(): void;
-  color: string;
   disabled?: boolean;
 }) {
-  const style = useMemo(
-    () => ({ paddingHorizontal: 8, paddingVertical: 6, opacity: disabled ? 0.5 : 1 }),
-    [disabled],
-  );
-  const text = useMemo(() => ({ color, fontSize: 13 }), [color]);
   return (
-    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={style}>
-      <Text style={text}>{label}</Text>
-    </Pressable>
+    <Button variant="ghost" size="xs" disabled={disabled} onPress={onPress}>
+      {label}
+    </Button>
   );
 }
 
-function WorkflowRow({
-  path,
-  name,
-  detail,
-  state,
-  onHistory,
-  runnable,
-  onRun,
-  styles,
-  color,
-  busy,
-  canEdit,
-  canChat,
-  onEdit,
-  onChat,
-}: {
-  path: string;
-  name: string;
-  detail: string;
-  state: string;
-  onHistory(path: string): void;
-  runnable: boolean;
-  onRun(path: string): void;
-  styles: Styles;
-  color: string;
-  busy: boolean;
-  canEdit: boolean;
-  canChat: boolean;
-  onEdit(path: string): void;
-  onChat(path: string): void;
-}) {
-  const history = useCallback(() => onHistory(path), [onHistory, path]);
-  const run = useCallback(() => onRun(path), [onRun, path]);
-  const edit = useCallback(() => onEdit(path), [onEdit, path]);
-  const chat = useCallback(() => onChat(path), [onChat, path]);
-  return (
-    <View style={styles.row}>
-      <View style={styles.workflowCell}>
-        <FileIcon fileName={path} size={16} />
-        <View style={styles.workflowInfo}>
-          <Text numberOfLines={1} style={styles.text}>
-            {name}
-          </Text>
-          <Text style={styles.workflowDetail}>{detail}</Text>
-        </View>
-      </View>
-      <TableCell value={state} width={120} styles={styles} />
-      <View style={styles.workflowActions}>
-        <Action label="History" color={color} onPress={history} />
-        <Action label="Run" color={color} disabled={busy || !runnable} onPress={run} />
-        <Action label="Edit" color={color} disabled={busy || !canEdit} onPress={edit} />
-        <Action label="Chat" color={color} disabled={busy || !canChat} onPress={chat} />
-      </View>
-    </View>
-  );
+type AutomationsPage = "Runs" | "Workflows" | { kind: "agent"; agentId: string };
+
+export function AutomationsScreen(props: PluginScreenProps) {
+  return <AutomationsWorkspace key={props.host.id} {...props} />;
 }
 
-type AutomationsPage = "Runs" | "Workflows" | "Integrations" | "Diagnostics";
-
-export function AutomationsScreen({ theme, navigation, host }: PluginScreenProps) {
-  const list = useRpc(listRpc);
-  const open = useRpc(openRpc);
-  const create = useRpc(createRpc);
-  const chat = useRpc(chatRpc);
-  const start = useRpc(startRunRpc);
+function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenProps) {
+  const mixer = useMixer();
+  const toast = useToast();
+  const [agentTabs, setAgentTabs] = useState<{ agentId: string; workspaceId: string }[]>([]);
   const [page, setPage] = useState<AutomationsPage>("Runs");
   const [selectedRun, setSelectedRun] = useState<string>();
-  const [kind, setKind] = useState<"agent" | "steps">("agent");
-  const {
-    data,
-    error: loadError,
-    isPending,
-    refetch,
-  } = useQuery({
-    queryKey: ["automations", host.id, "workflows"],
-    queryFn: () => list({}),
-    refetchInterval: page === "Workflows" ? 5_000 : false,
-  });
-  const [filter, setFilter] = useState("");
   const [workflowFilter, setWorkflowFilter] = useState("");
-  const workflows = data?.workflows.filter((item) =>
-    `${item.name} ${item.path} ${item.repositories.join(" ")}`
-      .toLowerCase()
-      .includes(filter.trim().toLowerCase()),
-  );
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [sideOpen, setSideOpen] = useState(!layout.compact);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [documents, setDocuments] = useState<{
+    selected: string;
+    paths: string[];
+    dirtyPaths: Set<string>;
+  }>({ selected: "", paths: [], dirtyPaths: new Set() });
   const styles = useStyles(theme);
-  const perform = useCallback(async (action: () => Promise<void>) => {
-    setBusy(true);
-    setError("");
-    try {
-      await action();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-  const openEditor = navigation?.openFile;
-  const newWorkflow = useCallback(() => {
-    void perform(async () => {
-      const result = await create({ name, kind });
-      setName("");
-      openEditor?.({ ...result, serverId: host.id });
-      await refetch();
-    });
-  }, [create, host.id, kind, name, openEditor, perform, refetch]);
-  const editWorkflow = useCallback(
-    (path: string) => {
-      void perform(async () => {
-        const result = await open({ path });
-        openEditor?.({ ...result, serverId: host.id });
-      });
-    },
-    [host.id, open, openEditor, perform],
-  );
-  const chatWorkflow = useCallback(
-    (path: string) => {
-      void perform(async () => {
-        const result = await chat({ path });
-        navigation?.openAgent({ ...result, serverId: host.id });
-      });
-    },
-    [chat, host.id, navigation, perform],
-  );
   const navigate = useCallback((target: AutomationsPage) => {
     if (target === "Runs") {
       setWorkflowFilter("");
@@ -278,165 +268,232 @@ export function AutomationsScreen({ theme, navigation, host }: PluginScreenProps
     }
     setPage(target);
   }, []);
-  const askAgent = useCallback(() => {
-    void perform(async () => {
-      const result = await chat({});
-      navigation?.openAgent({ ...result, serverId: host.id });
-    });
-  }, [chat, host.id, navigation, perform]);
+  const openConversation = useCallback(
+    async (agentId: string) => {
+      try {
+        const agent = mixer.agents.ref(agentId);
+        await agent.refresh();
+        const workspaceId = agent.workspaceId;
+        if (!workspaceId) throw new Error("This agent has no workspace.");
+        setAgentTabs((previous) =>
+          previous.some((tab) => tab.agentId === agentId)
+            ? previous
+            : [...previous, { agentId, workspaceId }],
+        );
+        setPage({ kind: "agent", agentId });
+        setAiOpen(false);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not open the agent conversation.",
+        );
+      }
+    },
+    [mixer, toast],
+  );
+  const selectWorkflow = useCallback(
+    (path: string) => {
+      setDocuments((previous) => ({
+        ...previous,
+        selected: path,
+        paths: previous.paths.includes(path) ? previous.paths : [...previous.paths, path],
+      }));
+      setPage("Workflows");
+      if (layout.compact) setSideOpen(false);
+    },
+    [layout.compact],
+  );
+  const closeWorkflow = useCallback(
+    (path: string) =>
+      setDocuments((previous) => {
+        if (previous.dirtyPaths.has(path)) return previous;
+        const paths = previous.paths.filter((item) => item !== path);
+        return {
+          ...previous,
+          paths,
+          selected: previous.selected === path ? (paths.at(-1) ?? "") : previous.selected,
+        };
+      }),
+    [],
+  );
+  const changeDirty = useCallback(
+    (path: string, dirty: boolean) =>
+      setDocuments((previous) => {
+        if (previous.dirtyPaths.has(path) === dirty) return previous;
+        const dirtyPaths = new Set(previous.dirtyPaths);
+        if (dirty) dirtyPaths.add(path);
+        else dirtyPaths.delete(path);
+        return { ...previous, dirtyPaths };
+      }),
+    [],
+  );
+  const movedWorkflow = useCallback((from: string, to: string) => {
+    setDocuments((previous) => ({
+      ...previous,
+      selected: previous.selected === from ? to : previous.selected,
+      paths: [...new Set(previous.paths.map((path) => (path === from ? to : path)))],
+    }));
+  }, []);
+  const clearFilter = useCallback(() => setWorkflowFilter(""), []);
+  const workflowsActive = page === "Workflows" && documents.paths.length > 0;
+  let selectedTab = workflowsActive ? documents.selected : "runs";
+  if (typeof page === "object") selectedTab = `agent:${page.agentId}`;
+  const files = useMemo<EditorTabsProps["files"]>(
+    () => [
+      ...documents.paths.map((path) => ({ path, dirty: documents.dirtyPaths.has(path) })),
+      ...agentTabs.map((tab) => ({
+        path: `agent:${tab.agentId}`,
+        kind: "agent" as const,
+        label: "Agent",
+      })),
+    ],
+    [documents.paths, documents.dirtyPaths, agentTabs],
+  );
+  const selectTab = useCallback(
+    (path: string) => {
+      if (path === "runs") navigate("Runs");
+      else if (path.startsWith("agent:")) setPage({ kind: "agent", agentId: path.slice(6) });
+      else selectWorkflow(path);
+    },
+    [navigate, selectWorkflow],
+  );
+  const closeTab = useCallback(
+    (path: string) => {
+      if (!path.startsWith("agent:")) {
+        closeWorkflow(path);
+        return;
+      }
+      const agentId = path.slice(6);
+      setAgentTabs((previous) => previous.filter((tab) => tab.agentId !== agentId));
+      setPage((previous) =>
+        typeof previous === "object" && previous.agentId === agentId ? "Runs" : previous,
+      );
+    },
+    [closeWorkflow],
+  );
+  const openAgentFile = useCallback(
+    (path: string) => {
+      if (automationFileId.safeParse(path).success) selectWorkflow(path);
+      else toast.error("Only workflow files can be opened in Automations.");
+    },
+    [selectWorkflow, toast],
+  );
+  const workflowStyle = useMemo(
+    () => [styles.fill, !workflowsActive && styles.hidden],
+    [styles, workflowsActive],
+  );
   const showHistory = useCallback((path: string) => {
     setWorkflowFilter(path);
     setSelectedRun(undefined);
     setPage("Runs");
   }, []);
-  const changeKind = useCallback(
-    () => setKind((current) => (current === "agent" ? "steps" : "agent")),
-    [],
-  );
-  const runWorkflow = useCallback(
-    (path: string) => {
-      void perform(async () => {
-        const { id } = await start({ path });
-        setSelectedRun(id);
-        setPage("Runs");
-      });
-    },
-    [perform, start],
-  );
+  const showRun = useCallback((id: string) => {
+    setSelectedRun(id);
+    setPage("Runs");
+  }, []);
   return (
     <View style={styles.screen} testID="automations-screen">
-      <AutomationsToolbar page={page} navigate={navigate} theme={theme} host={host} />
-      {!!error && (
-        <Text accessibilityRole="alert" style={styles.error}>
-          {error}
-        </Text>
-      )}
-      <View style={styles.content}>
-        {page === "Runs" ? (
-          <RunsView
-            key={host.id}
+      <WorkspaceLayout>
+        <WorkspaceIsland>
+          <AutomationsToolbar
+            files={files}
+            selected={selectedTab}
+            selectTab={selectTab}
+            closeTab={closeTab}
+            theme={theme}
+            host={host}
+          />
+          <View style={workflowStyle}>
+            <Workflows
+              active={workflowsActive}
+              theme={theme}
+              host={host}
+              selected={documents.selected}
+              paths={documents.paths}
+              dirtyPaths={documents.dirtyPaths}
+              select={selectWorkflow}
+              close={closeWorkflow}
+              onHistory={showHistory}
+              onRun={showRun}
+              onDirtyChange={changeDirty}
+            />
+          </View>
+          {agentTabs.map((tab) => (
+            <AutomationConversation
+              key={tab.agentId}
+              serverId={host.id}
+              conversation={tab}
+              active={typeof page === "object" && page.agentId === tab.agentId}
+              onOpenFile={openAgentFile}
+              onOpenAgent={openConversation}
+            />
+          ))}
+          {!workflowsActive && typeof page === "string" && (
+            <View style={styles.content}>
+              <RunsView
+                key={host.id}
+                theme={theme}
+                host={host}
+                openConversation={openConversation}
+                workflowFilter={workflowFilter}
+                selectedRun={selectedRun}
+                selectRun={setSelectedRun}
+                openWorkflow={selectWorkflow}
+                clearFilter={clearFilter}
+              />
+            </View>
+          )}
+          <AutomationAssistant
             theme={theme}
             host={host}
             navigation={navigation}
-            workflowFilter={workflowFilter}
-            selectedRun={selectedRun}
-            selectRun={setSelectedRun}
+            path={documents.selected}
+            dirty={documents.dirtyPaths.size > 0}
+            visible={aiOpen}
+            launcherVisible={typeof page !== "object"}
+            onOpenChange={setAiOpen}
+            selectFile={selectWorkflow}
+            openConversation={openConversation}
           />
-        ) : null}
-        {page === "Integrations" && (
-          <ScrollView>
-            <AutomationsSettings theme={theme} />
-          </ScrollView>
-        )}
-        {page === "Diagnostics" && <AutomationsDiagnostics theme={theme} host={host} />}
-        {page === "Workflows" && (
-          <>
-            <View style={styles.form}>
-              <TextInput
-                accessibilityLabel="Workflow name"
-                value={name}
-                onChangeText={setName}
-                placeholder="Workflow name"
-                placeholderTextColor={theme.colors.foregroundMuted}
-                style={styles.nameInput}
-              />
-              <Action
-                label={kind === "agent" ? "Agent · Markdown" : "Shell · YAML"}
-                color={theme.colors.foreground}
-                onPress={changeKind}
-              />
-              <Action
-                label="New workflow"
-                color={theme.colors.accent}
-                disabled={busy || !name.trim() || !openEditor}
-                onPress={newWorkflow}
-              />
-            </View>
-            {loadError && (
-              <Text accessibilityRole="alert" style={styles.error}>
-                {loadError.message}
-              </Text>
-            )}
-            <TextInput
-              accessibilityLabel="Filter workflows"
-              placeholder="Search workflows"
-              value={filter}
-              onChangeText={setFilter}
-              style={styles.filter}
-            />
-            <ScrollView>
-              <ScrollView horizontal contentContainerStyle={styles.tableScroll}>
-                <View style={styles.table} testID="automations-workflows-table">
-                  <WorkflowTableHeader styles={styles} />
-                  {isPending && <Text style={styles.note}>Loading workflows…</Text>}
-                  {workflows?.length === 0 && (
-                    <Text style={styles.note}>No matching workflows.</Text>
-                  )}
-                  {workflows?.map((workflow) => (
-                    <WorkflowRow
-                      key={workflow.path}
-                      path={workflow.path}
-                      name={workflow.name}
-                      detail={[workflow.path, ...workflow.repositories, workflow.error]
-                        .filter(Boolean)
-                        .join(" · ")}
-                      state={workflowStatus(workflow)}
-                      onHistory={showHistory}
-                      runnable={!workflow.disabled && !workflow.error}
-                      onRun={runWorkflow}
-                      styles={styles}
-                      color={theme.colors.foreground}
-                      busy={busy}
-                      canEdit={!!openEditor}
-                      canChat={!!navigation}
-                      onEdit={editWorkflow}
-                      onChat={chatWorkflow}
-                    />
-                  ))}
-                  {data?.limited && (
-                    <Text style={styles.note}>Showing a limited set of workflows.</Text>
-                  )}
-                </View>
-              </ScrollView>
-            </ScrollView>
-          </>
-        )}
-      </View>
-      {navigation && (
-        <View style={styles.ask}>
-          <Button
-            size="sm"
-            variant="outline"
-            icon="MessageSquare"
-            onPress={askAgent}
-            disabled={busy}
-          >
-            Ask agent
-          </Button>
-        </View>
-      )}
+        </WorkspaceIsland>
+        <WorkspaceSidebar
+          persistenceKey={`automations:${host.id}`}
+          open={sideOpen}
+          onOpenChange={setSideOpen}
+          compact={layout.compact}
+          testID="automations-sidebar"
+        >
+          <WorkflowLibrary
+            dirtyPaths={documents.dirtyPaths}
+            moved={movedWorkflow}
+            theme={theme}
+            host={host}
+            selected={documents.selected}
+            select={selectWorkflow}
+          />
+        </WorkspaceSidebar>
+      </WorkspaceLayout>
     </View>
   );
 }
 
-const pages = ["Runs", "Workflows", "Integrations", "Diagnostics"] as const;
+const fixedTabs = [{ id: "runs", label: "Runs" }];
 
-function AutomationsTab({
-  page,
-  selected,
-  navigate,
-}: {
-  page: AutomationsPage;
-  selected: boolean;
-  navigate(page: AutomationsPage): void;
+function AutomationConversation({
+  conversation,
+  active,
+  ...props
+}: Pick<AgentChatProps, "serverId" | "onOpenFile" | "onOpenAgent"> & {
+  conversation: { agentId: string; workspaceId: string };
+  active: boolean;
 }) {
-  const press = useCallback(() => navigate(page), [navigate, page]);
   return (
-    <Button variant={selected ? "secondary" : "ghost"} size="md" onPress={press}>
-      {page}
-    </Button>
+    <View style={active ? agentPaneStyle : hiddenAgentPaneStyle} testID="automations-agent-tab">
+      <AgentChat {...props} {...conversation} active={active} />
+    </View>
   );
 }
+const agentPaneStyle = { flex: 1, minHeight: 0 };
+const hiddenAgentPaneStyle = { display: "none" } as const;
 
 function useRuntimeStatus(host: PluginScreenProps["host"]) {
   const status = useRpc(runtimeStatusRpc);
@@ -448,17 +505,21 @@ function useRuntimeStatus(host: PluginScreenProps["host"]) {
 }
 
 function AutomationsToolbar({
-  page,
-  navigate,
+  files,
+  selected,
+  selectTab,
+  closeTab,
   theme,
   host,
 }: Pick<PluginScreenProps, "theme" | "host"> & {
-  page: AutomationsPage;
-  navigate(page: AutomationsPage): void;
+  files: EditorTabsProps["files"];
+  selected: string;
+  selectTab(path: string): void;
+  closeTab(path: string): void;
 }) {
   const styles = useStyles(theme);
   const query = useQueryClient();
-  const { data } = useRuntimeStatus(host);
+  const { data, error: statusError, isFetching } = useRuntimeStatus(host);
   const control = useRpc(runtimeControlRpc);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -487,53 +548,89 @@ function AutomationsToolbar({
   const restart = useCallback(() => {
     void change("restart");
   }, [change]);
+  const reviewConfiguration = useCallback(() => selectTab("config.json"), [selectTab]);
   return (
     <>
       <View style={styles.toolbar}>
+        <EditorTabs
+          files={files}
+          fixedTabs={fixedTabs}
+          selected={selected}
+          onSelect={selectTab}
+          onClose={closeTab}
+        />
         <View style={styles.toolbarGroup}>
-          {pages.map((tab) => (
-            <AutomationsTab key={tab} page={tab} selected={tab === page} navigate={navigate} />
-          ))}
-        </View>
-        <View style={styles.toolbarGroup}>
-          <Button variant="outline" size="sm" icon="RefreshCw" onPress={refresh}>
-            Refresh
-          </Button>
+          <PaneHeaderAction
+            label="Refresh"
+            icon="RefreshCw"
+            onPress={refresh}
+            disabled={isFetching}
+          />
+          <PaneHeaderAction
+            icon="Settings"
+            label="Automations configuration"
+            onPress={reviewConfiguration}
+          />
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghost"
+            size="xs"
             icon="Power"
             onPress={toggle}
             disabled={busy || !data}
+            loading={busy}
           >
             {data?.paused ? "Start" : "Stop"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          <PaneHeaderAction
+            label="Restart"
             icon="RotateCw"
             onPress={restart}
             disabled={busy || !data}
-          >
-            Restart
-          </Button>
+          />
         </View>
       </View>
-      {!!error && (
+      {!!(error || statusError) && (
         <Text accessibilityRole="alert" style={styles.error}>
-          {error}
+          {error || statusError?.message}
         </Text>
       )}
+      {data?.errors.map((issue) => (
+        <Text key={issue.source} accessibilityRole="alert" style={styles.error}>
+          {issue.message}
+        </Text>
+      ))}
+      {data?.notices?.map((notice) => (
+        <View key={notice.source} style={styles.toolbarGroup}>
+          <Text style={styles.metadataText}>{notice.message}</Text>
+          <Button size="xs" variant="ghost" onPress={reviewConfiguration}>
+            Review configuration
+          </Button>
+        </View>
+      ))}
     </>
+  );
+}
+
+export function AutomationsPreferences(props: PluginSurfaceProps) {
+  return (
+    <View testID="automations-preferences">
+      <SettingsSection title="Configuration">
+        <AutomationsSettings theme={props.theme} />
+      </SettingsSection>
+      <SettingsSection title="Diagnostics">
+        <AutomationsDiagnostics theme={props.theme} host={props.host} />
+      </SettingsSection>
+    </View>
   );
 }
 
 function AutomationsDiagnostics({ theme, host }: Pick<PluginScreenProps, "theme" | "host">) {
   const styles = useStyles(theme);
-  const { data, error } = useRuntimeStatus(host);
+  const { data, error, isPending } = useRuntimeStatus(host);
   return (
     <View style={styles.field}>
       <Text style={styles.text}>{host.label}</Text>
+      {isPending && <Text style={styles.note}>Loading diagnostics…</Text>}
       {error && <Text style={styles.error}>{error.message}</Text>}
       {data && (
         <>
@@ -542,66 +639,90 @@ function AutomationsDiagnostics({ theme, host }: Pick<PluginScreenProps, "theme"
             Webhook listener · {data.listening ? "Listening" : "Inactive"}
           </Text>
           <Text style={styles.text}>Queued or running · {data.pending}</Text>
+          <Text style={styles.text}>
+            Schedules · {data.schedulesEnabled ? "Enabled" : "Disabled"}
+          </Text>
+          <Text style={styles.note}>
+            Readiness checks host configuration, not API permissions. Failed requests appear below.
+          </Text>
+          {data.integrations.map((integration) => (
+            <View key={integration.name} style={styles.field}>
+              <Text style={styles.text}>
+                {integration.name} · {integration.ready ? "Ready" : "Not ready"}
+              </Text>
+              <Text style={styles.muted}>{integration.message}</Text>
+            </View>
+          ))}
+          {data.errors.map(({ source, message }) => (
+            <Text key={source} accessibilityRole="alert" style={styles.error}>
+              {source}: {message}
+            </Text>
+          ))}
         </>
       )}
     </View>
   );
 }
 
-function WorkflowTableHeader({ styles }: { styles: Styles }) {
-  return (
-    <View style={styles.row}>
-      <TableCell value="Workflow" styles={styles} heading />
-      <TableCell value="Status" width={120} styles={styles} heading />
-      <TableCell value="Actions" width={206} styles={styles} heading />
-    </View>
-  );
-}
-
-function workflowStatus(workflow: (typeof listRpc.output)["_output"]["workflows"][number]) {
-  if (workflow.error) return "Invalid";
-  if (workflow.disabled) return "Disabled";
-  return workflow.cron ?? (workflow.triggers.length ? workflow.triggers.join(", ") : "Manual");
-}
-
 function RunsView({
   theme,
   host,
-  navigation,
+  openConversation,
   selectedRun,
   workflowFilter,
   selectRun,
-}: Pick<PluginScreenProps, "theme" | "host" | "navigation"> & {
+  openWorkflow,
+  clearFilter,
+}: Pick<PluginScreenProps, "theme" | "host"> & {
+  openConversation(agentId: string): void;
   selectedRun?: string;
   workflowFilter: string;
   selectRun(id?: string): void;
+  openWorkflow(path: string): void;
+  clearFilter(): void;
 }) {
   const back = useCallback(() => selectRun(), [selectRun]);
   return selectedRun ? (
     <RunDetails
+      key={selectedRun}
       theme={theme}
       host={host}
-      navigation={navigation}
+      openConversation={openConversation}
       selectedRun={selectedRun}
       back={back}
+      openWorkflow={openWorkflow}
+      selectRun={selectRun}
     />
   ) : (
-    <RunHistory theme={theme} host={host} selectRun={selectRun} workflowFilter={workflowFilter} />
+    <RunHistory
+      key={workflowFilter}
+      theme={theme}
+      host={host}
+      selectRun={selectRun}
+      workflowFilter={workflowFilter}
+      clearFilter={clearFilter}
+    />
   );
 }
 
 function RunDetails({
   theme,
   host,
-  navigation,
+  openConversation,
   selectedRun,
   back,
-}: Pick<PluginScreenProps, "theme" | "host" | "navigation"> & {
+  openWorkflow,
+  selectRun,
+}: Pick<PluginScreenProps, "theme" | "host"> & {
+  openConversation(agentId: string): void;
   selectedRun: string;
   back(): void;
+  openWorkflow(path: string): void;
+  selectRun(id: string): void;
 }) {
   const styles = useStyles(theme);
   const get = useRpc(getRunRpc);
+  const [tab, setTab] = useState("Overview");
   const run = useQuery({
     queryKey: ["automations", host.id, "run", selectedRun],
     queryFn: () => get({ id: selectedRun }),
@@ -610,104 +731,431 @@ function RunDetails({
       return !status || status === "running" || status === "queued" ? 1_000 : false;
     },
   });
-  const agentId = run.data?.agentId;
-  const openAgent = useCallback(() => {
-    if (agentId) navigation?.openAgent({ agentId, serverId: host.id });
-  }, [agentId, host.id, navigation]);
+  const edit = useCallback(() => {
+    if (run.data) openWorkflow(run.data.path);
+  }, [run.data, openWorkflow]);
+  const tabs = useMemo(() => {
+    return runInspectionTabs(run.data).map((value) => ({ value, label: value }));
+  }, [run.data]);
   return (
-    <>
-      <PaneHeader title={run.data?.name ?? "Run details"}>
-        <Action label="Back to runs" color={theme.colors.foreground} onPress={back} />
-      </PaneHeader>
-      <ScrollView>
-        {run.data ? (
-          <>
-            <Text style={styles.note}>
-              {[
-                run.data.path,
-                run.data.sourceStatus ?? run.data.status,
-                run.data.trigger,
-                run.data.repository,
-                run.data.revision?.slice(0, 12),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
+    <View style={styles.inspector} testID="automations-run-inspector">
+      <View style={styles.toolbarGroup}>
+        <Button
+          size="xs"
+          variant="ghost"
+          icon="ChevronLeft"
+          accessibilityLabel="Back to runs"
+          flushStart
+          onPress={back}
+        >
+          Runs
+        </Button>
+      </View>
+      {run.data && <RunHeading run={run.data} styles={styles} />}
+      {run.error && (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {run.error.message}
+        </Text>
+      )}
+      <View style={styles.inspectorTabs}>
+        <SegmentedControl options={tabs} value={tab} onValueChange={setTab} size="xs" />
+      </View>
+      {tab === "Logs" && run.data ? (
+        <View style={styles.inspectorLogs}>
+          <RunLogs
+            output={run.data.output}
+            active={run.data.status === "running" || run.data.status === "queued"}
+            theme={theme}
+          />
+        </View>
+      ) : (
+        <ScrollView>
+          {run.data ? (
+            <View style={styles.inspectorReading}>
+              {tab === "Details" && <RunMetadata run={run.data} styles={styles} edit={edit} />}
+              {tab === "Actions" && <RunActions run={run.data} theme={theme} />}
+              {tab === "Steps" && run.data.engine && (
+                <SettingsSection title="Scripted steps">
+                  <View style={styles.contextEditor}>
+                    <CodeEditor
+                      language="json"
+                      label="Recorded steps"
+                      value={JSON.stringify(run.data.engine.steps, null, 2)}
+                      readOnly
+                    />
+                  </View>
+                </SettingsSection>
+              )}
+              {tab === "Overview" && (
+                <RunSummary
+                  run={run.data}
+                  styles={styles}
+                  openConversation={openConversation}
+                  edit={edit}
+                  selectRun={selectRun}
+                />
+              )}
+            </View>
+          ) : (
+            <Text style={run.error ? styles.error : styles.note}>
+              {run.error?.message ?? "Loading run…"}
             </Text>
-            {run.data.error && <Text style={styles.error}>{run.data.error}</Text>}
-            {run.data.actionError && <Text style={styles.error}>{run.data.actionError}</Text>}
-            {run.data.action && (
-              <SafeActionRow
-                id={selectedRun}
-                action={run.data.action}
-                refresh={run.refetch}
-                theme={theme}
-              />
-            )}
-            {agentId && navigation && (
-              <Action label="Open agent" color={theme.colors.accent} onPress={openAgent} />
-            )}
-            <Text selectable style={styles.output}>
-              {run.data.output || "No output yet."}
-            </Text>
-          </>
-        ) : (
-          <Text style={run.error ? styles.error : styles.note}>
-            {run.error?.message ?? "Loading run…"}
-          </Text>
-        )}
-      </ScrollView>
-    </>
+          )}
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
-function SafeActionRow({
-  id,
-  action,
-  refresh,
-  theme,
-}: {
-  id: string;
-  action: NonNullable<(typeof getRunRpc.output)["_output"]["action"]>;
-  refresh(): Promise<unknown>;
-  theme: PluginTheme;
-}) {
+type AutomationRun = (typeof getRunRpc.output)["_output"];
+function runInspectionTabs(run: AutomationRun | undefined) {
+  const tabs = ["Overview", "Logs", "Details"];
+  if (run?.engine?.steps.length) tabs.push("Steps");
+  if (
+    run &&
+    (run.engine?.actions.length || run.action || run.actionError || run.actionAttempts.length)
+  )
+    tabs.push("Actions");
+  return tabs;
+}
+function RunActions({ run, theme }: { run: AutomationRun; theme: PluginTheme }) {
   const styles = useStyles(theme);
-  const apply = useRpc(applyActionRpc);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const label = action.name === "github.pr.merge" ? "Merge PR" : "Approve PR";
-  const confirm = useCallback(async () => {
-    setPending(true);
-    setError("");
-    try {
-      const accepted = await confirmDialog({
-        title: label,
-        message: `${action.repository} #${action.number} at ${action.sha.slice(0, 12)}`,
-        confirmLabel: label,
-      });
-      if (!accepted) return;
-      await apply({ id, action: action.name, sha: action.sha });
-      await refresh();
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
-    } finally {
-      setPending(false);
-    }
-  }, [action, apply, id, label, refresh]);
+  if (run.engine)
+    return (
+      <SettingsSection title="Safe Actions">
+        <View style={styles.contextEditor}>
+          <CodeEditor
+            language="json"
+            label="Recorded Safe Actions"
+            value={JSON.stringify(run.engine.actions, null, 2)}
+            readOnly
+          />
+        </View>
+      </SettingsSection>
+    );
   return (
-    <View style={styles.form}>
-      <Text style={styles.name}>
-        {label} · {action.status} {action.message ?? ""}
+    <View>
+      {run.actionError && <Text style={styles.error}>{run.actionError}</Text>}
+      <Text style={styles.note}>
+        Legacy Safe Action proposals are read-only. Review their external state before starting a
+        new engine run.
       </Text>
-      {!!error && (
-        <Text accessibilityRole="alert" style={styles.error}>
-          {error}
-        </Text>
+      {run.action && (
+        <View style={styles.contextEditor}>
+          <CodeEditor
+            language="json"
+            label="Legacy Safe Action"
+            value={JSON.stringify(run.action, null, 2)}
+            readOnly
+          />
+        </View>
       )}
-      {action.status === "proposed" && (
-        <Action label={label} disabled={pending} onPress={confirm} color={theme.colors.accent} />
+      <ActionAudit attempts={run.actionAttempts} styles={styles} />
+    </View>
+  );
+}
+function ActionAudit({
+  attempts,
+  styles,
+}: {
+  attempts: AutomationRun["actionAttempts"];
+  styles: Styles;
+}) {
+  return (
+    <View style={styles.section}>
+      {attempts.map((attempt) => (
+        <Text key={attempt.id} style={styles.text}>
+          {new Date(attempt.at).toLocaleString()} · {attempt.status}
+          {attempt.message ? ` · ${attempt.message}` : ""}
+        </Text>
+      ))}
+    </View>
+  );
+}
+function runStatus(run: AutomationRun) {
+  return run.sourceStatus ?? (run.status === "succeeded" ? "completed" : run.status);
+}
+function runStatusStyle(run: AutomationRun, styles: Styles) {
+  const tone = runStatusTone(run);
+  if (tone === "success") return styles.runSuccess;
+  if (tone === "warning") return styles.runWarning;
+  if (tone === "danger") return styles.runFailure;
+  return styles.runStatus;
+}
+function RunHeading({ run, styles }: { run: AutomationRun; styles: Styles }) {
+  const result = inspectRunResult(run);
+  const title =
+    run.name === run.path || run.trigger === "imported"
+      ? run.path
+          .split("/")
+          .at(-1)
+          ?.replace(/\.(md|ya?ml)$/i, "")
+      : run.name;
+  return (
+    <View style={styles.runHeading}>
+      <Text selectable accessibilityRole="header" style={styles.runTitle}>
+        {title}
+      </Text>
+      <View style={styles.metadata}>
+        <Text style={runStatusStyle(run, styles)}>{runStatus(run)}</Text>
+        {(result?.outcome ?? run.outcome) && (
+          <Text style={styles.metadataText}>{result?.outcome ?? run.outcome}</Text>
+        )}
+        <Text style={styles.metadataText}>{run.repository ?? "Scratch workspace"}</Text>
+        <Text style={styles.metadataText}>{new Date(run.createdAt).toLocaleString()}</Text>
+        {run.finishedAt && (
+          <Text style={styles.metadataText}>
+            Updated {new Date(run.finishedAt).toLocaleTimeString()}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
+function RunMetadata({ run, styles, edit }: { run: AutomationRun; styles: Styles; edit(): void }) {
+  const [contextOpen, setContextOpen] = useState(false);
+  const toggleContext = useCallback(() => setContextOpen((value) => !value), []);
+  const trigger = JSON.stringify(
+    run.engine?.event ?? {
+      type: run.trigger,
+      scheduledFor: run.scheduledFor,
+      repository: run.repository,
+      revision: run.revision,
+    },
+    null,
+    2,
+  );
+  const result = inspectRunResult(run);
+  return (
+    <View>
+      <SettingsSection title="Execution">
+        <SettingsCard>
+          <SettingsRow label="Workflow" hint={run.repository ?? "Scratch workspace"}>
+            <Button variant="outline" onPress={edit}>
+              Open current workflow
+            </Button>
+          </SettingsRow>
+          <SettingsRow label="Status" hint={run.path}>
+            <Text style={runStatusStyle(run, styles)}>{runStatus(run)}</Text>
+          </SettingsRow>
+          <SettingsRow label="Run ID" hint={run.importedId ?? run.id}>
+            <Text style={styles.metadataText}>
+              {run.agentId || /\.md$/i.test(run.path) ? "Agent workflow" : "Scripted steps"}
+            </Text>
+          </SettingsRow>
+          <SettingsRow label="Outcome">
+            <Text style={styles.metadataText}>
+              {result?.outcome ?? run.outcome ?? "Not recorded"}
+            </Text>
+          </SettingsRow>
+          <SettingsRow
+            label={run.finishedAt ? "Last updated" : "Created"}
+            hint={`Created ${new Date(run.createdAt).toLocaleString()}`}
+          >
+            <Text style={styles.metadataText}>
+              {new Date(run.finishedAt ?? run.createdAt).toLocaleString()}
+            </Text>
+          </SettingsRow>
+          {run.revision && (
+            <SettingsRow label="Revision">
+              <Text selectable style={styles.metadataText}>
+                {run.revision}
+              </Text>
+            </SettingsRow>
+          )}
+        </SettingsCard>
+      </SettingsSection>
+      <View style={styles.toolbarGroup}>
+        <Button
+          size="xs"
+          variant="ghost"
+          icon={contextOpen ? "ChevronDown" : "ChevronRight"}
+          onPress={toggleContext}
+        >
+          Trigger context
+        </Button>
+      </View>
+      {contextOpen && (
+        <View style={styles.contextEditor}>
+          <CodeEditor language="json" label="Trigger context" value={trigger} readOnly />
+        </View>
+      )}
+      {run.engine?.workspace && (
+        <SettingsSection title="Workspace attestations">
+          <View style={styles.contextEditor}>
+            <CodeEditor
+              language="json"
+              label="Workspace attestations"
+              value={JSON.stringify(run.engine.workspace, null, 2)}
+              readOnly
+            />
+          </View>
+        </SettingsSection>
       )}
     </View>
+  );
+}
+function RunSummary({
+  run,
+  styles,
+  openConversation,
+  edit,
+  selectRun,
+}: {
+  openConversation(agentId: string): void;
+  run: AutomationRun;
+  styles: Styles;
+  edit(): void;
+  selectRun(id: string): void;
+}) {
+  const result = inspectRunResult(run);
+  const notes = [...new Set(result?.verification ?? [])];
+  const unresolved = [
+    ...new Set([...(result?.unresolved ?? []), ...(run.error ? [run.error] : [])]),
+  ];
+  const summary = runOverviewSummary(run);
+  return (
+    <View style={styles.section}>
+      <SettingsSection title="Result">
+        <SettingsCard>
+          <View style={styles.cardBody}>
+            <Markdown>{summary}</Markdown>
+          </View>
+        </SettingsCard>
+      </SettingsSection>
+      {notes.length > 0 && (
+        <SettingsSection title={`Notes (${notes.length})`}>
+          <SettingsCard>
+            <View style={styles.cardBody}>
+              <Text style={styles.metadataText}>
+                Workflow-reported checks, not independently verified.
+              </Text>
+              {notes.map((note) => (
+                <Text key={note} selectable style={styles.resultText}>
+                  • {note}
+                </Text>
+              ))}
+            </View>
+          </SettingsCard>
+        </SettingsSection>
+      )}
+      {run.engine && run.engine.verification.length > 0 && (
+        <SettingsSection title="Executed verification">
+          <View style={styles.contextEditor}>
+            <CodeEditor
+              language="json"
+              label="Executed verification"
+              value={JSON.stringify(run.engine.verification, null, 2)}
+              readOnly
+            />
+          </View>
+        </SettingsSection>
+      )}
+      {unresolved.length > 0 && (
+        <SettingsSection title="Needs attention">
+          <SettingsCard>
+            <View style={styles.cardBody}>
+              {unresolved.map((note) => (
+                <Text key={note} selectable style={styles.resultText}>
+                  {note}
+                </Text>
+              ))}
+            </View>
+          </SettingsCard>
+        </SettingsSection>
+      )}
+      <RunControls
+        run={run}
+        styles={styles}
+        openConversation={openConversation}
+        edit={edit}
+        selectRun={selectRun}
+      />
+    </View>
+  );
+}
+
+function RunControls({
+  run,
+  styles,
+  openConversation,
+  edit,
+  selectRun,
+}: Parameters<typeof RunSummary>[0]) {
+  const start = useRpc(startRunRpc);
+  const replay = useRpc(replayRunRpc);
+  const cancel = useRpc(cancelRunRpc);
+  const cancelOperation = useMutation({
+    mutationFn: () => cancel({ id: run.id, reason: "Cancelled from Mixer Automations" }),
+  });
+  const cancelRun = useCallback(() => cancelOperation.mutate(), [cancelOperation]);
+  const rerun = useMutation({
+    mutationFn: async () => {
+      const result = run.engine
+        ? await replay({ id: run.id, workflow: "current" })
+        : await start({ path: run.path });
+      selectRun(result.id);
+    },
+  });
+  const runLatest = useCallback(() => rerun.mutate(), [rerun]);
+  const original = useMutation({
+    mutationFn: async () => {
+      const result = await replay({ id: run.id, workflow: "snapshot" });
+      selectRun(result.id);
+    },
+  });
+  const runOriginal = useCallback(() => original.mutate(), [original]);
+  const openAgent = useCallback(() => {
+    if (run.agentId) openConversation(run.agentId);
+  }, [run.agentId, openConversation]);
+  const active = run.status === "running" || run.status === "queued";
+  const error = rerun.error ?? original.error ?? cancelOperation.error;
+  return (
+    <SettingsSection title={active ? "Run controls" : "Run again"}>
+      <View style={styles.toolbarGroup}>
+        {run.engine && !active && (
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={original.isPending}
+            loading={original.isPending}
+            onPress={runOriginal}
+          >
+            Rerun original workflow
+          </Button>
+        )}
+        {run.engine && active && (
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={cancelOperation.isPending}
+            loading={cancelOperation.isPending}
+            onPress={cancelRun}
+          >
+            Cancel run
+          </Button>
+        )}
+        <Button
+          size="xs"
+          variant="outline"
+          icon="Play"
+          disabled={active || rerun.isPending}
+          loading={rerun.isPending}
+          onPress={runLatest}
+        >
+          Run latest workflow
+        </Button>
+        {run.agentId && <Action label="Open agent" onPress={openAgent} />}
+        <Button size="xs" variant="ghost" onPress={edit}>
+          Open current workflow
+        </Button>
+      </View>
+      {error && (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {error.message}
+        </Text>
+      )}
+    </SettingsSection>
   );
 }
 
@@ -725,35 +1173,48 @@ function RunHistory({
   host,
   selectRun,
   workflowFilter,
+  clearFilter,
 }: Pick<PluginScreenProps, "theme" | "host"> & {
   selectRun(id: string): void;
   workflowFilter: string;
+  clearFilter(): void;
 }) {
   const styles = useStyles(theme);
   const list = useRpc(listRunsRpc);
-  const [filter, setFilter] = useState(workflowFilter);
+  const [filter, setFilter] = useState("");
   const { data, error, isPending, dataUpdatedAt } = useQuery({
     queryKey: ["automations", host.id, "runs"],
     queryFn: () => list({}),
     refetchInterval: 2_000,
   });
-  const rows = data?.runs.filter((item) =>
-    [
-      item.name,
-      item.path,
-      item.id,
-      item.importedId,
-      item.repository,
-      item.sourceStatus ?? item.status,
-      item.outcome,
-    ].some((value) => value?.toLowerCase().includes(filter.trim().toLowerCase())),
+  const rows = data?.runs.filter(
+    (item) =>
+      (!workflowFilter || item.path === workflowFilter) &&
+      [
+        item.name,
+        item.path,
+        item.id,
+        item.importedId,
+        item.repository,
+        item.sourceStatus ?? item.status,
+        item.outcome,
+      ].some((value) => value?.toLowerCase().includes(filter.trim().toLowerCase())),
   );
   return (
     <>
+      {!!workflowFilter && (
+        <View style={styles.toolbarGroup}>
+          <Text style={styles.text}>{workflowFilter}</Text>
+          <Button size="xs" variant="ghost" onPress={clearFilter}>
+            Clear workflow filter
+          </Button>
+        </View>
+      )}
       <View style={styles.field}>
         <Text style={styles.fieldLabel}>Filter runs</Text>
         <TextInput
           accessibilityLabel="Filter runs"
+          placeholderTextColor={theme.colors.foregroundMuted}
           placeholder="Search by workflow, project, status or run ID"
           value={filter}
           onChangeText={setFilter}
@@ -767,6 +1228,7 @@ function RunHistory({
               {runColumns.map(({ label, weight }) => (
                 <TableCell key={label} value={label} weight={weight} styles={styles} heading />
               ))}
+              <View style={styles.runDisclosure} />
             </View>
             {rows?.map((item) => (
               <RunRow
@@ -775,6 +1237,7 @@ function RunHistory({
                 selectRun={selectRun}
                 styles={styles}
                 now={dataUpdatedAt}
+                theme={theme}
               />
             ))}
           </View>
@@ -794,18 +1257,21 @@ function TableCell({
   tone,
   styles,
   heading,
+  mono,
 }: {
   value: string;
   width?: number;
   weight?: number;
-  tone?: "success" | "danger" | "muted";
+  tone?: "success" | "warning" | "danger" | "muted";
   styles: Styles;
   heading?: boolean;
+  mono?: boolean;
 }) {
   const style = useMemo(
     () => [
       styles.text,
       heading && styles.tableHeader,
+      mono && styles.runId,
       tone && styles[tone],
       {
         width,
@@ -814,7 +1280,7 @@ function TableCell({
         paddingVertical: 8,
       },
     ],
-    [heading, styles, tone, weight, width],
+    [heading, mono, styles, tone, weight, width],
   );
   return (
     <Text numberOfLines={1} style={style} accessibilityRole={heading ? "header" : undefined}>
@@ -828,42 +1294,70 @@ function RunRow({
   selectRun,
   styles,
   now,
+  theme,
 }: {
   item: (typeof listRunsRpc.output)["_output"]["runs"][number];
   selectRun(id: string): void;
   styles: Styles;
   now: number;
+  theme: PluginTheme;
 }) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const enter = useCallback(() => setHovered(true), []);
+  const leave = useCallback(() => setHovered(false), []);
+  const focus = useCallback(() => setFocused(true), []);
+  const blur = useCallback(() => setFocused(false), []);
+  const rowStyle = useCallback(
+    ({ pressed }: PressableStateCallbackType) => [
+      styles.runRow,
+      hovered && styles.runRowHover,
+      focused && styles.runRowFocus,
+      pressed && styles.runRowPressed,
+    ],
+    [styles, hovered, focused],
+  );
+  const disclosureStyle = useMemo(
+    () => [styles.runDisclosure, !hovered && !focused && styles.runDisclosureHidden],
+    [styles, hovered, focused],
+  );
   const open = useCallback(() => selectRun(item.id), [item.id, selectRun]);
   const status = item.sourceStatus ?? (item.status === "succeeded" ? "completed" : item.status);
   const values = [
-    item.path,
+    item.name,
     item.repository ?? "—",
     item.importedId ?? item.id,
     status,
     item.outcome ?? "—",
     relativeAge(item.createdAt, now),
   ];
-  const statusTones = { succeeded: "success", failed: "danger" } as const;
-  const statusTone = statusTones[item.status as keyof typeof statusTones] ?? "muted";
-  const tones = [undefined, undefined, undefined, statusTone, "muted", "muted"] as const;
+  const statusTone = runStatusTone(item);
+  const tones = [undefined, "muted", "muted", statusTone, "muted", "muted"] as const;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Inspect ${item.name}, ${item.status}`}
-      onPress={open}
-      style={styles.runRow}
-    >
-      {runColumns.map(({ label, weight }, index) => (
-        <TableCell
-          key={label}
-          value={values[index]}
-          weight={weight}
-          tone={tones[index]}
-          styles={styles}
-        />
-      ))}
-    </Pressable>
+    <View style={styles.runRowTarget} onPointerEnter={enter} onPointerLeave={leave}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Inspect ${item.name}, ${item.status}`}
+        onPress={open}
+        onFocus={focus}
+        onBlur={blur}
+        style={rowStyle}
+      >
+        {runColumns.map(({ label, weight }, index) => (
+          <TableCell
+            key={label}
+            value={values[index]}
+            weight={weight}
+            tone={tones[index]}
+            mono={label === "Run"}
+            styles={styles}
+          />
+        ))}
+        <View style={disclosureStyle}>
+          <Icon name="ChevronRight" size={16} color={theme.colors.foregroundMuted} />
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -875,7 +1369,53 @@ function relativeAge(created: number, now: number) {
   return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
 }
 
-export function AutomationsSettings({ theme }: Pick<PluginSurfaceProps, "theme">) {
+export function AutomationsSettings({
+  theme,
+  onOpenConfiguration,
+}: Pick<PluginSurfaceProps, "theme"> & { onOpenConfiguration?(): void }) {
+  const configuration = useConfiguration();
+  const styles = useStyles(theme);
+  if (configuration.isPending)
+    return <Text style={styles.note}>Loading Automations configuration…</Text>;
+  if (configuration.error)
+    return (
+      <Text accessibilityRole="alert" style={styles.error}>
+        {configuration.error.message}
+      </Text>
+    );
+  if (configuration.data?.fileConfigured)
+    return (
+      <View style={styles.settings}>
+        <Text style={styles.text}>
+          This host uses automations/config.json. File configuration takes precedence over plugin
+          settings.
+        </Text>
+        <Text style={styles.note}>
+          Edit config.json in the Automations sidebar to configure GitHub, Jira, environment values,
+          runtime limits, and retention. Environment references resolve on this host.
+        </Text>
+        <Text style={styles.note}>
+          Workflow execution uses the bundled Mixer Automations engine, including its workspace
+          lifecycle, Safe Action policies, and publication guards. Restart Automations after editing
+          configuration.
+        </Text>
+        {onOpenConfiguration && (
+          <Button size="sm" variant="outline" onPress={onOpenConfiguration}>
+            Open config.json
+          </Button>
+        )}
+        {configuration.data.error && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {configuration.data.error}
+          </Text>
+        )}
+        <RoboPlaneImport theme={theme} />
+      </View>
+    );
+  return <LegacyAutomationSettings theme={theme} />;
+}
+
+function LegacyAutomationSettings({ theme }: Pick<PluginSurfaceProps, "theme">) {
   const settings = useSettings(automationSettings);
   const [draft, setDraft] = useState<string | null>(null);
   const [retention, setRetention] = useState<string | null>(null);
@@ -955,10 +1495,13 @@ export function AutomationsSettings({ theme }: Pick<PluginSurfaceProps, "theme">
       {!validRetention && <Text style={styles.error}>Enter a whole number from 1 to 365.</Text>}
       <Action
         label={schedulesEnabled ? "Schedules enabled" : "Schedules disabled"}
-        color={theme.colors.foreground}
         onPress={toggleSchedules}
       />
       <Text style={styles.text}>Integrations</Text>
+      <Text style={styles.note}>
+        Safe Actions require confirmation in Runs. They do not restrict writes through other agent
+        tools or credentials.
+      </Text>
       {integrationFields.map(({ field, label }) => (
         <IntegrationInput
           key={field}
@@ -977,8 +1520,7 @@ export function AutomationsSettings({ theme }: Pick<PluginSurfaceProps, "theme">
         <Text style={styles.error}>Check the port and environment variable names.</Text>
       )}
       <Action
-        label="Save"
-        color={theme.colors.accent}
+        label={settings.saving ? "Saving…" : "Save"}
         disabled={settings.saving || !validRetention || !validIntegrations || !dirty}
         onPress={save}
       />
@@ -1077,7 +1619,6 @@ function RoboPlaneImport({ theme }: { theme: PluginTheme }) {
       />
       <Action
         label="Import workflows and runs"
-        color={theme.colors.accent}
         disabled={!home.trim() || pending}
         onPress={start}
       />

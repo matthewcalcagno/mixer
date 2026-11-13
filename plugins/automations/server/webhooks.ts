@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { z } from "zod";
 import { commitHash } from "./checkout.js";
@@ -83,6 +83,7 @@ export function startWebhooks(
   bearer: string | undefined,
   githubSecret: string | undefined,
   dispatch: (event: AutomationEvent) => Promise<number>,
+  apiUrl = "https://api.github.com",
 ) {
   function send(response: ServerResponse, status: number, accepted?: number) {
     response.writeHead(status, { "content-type": "application/json", connection: "close" });
@@ -107,23 +108,16 @@ export function startWebhooks(
     let event: AutomationEvent | null;
     try {
       const payload = z.json().parse(JSON.parse(raw.toString("utf8")));
-      const id = input.headers["x-delivery-id"];
-      if (!github && (typeof id !== "string" || !/^[\w.-]{1,200}$/.test(id)))
-        return send(response, 400);
+      const id = input.headers[github ? "x-github-delivery" : "x-delivery-id"];
+      if (typeof id !== "string" || !/^[\w.-]{1,200}$/.test(id)) return send(response, 400);
       event = github
-        ? githubEvent(
-            String(input.headers["x-github-event"] ?? ""),
-            payload,
-            createHash("sha256")
-              .update(String(input.headers["x-github-event"] ?? ""))
-              .update(raw)
-              .digest("hex"),
-          )
+        ? githubEvent(String(input.headers["x-github-event"] ?? ""), payload, id)
         : { source: "webhook", id: `${endpoint}:${id}`, endpoint, payload };
     } catch {
       return send(response, 400);
     }
     if (!event) return send(response, 202, 0);
+    if (event.source === "github") event = { ...event, authority: apiUrl };
     return send(response, 202, await dispatch(event));
   }
 

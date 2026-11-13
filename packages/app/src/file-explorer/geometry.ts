@@ -13,3 +13,21 @@ export function fileExplorerRowMetrics(fontSize: number) {
     lineHeight: Math.round((18 * fontSize) / 13),
   };
 }
+
+export function fileExplorerRevealOffset({
+  rowTop,
+  rowBottom,
+  viewportTop,
+  viewportBottom,
+  scrollOffset,
+}: {
+  rowTop: number;
+  rowBottom: number;
+  viewportTop: number;
+  viewportBottom: number;
+  scrollOffset: number;
+}): number {
+  if (rowTop < viewportTop) return Math.max(0, scrollOffset + rowTop - viewportTop);
+  if (rowBottom > viewportBottom) return scrollOffset + rowBottom - viewportBottom;
+  return scrollOffset;
+}

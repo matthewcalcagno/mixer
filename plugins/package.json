@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@mixer/automations-engine": "*",
     "@mixer/plugin": "*",
     "cron-parser": "5.10.0",
     "re2js": "2.8.6",
@@ -15,7 +16,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^20.9.0",
+    "@types/node": "^22.20.5",
     "prettier": "^3.9.10",
     "tough-cookie": "6.0.2",
     "vitest": "^4.1.12"

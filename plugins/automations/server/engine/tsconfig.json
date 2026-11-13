@@ -1,0 +1,11 @@
+{
+  "extends": "./upstream/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@roboplane/*": ["./upstream/packages/*/src/index.ts"],
+      "@mixer/automations-sdk": ["./upstream/packages/sdk/src/index.ts"]
+    }
+  },
+  "include": ["index.ts", "sqlite.ts", "esbuild-host.ts"],
+  "exclude": ["dist", "**/*.test.ts"]
+}

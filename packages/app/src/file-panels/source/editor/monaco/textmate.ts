@@ -5,7 +5,8 @@ import { editorSyntaxThemes } from "../../../../styles/editor-syntax";
 
 export function createTextMateHighlighter() {
   return createHighlighterCore({
-    themes: Object.values(editorSyntaxThemes),
+    // Shiki normalizes registrations in place; keep the shared definitions unchanged.
+    themes: Object.values(editorSyntaxThemes).map((theme) => structuredClone(theme)),
     langs: [],
     engine: createOnigurumaEngine(import("shiki/wasm")),
   });

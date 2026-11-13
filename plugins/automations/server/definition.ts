@@ -33,7 +33,15 @@ const jira = z
     fields: z
       .array(z.string().regex(/^[a-zA-Z0-9_]+$/))
       .max(32)
-      .default(["summary", "description", "status", "labels", "updated"]),
+      .default([
+        "summary",
+        "description",
+        "status",
+        "labels",
+        "components",
+        "issuetype",
+        "updated",
+      ]),
   })
   .strict();
 
@@ -69,6 +77,10 @@ export function nextOccurrence(cron: string, from: number, tz?: string) {
 
 export async function readDefinition(root: string, path: string) {
   const source = await readFile(join(root, path), "utf8");
+  return parseDefinition(path, source);
+}
+
+export function parseDefinition(path: string, source: string) {
   if (source.length > 1024 * 1024) throw new Error("Workflow exceeds 1 MiB.");
   const name = path.replace(/\.[^.]+$/, "");
   if (/\.md$/i.test(path)) {

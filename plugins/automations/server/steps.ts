@@ -11,6 +11,8 @@ export async function executeSteps(
   signal: AbortSignal,
   log: (text: string) => void,
   context: Record<string, string>,
+  configuredEnvironment: Record<string, string> = {},
+  noOutputTimeout?: number,
 ) {
   const environment = Object.fromEntries(
     Object.entries(process.env).filter(([key]) =>
@@ -20,6 +22,10 @@ export async function executeSteps(
     ),
   );
   let failure: Error | undefined;
+  const runDefaults = {
+    ...config.defaults.run,
+    "no-output-timeout": config.defaults.run["no-output-timeout"] ?? noOutputTimeout,
+  };
   for (const [ordinal, step] of config.steps.entries()) {
     signal.throwIfAborted();
     const id = step.id ?? `step_${ordinal + 1}`;
@@ -29,12 +35,13 @@ export async function executeSteps(
     }
     const error = await executeStep(
       step,
-      config.defaults.run,
+      runDefaults,
       root,
       signal,
       log,
       {
         ...environment,
+        ...configuredEnvironment,
         ...config.env,
         ...step.env,
         ...context,

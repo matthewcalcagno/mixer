@@ -1,0 +1,63 @@
+name: Check spa-storecustomer merge eligibility
+repository: inditex/spa-storecustomer
+on:
+  github.pr.schedule:
+    cron: "0 * * * *"
+    where:
+      all:
+        - pull-request-author: me
+        - state: open
+        - draft: false
+        - merged: false
+        - fork: false
+        - labels:
+            all: ["mcalcagno:auto-pr"]
+            none: [roboplane-ignore]
+  github.pr.review:
+    events: [created]
+    where:
+      all:
+        - pull-request-author: me
+        - state: open
+        - draft: false
+        - labels:
+            all: ["mcalcagno:auto-pr"]
+            none: [roboplane-ignore]
+  github.check:
+    events: [completed]
+    where:
+      all:
+        - pull-request: true
+        - pull-request-author: me
+        - state: open
+        - draft: false
+        - labels:
+            all: ["mcalcagno:auto-pr"]
+            none: [roboplane-ignore]
+  github.issue.comment:
+    events: [created]
+    where:
+      all:
+        - pull-request: true
+        - pull-request-author: me
+        - state: open
+        - draft: false
+        - author: sonarqubecloud[bot]
+        - labels:
+            all: ["mcalcagno:auto-pr"]
+            none: [roboplane-ignore]
+github.mergeCheck:
+  allowedAuthors: [mcalcagno-inditex]
+  requiredLabels: ["mcalcagno:auto-pr"]
+  excludedLabels: [roboplane-ignore]
+  qualityGateChecks: [SonarCloud Code Analysis, SonarQube Code Analysis, SonarQubeCloud Code Analysis]
+defaults:
+  run:
+    timeout: 5m
+steps:
+  - id: eligibility
+    name: Evaluate the activated PR without making changes
+    run: |
+      mixer-automations github pr can-merge \
+        --event-file "$MIXER_AUTOMATIONS_EVENT_FILE" \
+        --output merge-report.json

@@ -8,80 +8,80 @@ Mixer executes `index.server.ts` in a subprocess and `index.client.tsx` in every
 
 ## Mixer Automations
 
-The built-in Automations plugin starts with the host daemon and opens to Runs. Stop pauses
-new runs and closes the webhook listener while admitted runs finish. Start resumes intake.
-Restart reloads the Automations listener and polling on the current host. Its Workflows tab opens workflow
-files in the normal Mixer editor. Chat opens a Mixer agent in the workflow directory. Use a
-workflow’s History action to filter the Runs table. Select a run for output, proposed Safe Actions,
-and its Mixer agent session.
+The built-in Automations plugin ships the pinned RoboPlane engine and opens to Runs. Stop drains
+the engine using its shutdown policy; Start resumes execution and event intake.
+Restart reloads Automations configuration and extensions on the current host. Runs is the permanent
+first tab; opening a workflow adds a file tab beside it. Both use the workspace tab chip styles.
+Configure Automations through `config.json` in its workspace sidebar; it does not contribute a Settings page.
+The daemon-owned `$MIXER_HOME/automations` runtime project is excluded from project and workspace
+discovery, including Show background. Exact workspace lookups remain available for embedded
+conversations. This is path-based ownership; user projects named `automations` remain visible.
+The right sidebar uses the workspace Explorer dock and stays available across Runs and file tabs.
+The workflow directory is the implicit sidebar root. Right-click blank space or a folder to create
+a file or folder inline; the header has the same actions. Empty folders remain visible. New files
+default to YAML when no extension is supplied. The extension selects Markdown or YAML; there is
+no separate executor picker. Drafts start disabled. File tabs retain unsaved edits
+when switching files or Runs. Electron edits source in the bundled Monaco runtime.
+Drag a saved workflow onto a folder to move it, or onto blank tree space to return it to the root.
+Moves retain content and update open tabs. They reject collisions and stale source versions;
+unsaved files and config.json cannot be dragged. Folders remain in place.
+
+Save and delete reject stale file versions; Reload explicitly discards a draft after confirmation.
+Invalid definitions stay visible for repair, but cannot be enabled. The floating AI action opens a
+conversation using the normal Mixer agent panel and composer in the workflows directory.
+Minimizing preserves the conversation and composer draft without resizing the editor. Expanding
+opens an Agent tab inside Automations; run-history agent links use
+the same tabs. Switching or closing a tab does not archive its agent.
+The selected file uses the normal file-attachment context. Save drafts before asking it to edit files. Clean
+editors pick up refreshed source; dirty editors keep their draft and reject stale
+saves. Use View runs to filter history to an exact workflow. Runs have Overview, Logs, Details,
+recorded steps, and Safe Actions when present. Engine runs use the engine's harness providers;
+Ask AI uses Mixer conversations. Original-definition replay, current-definition replay, and
+cancellation go through the engine rather than queueing approximations of the original event.
+Overview separates the result reason, workflow-reported notes, and unresolved items from raw logs.
+Reported notes are not evidence of executed verification. Details groups recorded execution facts
+and trigger metadata; Logs formats JSON records without replacing plain output.
+
+Diagnostics reports host configuration readiness separately from API access. A present token
+does not prove its permissions. Polling, listener, and scheduling failures appear there until
+the corresponding operation succeeds. Stop and Restart affect only Automations, not the daemon.
+
+Use [Automations configuration](automation-configuration.md) for storage, the pinned source,
+configuration, migration activation, and the integration boundaries.
 
 Workflows live under `$MIXER_HOME/automations`. Markdown contains an agent prompt with optional
 YAML frontmatter. YAML runs ordered shell steps with `run`, optional `if`, `retry`, and timeouts.
-A workflow starts in a fresh scratch directory unless you configure an absolute host `cwd` or a
-`repository` such as `owner/project`. Repository runs use separate GitHub checkouts and the host's
-Git credentials. A same-repository pull request checks out the event commit. Use
-`workspace: scratch` for workflows that analyze fork pull requests without checking out their code.
-A repository list queues a run for each entry, except GitHub deliveries which select their matching
-repository. Shell steps use Bash or sh installed on the host.
+Workflow syntax, workspace selection, and provider behavior are the imported engine's contracts.
+See its [workflow reference](../plugins/automations/server/engine/upstream/docs/workflows.md).
 
-New workflow drafts start disabled. Save a workflow with `disabled: false` to run it. The host
-executes one queued run at a time. Pending runs are marked interrupted after a daemon restart.
+New workflow drafts start disabled. Save a workflow with `disabled: false` to run it. Run leases,
+retry policy, interrupted-run recovery, repository caches, and workspace cleanup belong to the engine.
 
 ### Automation triggers
 
-Enable schedules in Automations settings for cron, Jira polling, and GitHub polling. Use
-`on: { schedule: { cron: "0 9 * * 1-5" } }` for a host-local schedule. Jira uses UTC unless the
-workflow sets `timezone`. Configure the Jira Data Center base URL and the name of a host environment
-variable containing its personal access token. Jira schedules accept `cron`, `jql`, `timezone`,
-`fields`, and an optional `cadence: { startDate: "2026-11-05", everyWeeks: 2 }`. Mixer queues matching issue versions once per subscription.
-
-For GitHub, configure either a polling token variable or a webhook signing secret variable.
-Polling reads recent repository events starting after its first observation. Signed webhooks
-deliver to `POST /webhooks/github`. Use `github.issue`, `github.pull-request`, `github.issue.comment`,
-`github.pr.review`, `github.pr.comment`, or `github.check` in `on`. Add `events` to select actions,
-and `where` to filter event facts. Combine conditions with nested `all`, `any`, and `not`.
-Predicates include authors, labels, branches, titles, PR state, check conclusions, and numeric
-comparisons. Regex predicates use RE2. Check-run filters that need PR metadata require the
-GitHub polling token variable, even with signed delivery. Mixer enriches a check only if it
-identifies one PR whose current head still matches the event SHA.
-
-Set a nonzero webhook port to open the listener on `127.0.0.1`. For generic JSON, set the bearer
-secret variable and send `POST /webhooks/<endpoint>` with `Authorization: Bearer …` and a stable
-`X-Delivery-ID`. Subscribe with `on: { webhook.received: { endpoints: [build-alerts] } }`.
-An optional `payload` mapping filters dotted fields against lists of exact scalar values. To
-receive remote requests, route only the webhook paths through an HTTPS reverse proxy or tunnel.
-Webhook payloads become data files exposed to shell steps through `MIXER_EVENT_FILE`. Mixer
-agents receive the path in their run prompt. Keep the workflow's authority separate from the
-event data, including issue bodies, comments, and repository content.
+Configure the engine extensions in `config.json`. See the pinned
+[events](../plugins/automations/server/engine/upstream/docs/events.md),
+[GitHub](../plugins/automations/server/engine/upstream/docs/github.md),
+[Jira](../plugins/automations/server/engine/upstream/docs/jira.md), and
+[webhook](../plugins/automations/server/engine/upstream/docs/webhooks.md) references. The plugin
+does not run a second scheduler, webhook router, or event-deduplication loop beside the engine.
 
 ### GitHub Safe Actions
 
-Set a dedicated GitHub Safe Actions token variable on the host, and declare the action in the
-workflow. Mixer supports `github.pr.approve` and immediate `github.pr.merge`. Each policy requires
-`max: 1` and explicit `allowedAuthors`. Merge policies also accept `method` and `minimumChecks`.
-
-An agent's final message or a successful shell run's last output line can propose one action.
-Both `MIXER_RESULT:` and the RoboPlane result prefix are accepted.
-
-```text
-MIXER_RESULT: {"version":1,"actions":[{"name":"github.pr.merge","input":{"version":1,"decision":"merge"}}]}
-```
-
-The proposal appears in Runs. Confirming it rechecks the current workflow policy and the live PR
-against the event repository, author, branches, and SHA. Merges also require mergeability and passing
-checks on that SHA. If GitHub does not confirm a submitted request, inspect the PR before retrying
-in a new run. Use GitHub branch protections for repository-wide enforcement.
+Safe Action preparation, publication guards, effect persistence, and reconciliation are the
+engine's implementations. See its [Safe Actions](../plugins/automations/server/engine/upstream/docs/safe-actions.md)
+and [execution](../plugins/automations/server/engine/upstream/docs/execution.md) references.
+The Actions tab displays recorded engine decisions. Legacy native proposals remain read-only;
+they do not become executable engine actions during migration.
 
 ### Import RoboPlane
 
-In Automations settings, enter the absolute path to the RoboPlane home on that host. Mixer copies
-workflow files as disabled drafts and reads run records from RoboPlane's SQLite history. Imported
+The RoboPlane import operation copies workflow files as disabled drafts and reads run records from RoboPlane's SQLite history. Imported
 records preserve their source status and the tail of their log. Existing files and run records are
-skipped on repeat imports. Review workflow definitions before enabling them. RoboPlane extension
-fields and custom webhook handlers require adaptation.
-
-The retention setting applies to completed run records and output. Imported runs count from
-their import date. The default retention is seven days. Mixer agent sessions have their own lifecycle.
+skipped on repeat imports. Review workflow definitions before enabling them. Configuration and
+live RoboPlane state are not copied. Imported and native JSON history remains read-only;
+the engine's retention policy applies to its own SQLite history and logs. Mixer agent sessions
+have their own lifecycle.
 
 ## Install a directory source
 

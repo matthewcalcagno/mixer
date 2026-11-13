@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join } from "node:path";
 import { parseDocument } from "yaml";
 import { z } from "zod";
 import { runSchema, workflowId } from "../shared/contracts.js";
+import { readRunResult } from "../shared/run-inspection.js";
 
 const MAX_BYTES = 1024 * 1024;
 const logsLimit = 128 * 1024;
@@ -88,7 +89,7 @@ interface Result {
   skipped: number;
 }
 
-async function readLog(file: string) {
+export async function readLog(file: string) {
   if (!(await regularFile(file))) return "";
   const handle = await open(file, "r");
   try {
@@ -149,6 +150,7 @@ export async function importRoboPlane(
         const path = workflowId.safeParse(row.workflow_id);
         const sourcePath = path.success ? path.data : `${row.workflow_id}.md`;
         const status = importedStatus(row.status);
+        const recordedResult = readRunResult(row.outcome_json);
         const run = runSchema.safeParse({
           id: idFor(`roboplane:${row.id}`),
           path: sourcePath,
@@ -159,7 +161,8 @@ export async function importRoboPlane(
           importedAt: Date.now(),
           status,
           sourceStatus: row.status,
-          outcome: readOutcome(row.outcome_json),
+          outcome: recordedResult?.outcome,
+          result: recordedResult,
           error: row.error ?? undefined,
           createdAt,
           finishedAt,
@@ -180,14 +183,4 @@ function importedStatus(status: string): Run["status"] {
   if (status === "completed" || status === "succeeded") return "succeeded";
   if (status === "failed") return "failed";
   return "interrupted";
-}
-
-function readOutcome(json: string | null) {
-  if (!json) return undefined;
-  try {
-    const result = z.object({ outcome: z.string().max(100) }).safeParse(JSON.parse(json));
-    return result.data?.outcome;
-  } catch {
-    return undefined;
-  }
 }

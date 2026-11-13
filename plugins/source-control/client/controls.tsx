@@ -395,6 +395,7 @@ function fileAppearance(
   label?: string,
 ) {
   const colors: Record<string, string> = {
+    M: theme.colors.statusModified ?? theme.colors.inputFocus,
     D: theme.colors.statusDanger,
     A: theme.colors.statusSuccess,
     "?": theme.colors.statusSuccess,

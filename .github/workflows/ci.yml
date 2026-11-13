@@ -144,7 +144,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -177,6 +177,9 @@ jobs:
           npm pack --dry-run --ignore-scripts --workspace=@mixer/client
           npm pack --dry-run --ignore-scripts --workspace=@mixer/server
 
+      - name: Verify bundled Automations outside the checkout
+        run: node scripts/check-automations-package.mjs
+
   server-tests-ubuntu:
     name: server-tests (ubuntu-latest)
     needs: changes
@@ -196,7 +199,7 @@ jobs:
       - &server_node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - &server_fetch
@@ -290,7 +293,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -320,7 +323,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies with retry
@@ -454,7 +457,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies with retry
@@ -576,7 +579,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies

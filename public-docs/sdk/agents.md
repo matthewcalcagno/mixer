@@ -37,6 +37,10 @@ console.log(result.status, result.lastMessage);
 
 A timeout does not cancel the agent.
 
+Call `await agent.cancel()` to request interruption of the current turn without archiving the
+session or changing its parent relationship. Cancellation does not undo external effects that
+already completed. Use `waitForFinish()` to observe the turn's final state.
+
 ## Keep a session alive for follow-ups
 
 Create an idle session when prompts arrive later:

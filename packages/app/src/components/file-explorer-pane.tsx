@@ -19,7 +19,6 @@ import {
   Pressable,
   Text,
   View,
-  type ViewToken,
   type NativeSyntheticEvent,
   type PressableStateCallbackType,
   type TextInputKeyPressEventData,
@@ -27,6 +26,7 @@ import {
 import { EditingTextInput as TextInput } from "@/components/ui/text-input";
 import { StyleSheet, useUnistyles, withUnistyles } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
+import { isWeb } from "@/constants/platform";
 import * as Clipboard from "expo-clipboard";
 import { Eye, EyeOff, FilePlus, FolderPlus, RotateCw } from "lucide-react-native";
 import { MaterialFileIcon, MaterialFolderIcon } from "@/components/material-file-icon";
@@ -63,7 +63,11 @@ import { buildWorkspaceExplorerStateKey } from "@/hooks/use-file-explorer-action
 import { usePanelStore, type ExpandedPathsUpdate } from "@/stores/panel-store";
 import { buildAbsoluteExplorerPath } from "@/utils/explorer-paths";
 import { isHiddenExplorerPath } from "@/file-explorer/visibility";
-import { fileExplorerRowMetrics, fileExplorerRowPaddingLeft } from "@/file-explorer/geometry";
+import {
+  fileExplorerRevealOffset,
+  fileExplorerRowMetrics,
+  fileExplorerRowPaddingLeft,
+} from "@/file-explorer/geometry";
 import {
   flattenExplorerTree,
   restoreExpandedDirectories,
@@ -159,13 +163,17 @@ function listRowKeyExtractor(row: ExplorerListRow) {
   return row.type === "rename" ? `rename:${row.entry.path}` : `draft:${row.parentPath}:${row.kind}`;
 }
 interface EntryNameInputRowProps {
+  accessibilityLabel?: string;
+  editable?: boolean;
   depth: number;
   kind: "file" | "directory";
   initialName?: string;
   onCommit: (name: string) => void;
   onCancel: () => void;
 }
-function EntryNameInputRow({
+export function EntryNameInputRow({
+  accessibilityLabel,
+  editable,
   depth,
   kind,
   initialName = "",
@@ -220,6 +228,8 @@ function EntryNameInputRow({
           )}
         </View>
         <TextInput
+          accessibilityLabel={accessibilityLabel}
+          editable={editable}
           autoFocus
           initialValue={name}
           onChangeText={setName}
@@ -319,6 +329,9 @@ const TreeRowItem = memo(function TreeRowItem({
   onDeleteEntry,
   testID,
 }: TreeRowItemProps) {
+  const [isHovered, setHovered] = useState(false);
+  const handlePointerEnter = useCallback(() => setHovered(true), []);
+  const handlePointerLeave = useCallback(() => setHovered(false), []);
   const isDirectory = entry.kind === "directory";
   const dragSourceRef = useWorkspaceFileDragSource({
     enabled: true,
@@ -394,75 +407,113 @@ const TreeRowItem = memo(function TreeRowItem({
   const handleDelete = useCallback(() => {
     onDeleteEntry?.(entry);
   }, [onDeleteEntry, entry]);
+  const labelStyle = useMemo(
+    () => [
+      styles.entryName,
+      !gitDecoration && !entry.gitIgnored && workspaceTreeRowStyles.name,
+      gitDecorationStyle(gitDecoration, entry.gitIgnored),
+      entry.gitIgnored && styles.ignoredEntryName,
+      (isHovered || isSelected) && workspaceTreeRowStyles.nameHovered,
+    ],
+    [gitDecoration, entry.gitIgnored, isHovered, isSelected],
+  );
   return (
-    <ContextMenu>
-      <ContextMenuTrigger
-        onPress={handlePress}
-        onLongPress={handleSelect}
-        onContextMenu={handleSelect}
-        style={pressableStyle}
-        accessibilityState={accessibilityState}
-        aria-selected={isSelected}
-        aria-expanded={isDirectory ? isExpanded : undefined}
-        aria-busy={loading}
-        testID={testID}
-      >
-        <View ref={dragSourceRef} style={styles.entryInfo}>
-          <View style={styles.entryIcon}>
-            {isDirectory && <DirectoryChevronIcon loading={loading} expanded={isExpanded} />}
+    <View
+      style={styles.rowHoverTarget}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+    >
+      <ContextMenu>
+        <ContextMenuTrigger
+          onPress={handlePress}
+          onLongPress={handleSelect}
+          onContextMenu={handleSelect}
+          style={pressableStyle}
+          accessibilityState={accessibilityState}
+          aria-selected={isSelected}
+          aria-expanded={isDirectory ? isExpanded : undefined}
+          aria-busy={loading}
+          testID={testID}
+        >
+          <View ref={dragSourceRef} style={styles.entryInfo}>
+            <View style={styles.entryIcon}>
+              {isDirectory && <DirectoryChevronIcon loading={loading} expanded={isExpanded} />}
+            </View>
+            <View style={styles.entryIcon}>
+              {isDirectory ? (
+                <MaterialFolderIcon
+                  folderName={entry.name}
+                  expanded={isExpanded}
+                  size={WORKSPACE_TREE_ICON_SIZE}
+                />
+              ) : (
+                <MaterialFileIcon fileName={entry.path} size={WORKSPACE_TREE_ICON_SIZE} />
+              )}
+            </View>
+            <Text
+              style={labelStyle}
+              numberOfLines={1}
+              testID={testID ? `${testID}-name` : undefined}
+            >
+              {entry.name}
+            </Text>
+            <GitStatusBadge
+              status={gitDecoration}
+              ignored={entry.gitIgnored}
+              directory={isDirectory}
+              testID={testID}
+            />
           </View>
-          <View style={styles.entryIcon}>
-            {isDirectory ? (
-              <MaterialFolderIcon
-                folderName={entry.name}
-                expanded={isExpanded}
-                size={WORKSPACE_TREE_ICON_SIZE}
-              />
-            ) : (
-              <MaterialFileIcon fileName={entry.path} size={WORKSPACE_TREE_ICON_SIZE} />
-            )}
-          </View>
-          <Text
-            style={[
-              styles.entryName,
-              gitDecorationStyle(gitDecoration, entry.gitIgnored),
-              entry.gitIgnored && styles.ignoredEntryName,
-            ]}
-            numberOfLines={1}
-            testID={testID ? `${testID}-name` : undefined}
-          >
-            {entry.name}
-          </Text>
-          <GitStatusBadge
-            status={gitDecoration}
-            ignored={entry.gitIgnored}
-            directory={isDirectory}
-            testID={testID}
-          />
-        </View>
-      </ContextMenuTrigger>
-      <FileActionsContextMenuContent
-        fileKind={entry.kind}
-        onOpenInEditor={isDirectory && onOpenInEditor ? handleOpenInEditor : undefined}
-        editorTargetName={editorTargetName}
-        onCopyPath={handleCopy}
-        onCopyRelativePath={handleCopyRelativePath}
-        onReveal={onRevealEntry ? handleReveal : undefined}
-        revealTargetName={revealTargetName}
-        onDownload={handleDownload}
-        onAddToChat={onAddToChat ? handleAddToChat : undefined}
-        onOpenToSide={!isDirectory && onOpenFileToSide ? handleOpenToSide : undefined}
-        onNewFile={onNewEntry ? handleNewFile : undefined}
-        onNewFolder={onNewEntry ? handleNewFolder : undefined}
-        onCollapseFolder={isDirectory && isExpanded ? handleCollapseDirectory : undefined}
-        onRename={onRenameEntry ? handleRename : undefined}
-        onDuplicate={onDuplicateEntry ? handleDuplicate : undefined}
-        onDelete={onDeleteEntry ? handleDelete : undefined}
-        testIDPrefix={testID}
-      />
-    </ContextMenu>
+        </ContextMenuTrigger>
+        <FileActionsContextMenuContent
+          fileKind={entry.kind}
+          onOpenInEditor={isDirectory && onOpenInEditor ? handleOpenInEditor : undefined}
+          editorTargetName={editorTargetName}
+          onCopyPath={handleCopy}
+          onCopyRelativePath={handleCopyRelativePath}
+          onReveal={onRevealEntry ? handleReveal : undefined}
+          revealTargetName={revealTargetName}
+          onDownload={handleDownload}
+          onAddToChat={onAddToChat ? handleAddToChat : undefined}
+          onOpenToSide={!isDirectory && onOpenFileToSide ? handleOpenToSide : undefined}
+          onNewFile={onNewEntry ? handleNewFile : undefined}
+          onNewFolder={onNewEntry ? handleNewFolder : undefined}
+          onCollapseFolder={isDirectory && isExpanded ? handleCollapseDirectory : undefined}
+          onRename={onRenameEntry ? handleRename : undefined}
+          onDuplicate={onDuplicateEntry ? handleDuplicate : undefined}
+          onDelete={onDeleteEntry ? handleDelete : undefined}
+          testIDPrefix={testID}
+        />
+      </ContextMenu>
+    </View>
   );
 });
+function revealExplorerRow(list: FlatList<ExplorerListRow>, index: number) {
+  if (isWeb) {
+    const viewport: unknown = list.getScrollableNode();
+    if (viewport instanceof HTMLElement) {
+      const row = viewport.querySelector(`[data-testid="file-explorer-row-${index}"]`);
+      if (row) {
+        // Viewability callbacks can lag behind selection and list-data changes.
+        // Read the current geometry before deciding whether scrolling is necessary.
+        const bounds = viewport.getBoundingClientRect();
+        const rowBounds = row.getBoundingClientRect();
+        const offset = fileExplorerRevealOffset({
+          rowTop: rowBounds.top,
+          rowBottom: rowBounds.bottom,
+          viewportTop: bounds.top,
+          viewportBottom: bounds.top + viewport.clientHeight,
+          scrollOffset: viewport.scrollTop,
+        });
+        if (offset !== viewport.scrollTop) list.scrollToOffset({ offset, animated: false });
+        return;
+      }
+    }
+  }
+  // Rows outside the virtualized render window have no DOM geometry yet.
+  list.scrollToIndex({ index, animated: false });
+}
+
 interface FileExplorerPaneProps {
   serverId: string;
   workspaceId?: string | null;
@@ -930,16 +981,6 @@ export function FileExplorerPane({
     return rows;
   }, [pendingEdit, treeRows]);
   const showInitialLoading = !directories.has(".") && requests.get(".")?.status === "loading";
-  const visibleEntryPaths = useRef(new Set<string>());
-  // FlatList requires this callback to keep its identity for the lifetime of the list.
-  const [onViewableItemsChanged] = useState(
-    () =>
-      ({ viewableItems }: { viewableItems: ViewToken<ExplorerListRow>[] }) => {
-        visibleEntryPaths.current = new Set(
-          viewableItems.flatMap(({ item }) => (item.type === "entry" ? [item.row.entry.path] : [])),
-        );
-      },
-  );
   const revealRequest = explorerState?.revealRequest;
   const lastRevealRequest = useRef<typeof revealRequest>(undefined);
   useEffect(() => {
@@ -950,8 +991,7 @@ export function FileExplorerPane({
     );
     if (index < 0) return;
     lastRevealRequest.current = revealRequest;
-    if (!visibleEntryPaths.current.has(revealRequest.path))
-      treeListRef.current.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+    revealExplorerRow(treeListRef.current, index);
   }, [listRows, revealRequest]);
   const showBackFromError = Boolean(error && selectedEntryPath);
   const renderTreeRow = useCallback(
@@ -1086,7 +1126,6 @@ export function FileExplorerPane({
         isRefreshFetching={isRefreshFetching}
         treeListRef={treeListRef}
         scrollbar={scrollbar}
-        onViewableItemsChanged={onViewableItemsChanged}
         renderTreeRow={renderTreeRow}
         handleToggleHiddenFiles={handleToggleHiddenFiles}
         handleRefresh={handleRefresh}
@@ -1146,7 +1185,6 @@ function RootCreationContextTarget({
     </View>
   );
 }
-const fullyVisibleRows = { itemVisiblePercentThreshold: 100 };
 interface FileExplorerPaneContentProps {
   workspaceRoot: string;
   error: string | null;
@@ -1159,7 +1197,6 @@ interface FileExplorerPaneContentProps {
   isRefreshFetching: boolean;
   treeListRef: RefObject<FlatList<ExplorerListRow> | null>;
   scrollbar: OverlayFlatListScrollbar;
-  onViewableItemsChanged: (info: { viewableItems: ViewToken<ExplorerListRow>[] }) => void;
   renderTreeRow: (info: ListRenderItemInfo<ExplorerListRow>) => ReactElement;
   handleToggleHiddenFiles: () => void;
   handleRefresh: () => void;
@@ -1344,8 +1381,6 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
               renderItem={renderTreeRow}
               keyExtractor={listRowKeyExtractor}
               onScrollToIndexFailed={handleScrollToIndexFailed}
-              onViewableItemsChanged={props.onViewableItemsChanged}
-              viewabilityConfig={fullyVisibleRows}
               testID="file-explorer-tree-scroll"
               contentContainerStyle={styles.entriesContent}
               onLayout={scrollbar.onLayout}
@@ -1724,6 +1759,7 @@ const styles = StyleSheet.create((theme) => ({
   ignoredEntryName: {
     color: theme.colors.foregroundExtraMuted,
   },
+  rowHoverTarget: { position: "relative" },
   desktopRow: { minHeight: fileExplorerRowMetrics(theme.fontSize.chrome).minHeight },
   draftInput: {
     flex: 1,

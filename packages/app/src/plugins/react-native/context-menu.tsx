@@ -30,7 +30,12 @@ export function ContextMenu(props: ContextMenuProps) {
   }, []);
   return (
     <HostContextMenu onOpenChange={openChanged}>
-      <ContextMenuTrigger contextOnly={isWeb} onContextMenu={prepare} onLongPress={prepare}>
+      <ContextMenuTrigger
+        contextOnly={isWeb}
+        onContextMenu={prepare}
+        onLongPress={prepare}
+        style={props.fill ? fillStyle : undefined}
+      >
         {props.children}
       </ContextMenuTrigger>
       <ContextMenuContent>
@@ -41,6 +46,7 @@ export function ContextMenu(props: ContextMenuProps) {
     </HostContextMenu>
   );
 }
+const fillStyle = { flex: 1, minHeight: 0 };
 
 function ContextAction({
   action,

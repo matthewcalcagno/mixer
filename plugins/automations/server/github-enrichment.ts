@@ -20,6 +20,7 @@ export async function enrichGithubCheck(
   event: AutomationEvent,
   token: string,
   signal: AbortSignal,
+  apiUrl = "https://api.github.com",
 ): Promise<AutomationEvent> {
   if (event.githubType !== "github.check" || !event.repository) return event;
   const sha = valueAt(event.payload, "check_run.head_sha");
@@ -29,15 +30,18 @@ export async function enrichGithubCheck(
   const parsed = z.number().int().positive().safeParse(valueAt(refs[0], "number"));
   if (!parsed.success) return event;
   const repository = repositorySlug.parse(event.repository);
-  const response = await fetch(`https://api.github.com/repos/${repository}/pulls/${parsed.data}`, {
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: `Bearer ${token}`,
-      "user-agent": "Mixer-Automations",
+  const response = await fetch(
+    `${apiUrl.replace(/\/+$/, "")}/repos/${repository}/pulls/${parsed.data}`,
+    {
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${token}`,
+        "user-agent": "Mixer-Automations",
+      },
+      redirect: "error",
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
     },
-    redirect: "error",
-    signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
-  });
+  );
   if (!response.ok) {
     await response.body?.cancel();
     throw new Error(`GitHub PR lookup returned HTTP ${response.status}.`);

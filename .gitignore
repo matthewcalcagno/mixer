@@ -99,3 +99,4 @@ app.json
 
 # Project-local Serena configuration and memories.
 .serena/
+plugins/automations/server/engine/generated/

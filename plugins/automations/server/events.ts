@@ -8,6 +8,7 @@ type GithubType = Extract<keyof Definition["on"], `github.${string}`>;
 
 export interface AutomationEvent {
   source: "github" | "jira" | "webhook";
+  authority?: string;
   id: string;
   payload: z.output<ReturnType<typeof z.json>>;
   githubType?: GithubType;

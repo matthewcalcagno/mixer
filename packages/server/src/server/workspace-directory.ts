@@ -69,6 +69,7 @@ export type ProviderSubagentWorkspaceActivity = Pick<
 >;
 
 export interface WorkspaceDirectoryDeps {
+  isProjectRootVisibleToClient?(rootPath: string): boolean;
   logger: pino.Logger;
   projectRegistry: {
     list(): Promise<PersistedProjectRecord[]>;
@@ -580,7 +581,10 @@ export class WorkspaceDirectory {
     );
     return persistedProjects
       .filter(
-        (project) => !project.archivedAt && !projectIdsWithActiveWorkspaces.has(project.projectId),
+        (project) =>
+          !project.archivedAt &&
+          !projectIdsWithActiveWorkspaces.has(project.projectId) &&
+          this.deps.isProjectRootVisibleToClient?.(project.rootPath) !== false,
       )
       .map((project) => ({
         projectId: project.projectId,
@@ -624,6 +628,11 @@ export class WorkspaceDirectory {
     filter: FetchWorkspacesRequestFilter | undefined;
   }): boolean {
     const { workspace, filter } = input;
+    if (
+      filter?.query !== workspace.id &&
+      this.deps.isProjectRootVisibleToClient?.(workspace.projectRootPath) === false
+    )
+      return false;
     if (
       workspace.background &&
       filter?.includeBackground !== true &&

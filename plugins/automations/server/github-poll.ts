@@ -15,18 +15,20 @@ const repositoryEvent = z.object({
   actor: z.object({ login: z.string() }).optional(),
   payload: z.record(z.string(), z.json()),
 });
-const MAX_PAGES = 3;
-
 export async function pollGithubRepository(
   repository: string,
   token: string,
   cursor: string | undefined,
   signal: AbortSignal,
   dispatch: (event: AutomationEvent) => Promise<number>,
+  options: { apiUrl?: string; maxPages?: number } = {},
 ) {
   const events: z.output<typeof repositoryEvent>[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `https://api.github.com/repos/${repository}/events?per_page=100&page=${page}`;
+  const maxPages = options.maxPages ?? 3;
+  const apiUrl = (options.apiUrl ?? "https://api.github.com").replace(/\/+$/, "");
+  let cursorFound = !cursor;
+  for (let page = 1; page <= maxPages; page++) {
+    const url = `${apiUrl}/repos/${repository}/events?per_page=100&page=${page}`;
     const response = await fetch(url, {
       headers: {
         accept: "application/vnd.github+json",
@@ -42,8 +44,14 @@ export async function pollGithubRepository(
     }
     const entries = z.array(repositoryEvent).parse(await response.json());
     events.push(...entries);
-    if (!cursor || entries.some((event) => event.id === cursor) || entries.length < 100) break;
+    const reachedCursor = entries.some((event) => event.id === cursor);
+    cursorFound = cursorFound || reachedCursor;
+    if (!cursor || reachedCursor || entries.length < 100) break;
   }
+  if (!cursorFound)
+    throw new Error(
+      `GitHub history for ${repository} ended or reached maxPages before the saved cursor. Inspect upstream retention or increase maxPages; the cursor has not advanced.`,
+    );
   if (!events.length) return cursor;
   if (cursor) {
     const unseen: AutomationEvent[] = [];
@@ -59,7 +67,7 @@ export async function pollGithubRepository(
         },
         `poll:${event.id}`,
       );
-      if (normalized) unseen.push(normalized);
+      if (normalized) unseen.push({ ...normalized, authority: apiUrl });
     }
     for (const event of unseen.toReversed()) await dispatch(event);
   }

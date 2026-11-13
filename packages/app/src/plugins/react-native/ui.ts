@@ -38,6 +38,18 @@ export { Markdown } from "./markdown";
 export { confirmDialog } from "@/utils/confirm-dialog";
 
 export { CodeEditor } from "./code-editor";
+export { SourceEditor } from "./source-editor";
+export { EditorTabs } from "./editor-tabs";
+export { TreeNameInput } from "./tree-name-input";
+export { FileTreeRow } from "./file-tree-row";
+export { TreeDragSource, TreeDropTarget } from "./tree-drag-drop";
+export { SegmentedControl } from "@/components/ui/segmented-control";
+export { SearchField } from "@/components/ui/search-field";
+export { FormTextInput } from "@/components/ui/form-field";
+export { AgentChat } from "./agent-chat";
+export { FloatingAgentChat, AGENT_CHAT_LAUNCHER_CLEARANCE } from "./floating-agent-chat";
+export { FloatingActionButton } from "./floating-action-button";
+export { FLOATING_ACTION_BUTTON_CLEARANCE } from "@/components/ui/floating-action-button";
 
 export {
   MainPanelIsland as WorkspaceIsland,

@@ -11,9 +11,10 @@ export async function checkoutRepository(
   repository: string,
   revision: string | undefined,
   signal: AbortSignal,
+  cloneBaseUrl = "https://github.com",
 ) {
   const slug = repositorySlug.parse(repository);
-  const remote = `https://github.com/${slug}.git`;
+  const remote = `${cloneBaseUrl.replace(/\/+$/, "")}/${slug}.git`;
   const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
   const git = (args: string[]) =>
     exec("git", ["-c", "core.hooksPath=/dev/null", ...args], {

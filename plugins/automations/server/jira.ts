@@ -1,16 +1,20 @@
 import { z } from "zod";
+import type { AutomationEvent } from "./events.js";
+import type { readDefinition } from "./definition.js";
 
-const baseUrlSchema = z.url().refine((value) => {
-  const url = new URL(value);
-  return (
-    !url.username &&
-    !url.password &&
-    !url.search &&
-    !url.hash &&
-    (url.protocol === "https:" ||
-      (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
-  );
-}, "Jira baseUrl must use HTTPS (HTTP is allowed for localhost), without credentials, query, or fragment");
+const baseUrlSchema = z.url().pipe(
+  z.string().refine((value) => {
+    const url = new URL(value);
+    return (
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      (url.protocol === "https:" ||
+        (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
+    );
+  }, "Jira baseUrl must use HTTPS (HTTP is allowed for localhost), without credentials, query, or fragment"),
+);
 
 const requestSettings = {
   requestTimeoutMs: z.number().int().min(1).max(300_000).default(30_000),
@@ -18,7 +22,7 @@ const requestSettings = {
 };
 export const connectionSchema = z
   .object({
-    baseUrl: baseUrlSchema.transform((value) => value.replace(/\/+$/, "")),
+    baseUrl: baseUrlSchema.transform((value) => new URL(value).toString().replace(/\/+$/, "")),
     token: z.string().min(1),
     ...requestSettings,
   })
@@ -44,6 +48,10 @@ const searchSchema = z.object({
 
 export class JiraClient {
   constructor(private readonly config: z.infer<typeof connectionSchema>) {}
+
+  get baseUrl() {
+    return this.config.baseUrl;
+  }
 
   browseUrl(key: string): string {
     return `${this.config.baseUrl}/browse/${encodeURIComponent(key)}`;
@@ -100,4 +108,32 @@ export class JiraClient {
       );
     }
   }
+}
+
+export async function activateJiraIssue(
+  client: JiraClient,
+  trigger: NonNullable<Awaited<ReturnType<typeof readDefinition>>["on"]["jira.issue"]>,
+  event: AutomationEvent,
+  signal: AbortSignal,
+) {
+  if (event.authority && event.authority !== client.baseUrl)
+    throw new Error("The Jira authority changed before activation. No issue was executed.");
+  const { issue } = z.object({ issue: issueSchema }).parse(event.payload);
+  const page = await client.search({
+    jql: `(${trigger.jql}) AND id = ${issue.id}`,
+    fields: [...new Set(["summary", "updated", ...trigger.fields])],
+    maxResults: 2,
+    signal,
+  });
+  if (page.total === 0 && page.issues.length === 0) return null;
+  if (page.startAt !== 0 || page.total !== 1 || page.issues.length !== 1)
+    throw new Error("Jira activation returned incomplete or ambiguous issue data.");
+  const current = page.issues[0];
+  if (
+    current.id !== issue.id ||
+    current.key !== issue.key ||
+    current.fields.updated !== issue.fields.updated
+  )
+    return null;
+  return { ...event, payload: { issue: current, url: client.browseUrl(current.key) } };
 }

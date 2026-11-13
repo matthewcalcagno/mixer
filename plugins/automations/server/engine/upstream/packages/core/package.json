@@ -1,0 +1,32 @@
+{
+  "name": "@roboplane/core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mixer/automations-sdk": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "chokidar": "^4.0.3",
+    "esbuild": "~0.28.0",
+    "execa": "^9.6.0",
+    "gray-matter": "^4.0.3",
+    "pino": "^9.9.0",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  }
+}

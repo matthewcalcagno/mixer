@@ -121,10 +121,12 @@ const PANE_MAXIMIZE_ACTION_RESERVED_WIDTH = smallIconButtonChromeFrameSize(false
 // shape without changing them mis-measures and drops the row into the overflow-scroll fallback at
 // the wrong width. Keep them together.
 // Actions remain outside the scrolling tab strip so their positions do not depend on tab widths.
-const TAB_CHIP_HORIZONTAL_PADDING = 8;
-const TAB_CHIP_GAP = 2;
-const TAB_CHIP_HEIGHT = 24;
-const TAB_ROW_PADDING_HORIZONTAL = 4;
+import {
+  TAB_CHIP_HORIZONTAL_PADDING,
+  TAB_CHIP_GAP,
+  TAB_ROW_PADDING_HORIZONTAL,
+  createEditorTabStyles,
+} from "@/components/ui/editor-tab-geometry";
 const TAB_ICON_WIDTH = 14;
 const TAB_ICON_SIZES: Record<WorkspaceTabRailSurface, number> = {
   surface: ICON_SIZE.sm,
@@ -1744,6 +1746,7 @@ function ResolvedDesktopTabChip({
   );
 }
 const styles = StyleSheet.create((theme) => ({
+  ...createEditorTabStyles(theme),
   tabsContainer: {
     minWidth: 0,
     height: WORKSPACE_SECONDARY_HEADER_HEIGHT,
@@ -1799,22 +1802,9 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: PANE_SPLIT_ACTIONS_HORIZONTAL_PADDING,
     marginRight: PANE_SPLIT_ACTIONS_OUTER_MARGIN,
   },
-  tab: {
-    height: TAB_CHIP_HEIGHT,
-    paddingHorizontal: TAB_CHIP_HORIZONTAL_PADDING,
-    borderRadius: theme.borderRadius.base,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-    userSelect: "none",
-  },
   tabFill: (backdrop: SurfaceBackdrop) => ({
     backgroundColor: theme.colors[backdrop],
   }),
-  tabDense: {
-    height: TAB_CHIP_HEIGHT - theme.spacing[1],
-    borderRadius: theme.borderRadius.sm,
-  },
   fileTab: (showCloseButton: boolean) => ({
     paddingRight: TAB_CHIP_HORIZONTAL_PADDING + (showCloseButton ? FILE_TAB_TRAILING_WIDTH : 0),
   }),
@@ -1862,14 +1852,6 @@ const styles = StyleSheet.create((theme) => ({
   tabDropIndicatorAfter: {
     right: -TAB_CHIP_GAP / 2 - TAB_DROP_INDICATOR_WIDTH / 2,
   },
-  tabLabel: {
-    flexShrink: 1,
-    minWidth: 0,
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.chrome,
-    fontWeight: theme.fontWeight.normal,
-    userSelect: "none",
-  },
   fileTabLabel: { overflow: "hidden", textOverflow: "clip" },
   tabLabelMeasurements: {
     position: "absolute",
@@ -1891,9 +1873,6 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.surface3,
     opacity: 0.9,
-  },
-  tabLabelActive: {
-    color: theme.colors.foreground,
   },
   tabTrailingOverlay: (isFileLabel: boolean) => ({
     position: "absolute",

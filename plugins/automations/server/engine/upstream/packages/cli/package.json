@@ -1,0 +1,33 @@
+{
+  "name": "@roboplane/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": { "mixer-automations": "./dist/index.js" },
+  "exports": { ".": "./dist/index.js" },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --clean && node copy-docs.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mixer/automations-sdk": "workspace:*",
+    "@roboplane/core": "workspace:*",
+    "@roboplane/extension-claude": "workspace:*",
+    "@roboplane/extension-codex": "workspace:*",
+    "@roboplane/extension-copilot": "workspace:*",
+    "@roboplane/extension-container": "workspace:*",
+    "@roboplane/extension-evaluations": "workspace:*",
+    "@roboplane/extension-github": "workspace:*",
+    "@roboplane/extension-jira": "workspace:*",
+    "@roboplane/extension-opencode": "workspace:*",
+    "@roboplane/extension-pi": "workspace:*",
+    "@roboplane/extension-scheduler": "workspace:*",
+    "@roboplane/extension-scratch": "workspace:*",
+    "@roboplane/extension-steps": "workspace:*",
+    "@roboplane/extension-webhooks": "workspace:*",
+    "@roboplane/extension-worktree": "workspace:*",
+    "commander": "^14.0.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": { "tsup": "^8.5.0", "typescript": "^5.9.2" }
+}

@@ -1,0 +1,2 @@
+# Vendored engine provenance verifies the exact upstream bytes on every platform.
+plugins/automations/server/engine/upstream/** -text

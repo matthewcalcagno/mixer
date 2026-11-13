@@ -11,6 +11,9 @@ import { monacoThemeColor } from "./monaco/theme-colors";
 import { createTextMateHighlighter } from "./monaco/textmate";
 import { editorSyntaxThemes } from "@/styles/editor-syntax";
 import typescriptGrammar from "shiki/langs/typescript.mjs";
+import javascriptGrammar from "shiki/langs/javascript.mjs";
+import jsxGrammar from "shiki/langs/jsx.mjs";
+import tsxGrammar from "shiki/langs/tsx.mjs";
 import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { indentUnit, foldedRanges, foldCode } from "@codemirror/language";
@@ -19,6 +22,48 @@ import { editorPreferenceExtensions, editorBaseExtensions } from "./extensions";
 afterEach(() => vi.useRealTimers());
 
 describe("syntax paint scheduling", () => {
+  test("matches the VS Code Turbo object-key and property-access overrides", async () => {
+    const highlighter = await createTextMateHighlighter();
+    try {
+      await highlighter.loadLanguage(javascriptGrammar, jsxGrammar, typescriptGrammar, tsxGrammar);
+      const code = [
+        "const object = {",
+        '  color: "green",',
+        "  nested: { active: true },",
+        "};",
+        "object.color;",
+        "object.nested.active;",
+      ].join("\n");
+      for (const lang of ["javascript", "jsx", "typescript", "tsx"]) {
+        for (const [theme, keyColor, propertyColor] of [
+          ["github-turbo-dark", "#7EE787", "#79C0FF"],
+          ["github-turbo-light", "#22863A", "#005CC5"],
+        ]) {
+          const { tokens } = highlighter.codeToTokens(code, { lang, theme });
+          expect(
+            tokens[1].find((token) => token.content.includes("color"))?.color,
+            `${lang} ${theme}`,
+          ).toBe(keyColor);
+          expect(tokens[2].find((token) => token.content.includes("nested"))?.color).toBe(keyColor);
+          expect(tokens[2].find((token) => token.content.includes("active"))?.color).toBe(keyColor);
+          expect(tokens[4].find((token) => token.content.includes("color"))?.color).toBe(
+            propertyColor,
+          );
+          expect(tokens[5].find((token) => token.content.includes("nested"))?.color).toBe(
+            propertyColor,
+          );
+          expect(tokens[5].find((token) => token.content.includes("active"))?.color).toBe(
+            propertyColor,
+          );
+          expect(tokens[4].find((token) => token.content.includes("object"))?.color).toBe(
+            theme === "github-turbo-dark" ? "#E1E4E8" : "#24292E",
+          );
+        }
+      }
+    } finally {
+      highlighter.dispose();
+    }
+  });
   test("uses Turbo token colors in both modes without importing editor or token backgrounds", async () => {
     // Shiki adds its internal defaults when loading a registration. Inspect the authored
     // definitions before that normalization; Monaco still owns every editor UI color.

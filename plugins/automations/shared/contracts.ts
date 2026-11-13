@@ -7,11 +7,32 @@ export const workflowId = z
   .refine(
     (value) =>
       /\.(?:md|ya?ml)$/i.test(value) &&
+      (!value.includes("/") || configurationRootName(value) !== "config.json") &&
       !/[\\:]/.test(value) &&
       Array.from(value).every((character) => character.charCodeAt(0) >= 32) &&
       value.split("/").every((part) => part !== "" && part !== "." && part !== ".."),
     "Expected a workflow path inside Automations",
   );
+
+export const automationFileId = z.union([z.literal("config.json"), workflowId]);
+export const automationDirectoryId = z
+  .string()
+  .max(512)
+  .refine(
+    (value) =>
+      configurationRootName(value) !== "config.json" &&
+      !/[\\:]/.test(value) &&
+      Array.from(value).every((character) => character.charCodeAt(0) >= 32) &&
+      value.split("/").every((part) => part !== "" && part !== "." && part !== ".."),
+    "Use a relative folder path without traversal. config.json is reserved for configuration.",
+  );
+
+function configurationRootName(value: string) {
+  return value
+    .split("/")[0]
+    .replace(/[. ]+$/, "")
+    .toLowerCase();
+}
 
 const envName = z
   .string()
@@ -62,33 +83,72 @@ const workflow = z.object({
 export const listRpc = defineRpc({
   name: "automations.workflows.list",
   input: z.object({}),
-  output: z.object({ workflows: z.array(workflow), limited: z.boolean() }),
+  output: z.object({
+    workflows: z.array(workflow),
+    limited: z.boolean(),
+    configuration: z.boolean().default(false),
+    directories: z.array(automationDirectoryId).default([]),
+  }),
 });
 export const openRpc = defineRpc({
   name: "automations.workflows.open",
-  input: z.object({ path: workflowId }),
-  output: z.object({ workspaceId: z.string(), path: workflowId }),
+  input: z.object({ path: automationFileId }),
+  output: z.object({ workspaceId: z.string(), path: automationFileId }),
+});
+const workflowSource = z.object({
+  path: automationFileId,
+  content: z.string().max(1024 * 1024),
+  version: z.string().regex(/^[0-9a-f]{64}$/),
+});
+export const readWorkflowRpc = defineRpc({
+  name: "automations.workflows.read",
+  input: openRpc.input,
+  output: workflowSource,
+});
+export const saveWorkflowRpc = defineRpc({
+  name: "automations.workflows.save",
+  input: workflowSource,
+  output: workflowSource,
+});
+export const deleteWorkflowRpc = defineRpc({
+  name: "automations.workflows.delete",
+  input: workflowSource.pick({ path: true, version: true }),
+  output: z.object({ path: automationFileId }),
+});
+export const setWorkflowEnabledRpc = defineRpc({
+  name: "automations.workflows.set-enabled",
+  input: workflowSource.pick({ version: true }).extend({ path: workflowId, enabled: z.boolean() }),
+  output: workflowSource,
 });
 export const createRpc = defineRpc({
   name: "automations.workflows.create",
+  input: z.object({ path: automationFileId }),
+  output: z.object({ path: automationFileId }),
+});
+export const createDirectoryRpc = defineRpc({
+  name: "automations.directories.create",
+  input: z.object({ path: automationDirectoryId }),
+  output: z.object({ path: automationDirectoryId }),
+});
+export const moveWorkflowRpc = defineRpc({
+  name: "automations.workflows.move",
   input: z.object({
-    kind: z.enum(["agent", "steps"]).default("agent"),
-    name: z
-      .string()
-      .trim()
-      .regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/),
+    path: workflowId,
+    destination: workflowId,
+    version: workflowSource.shape.version,
   }),
-  output: openRpc.output,
+  output: workflowSource,
 });
 export const chatRpc = defineRpc({
   name: "automations.chat.open",
   input: z.object({ path: workflowId.optional() }),
-  output: z.object({ agentId: z.string() }),
+  output: z.object({ agentId: z.string(), workspaceId: z.string() }),
 });
 
-export const runId = z.string().uuid();
+export const runId = z.union([z.string().uuid(), z.string().regex(/^rp_[a-f0-9]{12}$/)]);
 export const actionName = z.enum(["github.pr.approve", "github.pr.merge"]);
 export const safeActionSchema = z.object({
+  apiUrl: z.url().optional(),
   name: actionName,
   status: z.enum(["proposed", "applying", "applied", "blocked", "uncertain"]),
   repository: z.string(),
@@ -101,7 +161,26 @@ export const safeActionSchema = z.object({
   minimumChecks: z.number().int().min(1).max(100).optional(),
   message: z.string().optional(),
 });
+export const runResultSchema = z.object({
+  outcome: z.string().max(100).optional(),
+  reason: z
+    .string()
+    .max(128 * 1024)
+    .optional(),
+  verification: z.array(z.string().max(8192)).max(256).optional(),
+  unresolved: z.array(z.string().max(8192)).max(256).optional(),
+});
 export const runSchema = z.object({
+  engine: z
+    .object({
+      steps: z.array(z.json()),
+      actions: z.array(z.json()),
+      event: z.json(),
+      workspace: z.json().optional(),
+      verification: z.array(z.json()),
+    })
+    .optional(),
+  result: runResultSchema.optional(),
   id: runId,
   path: workflowId,
   name: z.string(),
@@ -113,24 +192,52 @@ export const runSchema = z.object({
   sourceStatus: z.string().optional(),
   outcome: z.string().optional(),
   scheduledFor: z.number().optional(),
-  status: z.enum(["queued", "running", "succeeded", "failed", "interrupted", "attention"]),
+  status: z.enum([
+    "queued",
+    "running",
+    "succeeded",
+    "failed",
+    "interrupted",
+    "attention",
+    "skipped",
+  ]),
   createdAt: z.number(),
   finishedAt: z.number().optional(),
   agentId: z.string().optional(),
   error: z.string().optional(),
   action: safeActionSchema.optional(),
   actionError: z.string().optional(),
+  actionAttempts: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        at: z.number(),
+        status: z.enum(["requested", "blocked", "applied", "uncertain"]),
+        message: z.string().optional(),
+      }),
+    )
+    .default([]),
   output: z.string().default(""),
 });
 export const startRunRpc = defineRpc({
   name: "automations.runs.start",
-  input: openRpc.input,
+  input: z.object({ path: workflowId }),
   output: z.object({ id: runId }),
+});
+export const replayRunRpc = defineRpc({
+  name: "automations.runs.replay",
+  input: z.object({ id: runId, workflow: z.enum(["snapshot", "current"]) }),
+  output: z.object({ id: runId }),
+});
+export const cancelRunRpc = defineRpc({
+  name: "automations.runs.cancel",
+  input: z.object({ id: runId, reason: z.string().trim().min(1).max(1000) }),
+  output: z.object({ cancelled: z.boolean() }),
 });
 export const listRunsRpc = defineRpc({
   name: "automations.runs.list",
   input: z.object({}),
-  output: z.object({ runs: z.array(runSchema.omit({ output: true })) }),
+  output: z.object({ runs: z.array(runSchema.omit({ output: true, result: true })) }),
 });
 export const getRunRpc = defineRpc({
   name: "automations.runs.get",
@@ -150,13 +257,38 @@ export const applyActionRpc = defineRpc({
   output: runSchema,
 });
 
+export const reconcileActionRpc = defineRpc({
+  name: "automations.runs.reconcile-action",
+  input: z.object({ id: runId }),
+  output: runSchema,
+});
+export const configurationInfoRpc = defineRpc({
+  name: "automations.configuration.info",
+  input: z.object({}),
+  output: z.object({
+    fileConfigured: z.boolean(),
+    agentProvider: z.string(),
+    error: z.string().optional(),
+  }),
+});
+
 export const runtimeStatusRpc = defineRpc({
   name: "automations.runtime.status",
   input: z.object({}),
   output: z.object({
     paused: z.boolean(),
+    notices: z.array(z.object({ source: z.string(), message: z.string() })).optional(),
     listening: z.boolean(),
     pending: z.number().int().nonnegative(),
+    schedulesEnabled: z.boolean(),
+    integrations: z.array(
+      z.object({
+        name: z.string(),
+        ready: z.boolean(),
+        message: z.string(),
+      }),
+    ),
+    errors: z.array(z.object({ source: z.string(), message: z.string() })),
   }),
 });
 export const runtimeControlRpc = defineRpc({

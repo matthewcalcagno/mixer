@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { PluginClientContext, PluginSidebarItemProps } from "@mixer/plugin/client";
 import { SidebarRow } from "@mixer/plugin/client/ui";
-import { AutomationsScreen, AutomationsSettings } from "./client/screen.js";
+import { AutomationsScreen } from "./client/screen.js";
 
 function AutomationsSidebarItem({ currentScreen, openScreen }: PluginSidebarItemProps) {
   const open = useCallback(() => openScreen({ screenId: "workflows" }), [openScreen]);
@@ -19,6 +19,7 @@ export default function contribute(client: PluginClientContext) {
   const screen = client.addScreen({
     id: "workflows",
     title: "Automations",
+    presentation: "workspace",
     Component: AutomationsScreen,
   });
   const sidebar = client.addSidebarHeaderItem({
@@ -26,14 +27,7 @@ export default function contribute(client: PluginClientContext) {
     title: "Automations",
     Component: AutomationsSidebarItem,
   });
-  const settings = client.addSettingsScreen({
-    id: "preferences",
-    title: "Automations",
-    icon: "Workflow",
-    Component: AutomationsSettings,
-  });
   return () => {
-    settings();
     sidebar();
     screen();
   };

@@ -52,6 +52,8 @@ interface DraftStoreActions {
   attachWorkspaceFile: (input: {
     draftKey: string;
     attachment: WorkspaceFileComposerAttachment;
+    /** Passive context updates must not steal focus from the editor. Defaults to true. */
+    focus?: boolean;
   }) => Promise<void>;
   getCreateModalDraft: () => DraftInput | null;
   saveCreateModalDraft: (draft: DraftInput | null) => void;
@@ -374,7 +376,7 @@ export const useDraftStore = create<DraftStore>()(
         scheduleAttachmentGc();
       },
 
-      attachWorkspaceFile: async ({ draftKey, attachment }) => {
+      attachWorkspaceFile: async ({ draftKey, attachment, focus = true }) => {
         await get().hydrateDraftInput({ draftKey });
         set((state) => {
           const existing = state.drafts[draftKey];
@@ -391,10 +393,12 @@ export const useDraftStore = create<DraftStore>()(
                 previousVersion: existing?.version,
               }),
             },
-            attachmentFocusRequestByDraftKey: {
-              ...state.attachmentFocusRequestByDraftKey,
-              [draftKey]: (state.attachmentFocusRequestByDraftKey[draftKey] ?? 0) + 1,
-            },
+            attachmentFocusRequestByDraftKey: focus
+              ? {
+                  ...state.attachmentFocusRequestByDraftKey,
+                  [draftKey]: (state.attachmentFocusRequestByDraftKey[draftKey] ?? 0) + 1,
+                }
+              : state.attachmentFocusRequestByDraftKey,
           };
         });
         scheduleAttachmentGc();

@@ -1,6 +1,8 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import type { TerminalActivity } from "@mixer/protocol/terminal-activity";
+import type { MixerProject } from "@mixer/client";
+import type { DaemonClient } from "@mixer/client/internal/daemon-client";
 import { connectDaemonClient } from "./daemon-client-loader";
 import { withProjectOwnership } from "./project-ownership";
 import { createTempDirectory, createTempGitRepo } from "./workspace";
@@ -16,10 +18,7 @@ export interface SeedWorkspaceDescriptor {
   labels?: string[];
 }
 
-interface SeedProjectDescriptor {
-  projectId: string;
-  projectKey?: string;
-}
+type SeedProjectDescriptor = Pick<MixerProject, "projectId" | "projectKey" | "projectRootPath">;
 
 /**
  * The general-purpose E2E daemon client used to seed and drive state out of
@@ -27,7 +26,7 @@ interface SeedProjectDescriptor {
  * browser. Domain-specific helpers wrap it for their own flows; specs should
  * prefer those wrappers over reaching for this client directly.
  */
-export interface SeedDaemonClient {
+export interface SeedDaemonClient extends Pick<DaemonClient, "invokePluginRpc"> {
   connect(): Promise<void>;
   close(): Promise<void>;
   addProject(cwd: string): Promise<{
@@ -41,7 +40,9 @@ export interface SeedDaemonClient {
   }>;
   removeProject(projectId: string): Promise<{ removedWorkspaceIds: string[] }>;
   renameProject(projectId: string, customName: string | null): Promise<void>;
-  fetchWorkspaces(options?: { filter?: { projectId?: string } }): Promise<{
+  fetchWorkspaces(options?: {
+    filter?: { projectId?: string; includeBackground?: boolean };
+  }): Promise<{
     entries: SeedWorkspaceDescriptor[];
   }>;
   setWorkspaceTitle(workspaceId: string, title: string | null): Promise<{ title: string | null }>;

@@ -3,7 +3,12 @@
   "options": {
     "typeAware": false
   },
-  "ignorePatterns": [".dev/**"],
+  "ignorePatterns": [
+    ".dev/**",
+    "plugins/automations/server/engine/upstream/**",
+    "plugins/automations/server/engine/dist/**",
+    "plugins/automations/server/engine/generated/**"
+  ],
   "plugins": ["react", "react-perf", "unicorn", "typescript", "oxc", "import", "promise"],
   "jsPlugins": ["./scripts/oxlint/mixer-plugin.mjs"],
   "categories": {

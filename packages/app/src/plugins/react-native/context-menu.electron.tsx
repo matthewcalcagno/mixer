@@ -4,7 +4,7 @@ import type { ContextMenuProps } from "@mixer/plugin/client/ui";
 import { getDesktopHost } from "@/desktop/host";
 import { useToast } from "@/contexts/toast-context";
 
-export function ContextMenu({ children, actions, onOpen, onSelect }: ContextMenuProps) {
+export function ContextMenu({ children, actions, onOpen, onSelect, fill }: ContextMenuProps) {
   const toast = useToast();
   const open = useCallback(async () => {
     onOpen();
@@ -28,11 +28,12 @@ export function ContextMenu({ children, actions, onOpen, onSelect }: ContextMenu
     [open],
   );
   return (
-    <div onContextMenu={context} onKeyDown={key}>
+    <div onContextMenu={context} onKeyDown={key} style={fill ? fillStyle : undefined}>
       {children}
     </div>
   );
 }
+const fillStyle = { display: "flex", flexDirection: "column", flex: 1, minHeight: 0 } as const;
 
 async function showNativeActions(
   actions: ContextMenuProps["actions"],
