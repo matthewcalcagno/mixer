@@ -167,11 +167,11 @@ describe("scheduled pull-request runs", () => {
     ...extra,
   });
 
-  async function scheduledSource(values: Map<string, unknown>) {
+  async function scheduledSource(values: Map<string, unknown>, pollInterval = "30s") {
     const sources = new Map<string, EventSource>();
     const errors: unknown[] = [];
     const api = {
-      config: { get: () => ({ token: "test-token" }) },
+      config: { get: () => ({ token: "test-token", pollInterval }) },
       state: { namespace: () => ({ get: (key: string) => values.get(key), set: (key: string, value: unknown) => { values.set(key, value); }, delete: (key: string) => { values.delete(key); } }) },
       events: { registerSource(name: string, source: EventSource) { sources.set(name, source); } },
       inputs: { register() {} }, workflows: { registerField() {}, registerRunner() {} }, commands: { register() {} }, hooks: { on() {} }, actions: { register() {} },
@@ -180,6 +180,66 @@ describe("scheduled pull-request runs", () => {
     await github.setup!(api);
     return { source: sources.get("github.pr.schedule")!, errors };
   }
+
+  it("uses configured polling cadence without a cron and filters already reviewed PRs before emission", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    const { source, errors } = await scheduledSource(new Map(), "45s");
+    const emitted: Event[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/user")) return Response.json({ login: "maintainer", id: 1 });
+      if (url.includes("/pulls?")) return Response.json([64, 65, 66, 67, 68].map(number => pr(number, { requested_reviewers: [{ login: "maintainer" }] })));
+      if (url.includes("/reviews?")) {
+        const approved = url.includes("/64/");
+        const current = url.includes("/65/");
+        const pending = url.includes("/67/");
+        const state = approved ? "APPROVED" : pending ? "PENDING" : "COMMENTED";
+        return Response.json([{ state, commit_id: current || pending ? "a".repeat(40) : "c".repeat(40), user: { login: "MAINTAINER" } }]);
+      }
+      throw new Error("unexpected request " + url);
+    }));
+    const controller = new AbortController();
+    try {
+      source.start({ type: "github.pr.schedule", signal: controller.signal,
+        subscriptions: [{ type: "github.pr.schedule", workflowId: "review.md", repository: "owner/repo", config: { where: { all: [
+          { reviewer: "me" }, { not: { "approved-by": "me" } }, { not: { "reviewed-by": "me" } },
+        ] } } }], emit: async event => { emitted.push(event); return true; } });
+      await vi.advanceTimersByTimeAsync(44_999);
+      expect(emitted).toEqual([]);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(errors).toEqual([]);
+      expect(emitted.map(event => (event.data as GitHubEventData).number)).toEqual([66, 67, 68]);
+    } finally { controller.abort(); source.stop?.(); vi.useRealTimers(); }
+  });
+
+  it("paginates approval history and rechecks it after queueing without treating failures as no approval", async () => {
+    const { source } = await scheduledSource(new Map());
+    let approved = false;
+    let unavailable = false;
+    const where = { all: [{ reviewer: "me" }, { not: { "approved-by": "me" } }] };
+    const data = { ...pr(64), number: 64, isPullRequest: true, headSha: "a".repeat(40),
+      pullRequestAuthor: "author", draft: false, requestedReviewers: ["maintainer"], workflowId: "review.md", scheduledWhere: where };
+    const event: Event = { id: "scheduled", type: "github.pr.schedule", source: "github", repository: "owner/repo", timestamp: new Date().toISOString(), data };
+    const firstPage = Array.from({ length: 100 }, () => ({ state: "COMMENTED", commit_id: "c".repeat(40), user: { login: "someone" } }));
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/user")) return Response.json({ login: "maintainer", id: 1 });
+      if (url.endsWith("/pulls/64")) return Response.json(pr(64, { requested_reviewers: [{ login: "maintainer" }] }));
+      if (url.includes("/reviews?")) {
+        if (unavailable) return new Response("unavailable", { status: 503 });
+        if (url.endsWith("page=1")) return Response.json(firstPage);
+        return Response.json(approved ? [{ state: "APPROVED", commit_id: "c".repeat(40), user: { login: "maintainer" } }] : []);
+      }
+      throw new Error("unexpected request " + url);
+    }));
+    expect(await source.match!(event, { where }, { signal: new AbortController().signal, workflowId: "review.md" })).toBe(true);
+    approved = true;
+    expect(await source.match!(event, { where }, { signal: new AbortController().signal, workflowId: "review.md" })).toBe(false);
+    expect(await source.activate!(event)).toMatchObject({ decision: { kind: "skip", reason: "scheduled_pr_filter_changed" } });
+    unavailable = true;
+    await expect(source.match!(event, { where }, { signal: new AbortController().signal, workflowId: "review.md" })).rejects.toThrow("503");
+  });
 
   it("starts one activated PR run per eligible PR and not for ignored, draft, or other authors", async () => {
     vi.useFakeTimers();
@@ -367,6 +427,87 @@ describe("GitHub repository event polling", () => {
           author: "maintainer", body: 'issue-reply: The hook is included. I tested sendEvent("goBack").',
         }) }),
       ]);
+    } finally { poller.stop(); }
+  });
+
+  it.each([1, 2])("resumes after %i processed comment events disappear across restart without reporting a history gap", async (deleted) => {
+    const state = new Map<string, unknown>([[cursorKey, "0"]]);
+    let events = [repositoryComment("3"), repositoryComment("2"), repositoryComment("1"), { id: "0", type: "Unsupported" }];
+    const emitted: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok(events);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+    const first = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(state.get(cursorKey)).toBe("3"));
+      expect(emitted).toEqual(["github:owner/repo:1", "github:owner/repo:2", "github:owner/repo:3"]);
+    } finally { first.stop(); }
+    events = [repositoryComment("4"), ...events.slice(deleted)];
+    emitted.length = 0;
+    const restarted = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(restarted.reportHealth).toHaveBeenCalled());
+      expect(emitted).toEqual(["github:owner/repo:4"]);
+      expect(state.get(cursorKey)).toBe("4");
+      expect(state.get("events:owner/repo:gap")).toBeUndefined();
+      expect(restarted.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "ready", result: "success" }));
+    } finally { restarted.stop(); }
+  });
+
+  it("retains startup history boundaries when the initial cursor event is deleted", async () => {
+    const state = new Map<string, unknown>();
+    let events = [repositoryComment("3"), repositoryComment("2"), repositoryComment("1")];
+    const emitted: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok(events);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+    const first = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(state.get(cursorKey)).toBe("3"));
+      expect(emitted).toEqual([]);
+    } finally { first.stop(); }
+    events = [repositoryComment("4"), repositoryComment("2"), repositoryComment("1")];
+    const restarted = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(restarted.reportHealth).toHaveBeenCalled());
+      expect(emitted).toEqual(["github:owner/repo:4"]);
+      expect(state.get(cursorKey)).toBe("4");
+      expect(state.get("events:owner/repo:gap")).toBeUndefined();
+      expect(restarted.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "ready", result: "success" }));
+    } finally { restarted.stop(); }
+  });
+
+  it.each([
+    { checkpointCursor: "2", ids: ["4"], expected: ["github:owner/repo:4"] },
+    { checkpointCursor: "uncommitted", ids: ["4", "1"], expected: ["github:owner/repo:1", "github:owner/repo:4"] },
+  ])("reports a real gap when checkpoint $checkpointCursor cannot establish continuity", async ({ checkpointCursor, ids, expected }) => {
+    const state = new Map<string, unknown>([
+      [cursorKey, "2"],
+      ["events:owner/repo:checkpoint", { cursor: checkpointCursor, anchors: [checkpointCursor, "1"] }],
+    ]);
+    // A matching checkpoint has no surviving anchor; a mismatched checkpoint's
+    // apparent overlap must not let an uncommitted event become a boundary.
+    const events = ids.map(repositoryComment);
+    const emitted: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok(events);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+    const poller = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(poller.reportHealth).toHaveBeenCalled());
+      expect(emitted).toEqual(expected);
+      expect(state.get(cursorKey)).toBe("4");
+      expect(state.get("events:owner/repo:gap")).toMatchObject({ cursor: "2", newestAvailable: "4" });
+      expect(poller.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "degraded", result: "success", reason: "github_event_history_gap" }));
     } finally { poller.stop(); }
   });
 

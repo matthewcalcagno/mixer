@@ -686,6 +686,59 @@ test("Automations moves workflows between folders and root without replacing fil
   expect(await store.read("config.json")).toEqual(configuration);
 });
 
+test("Automations renames and deletes workflow folders without losing nested files or accepting stale versions", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "mixer-workflow-folders-"));
+  roots.push(home);
+  const store = createWorkflowStore(home);
+  await store.create("shared/reviews/task.md");
+  await writeFile(path.join(home, "automations/shared/helper.py"), "print('helper')\n");
+  const original = await store.read("shared/reviews/task.md");
+  const folder = await store.readDirectory("shared");
+  await expect(
+    store.moveDirectory({ ...folder, destination: "shared/reviews/nested" }),
+  ).rejects.toThrow();
+  await store.createDirectory("existing");
+  await expect(store.moveDirectory({ ...folder, destination: "existing" })).rejects.toThrow(
+    "already exists",
+  );
+  await store.moveDirectory({ ...folder, destination: "renamed" });
+  expect(await store.read("renamed/reviews/task.md")).toEqual({
+    ...original,
+    path: "renamed/reviews/task.md",
+  });
+  expect(await readFile(path.join(home, "automations/renamed/helper.py"), "utf8")).toBe(
+    "print('helper')\n",
+  );
+  const renamed = await store.readDirectory("renamed");
+  await store.create("renamed/another.yaml");
+  await expect(store.removeDirectory(renamed)).rejects.toThrow("changed on disk");
+  await expect(store.moveDirectory({ ...renamed, destination: "other" })).rejects.toThrow(
+    "changed on disk",
+  );
+  await mkdir(path.join(home, "outside"));
+  await symlink(path.join(home, "outside"), path.join(home, "automations/linked"), "dir");
+  await expect(store.readDirectory("linked")).rejects.toThrow("symbolic links");
+  await expect(
+    store.moveDirectory({
+      ...(await store.readDirectory("renamed")),
+      destination: "linked/outside",
+    }),
+  ).rejects.toThrow("symbolic links");
+  await expect(store.readDirectory("../outside")).rejects.toThrow();
+  await expect(store.readDirectory("config.json")).rejects.toThrow();
+  await store.removeDirectory(await store.readDirectory("renamed"));
+  expect((await store.list()).directories).toEqual(["existing"]);
+  expect((await store.list()).workflows).toEqual([]);
+  await store.createDirectory("ordered");
+  const ordered = await store.readDirectory("ordered");
+  const concurrent = await Promise.allSettled([
+    store.moveDirectory({ ...ordered, destination: "target" }),
+    store.createDirectory("target"),
+  ]);
+  expect(concurrent.map((result) => result.status)).toEqual(["fulfilled", "rejected"]);
+  expect((await store.list()).directories).toEqual(["existing", "target"]);
+});
+
 test("Automations manages workflow drafts, rejects stale saves and deletes, and validates before enabling", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "mixer-workflow-management-"));
   roots.push(home);
@@ -717,6 +770,46 @@ test("Automations manages workflow drafts, rejects stale saves and deletes, and 
   expect(await store.read("review.md")).toEqual(disabled);
   await store.remove(disabled);
   await expect(store.read("review.md")).rejects.toThrow();
+});
+
+test("Automations duplicates workflows as disabled drafts and rejects collisions, stale versions, and symlinks", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "mixer-workflow-duplicate-"));
+  roots.push(home);
+  const store = createWorkflowStore(home);
+  await store.create("task.md");
+  const original = await store.save({
+    ...(await store.read("task.md")),
+    content: "---\nname: Review\ndisabled: false\non: {}\n---\n\nReview the current project.\n",
+  });
+  const duplicate = await store.duplicate({ ...original, destination: "copy.md" });
+  expect(duplicate.content).toBe(
+    "---\nname: Review\ndisabled: true\non: {}\n---\n\nReview the current project.\n",
+  );
+  expect(await store.read("task.md")).toEqual(original);
+  await expect(store.duplicate({ ...original, destination: "copy.md" })).rejects.toThrow(
+    "already exists",
+  );
+  await expect(store.duplicate({ ...original, destination: "copy.yaml" })).rejects.toThrow(
+    "format",
+  );
+  await expect(store.duplicate({ ...original, destination: "../copy.md" })).rejects.toThrow();
+  await mkdir(path.join(home, "outside"));
+  await symlink(path.join(home, "outside"), path.join(home, "automations/linked"), "dir");
+  await expect(store.duplicate({ ...original, destination: "linked/copy.md" })).rejects.toThrow(
+    "symbolic links",
+  );
+  await store.save({
+    ...original,
+    content: original.content.replace("Review the current project.", "Changed."),
+  });
+  await expect(store.duplicate({ ...original, destination: "stale.md" })).rejects.toThrow(
+    "changed on disk",
+  );
+  await store.create("steps.yaml");
+  const yaml = await store.setEnabled({ ...(await store.read("steps.yaml")), enabled: true });
+  const copiedYaml = await store.duplicate({ ...yaml, destination: "steps-copy.yml" });
+  expect(copiedYaml.content).toContain("disabled: true");
+  expect(copiedYaml.content).toContain('run: echo "Hello from Mixer"');
 });
 
 test("Automations serializes conflicting editor saves and keeps workflow bodies intact", async () => {

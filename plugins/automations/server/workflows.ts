@@ -36,6 +36,11 @@ export interface WorkflowStoreValidation {
     on: Record<string, unknown>;
   }>;
 }
+interface WorkflowContentUpdate {
+  path: string;
+  content: string;
+  disabled: boolean;
+}
 export function createWorkflowStore(home: string, validation?: WorkflowStoreValidation) {
   const directory = resolve(home, "automations");
   let mutation = Promise.resolve();
@@ -136,59 +141,137 @@ export function createWorkflowStore(home: string, validation?: WorkflowStoreVali
       });
   }
 
-  async function create(id: string) {
-    const root = await initialize();
-    const path = automationFileId.parse(id);
-    const parts = path.split("/");
-    const filename = parts.pop()!;
-    let parent = root;
-    for (const part of parts) {
-      parent = join(parent, part);
-      await mkdir(parent, { mode: 0o700 }).catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== "EEXIST") throw error;
+  function create(id: string) {
+    return serialize(async () => {
+      const root = await initialize();
+      const path = automationFileId.parse(id);
+      const parts = path.split("/");
+      const filename = parts.pop()!;
+      let parent = root;
+      for (const part of parts) {
+        parent = join(parent, part);
+        await mkdir(parent, { mode: 0o700 }).catch((error: NodeJS.ErrnoException) => {
+          if (error.code !== "EEXIST") throw error;
+        });
+        if (!(await lstat(parent)).isDirectory() || (await realpath(parent)) !== parent)
+          throw new Error("Workflow folders must be directories, not symbolic links.");
+      }
+      const file = join(root, path);
+      const name = filename.replace(/\.[^.]+$/, "");
+      const header = `name: ${JSON.stringify(name)}\ndisabled: true\non: {}\n`;
+      let content = `${header}steps:\n  - name: Example\n    run: echo "Hello from Mixer"\n`;
+      if (/\.md$/i.test(path))
+        content = `---\n${header}---\n\nDescribe what the automation should do.\n`;
+      if (path === "config.json") content = initialAutomationConfiguration;
+      await writeFile(file, content, {
+        flag: "wx",
+        mode: 0o600,
+      }).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "EEXIST") throw new Error(`A workflow already exists at ${path}.`);
+        throw error;
       });
-      if (!(await lstat(parent)).isDirectory() || (await realpath(parent)) !== parent)
-        throw new Error("Workflow folders must be directories, not symbolic links.");
-    }
-    const file = join(root, path);
-    const name = filename.replace(/\.[^.]+$/, "");
-    const header = `name: ${JSON.stringify(name)}\ndisabled: true\non: {}\n`;
-    let content = `${header}steps:\n  - name: Example\n    run: echo "Hello from Mixer"\n`;
-    if (/\.md$/i.test(path))
-      content = `---\n${header}---\n\nDescribe what the automation should do.\n`;
-    if (path === "config.json") content = initialAutomationConfiguration;
-    await writeFile(file, content, {
-      flag: "wx",
-      mode: 0o600,
-    }).catch((error: NodeJS.ErrnoException) => {
-      if (error.code === "EEXIST") throw new Error(`A workflow already exists at ${path}.`);
-      throw error;
+      return { root, path };
     });
-    return { root, path };
   }
 
-  async function createDirectory(id: string) {
-    const path = automationDirectoryId.parse(id);
-    const root = await initialize();
-    const parts = path.split("/");
-    let parent = root;
-    for (const [index, part] of parts.entries()) {
-      parent = join(parent, part);
-      await mkdir(parent, { mode: 0o700 }).catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== "EEXIST") throw error;
-        if (index === parts.length - 1)
-          throw new Error(`A file or folder already exists at ${path}.`);
-      });
-      if (!(await lstat(parent)).isDirectory() || (await realpath(parent)) !== parent)
-        throw new Error("Workflow folders cannot be symbolic links.");
-    }
-    return { path };
+  function createDirectory(id: string) {
+    return serialize(async () => {
+      const path = automationDirectoryId.parse(id);
+      const root = await initialize();
+      const parts = path.split("/");
+      let parent = root;
+      for (const [index, part] of parts.entries()) {
+        parent = join(parent, part);
+        await mkdir(parent, { mode: 0o700 }).catch((error: NodeJS.ErrnoException) => {
+          if (error.code !== "EEXIST") throw error;
+          if (index === parts.length - 1)
+            throw new Error(`A file or folder already exists at ${path}.`);
+        });
+        if (!(await lstat(parent)).isDirectory() || (await realpath(parent)) !== parent)
+          throw new Error("Workflow folders cannot be symbolic links.");
+      }
+      return { path };
+    });
   }
 
   async function read(id: string) {
     const { root, path } = await validate(id);
     const content = await readFile(join(root, path), "utf8");
     return { path, content, version: createHash("sha256").update(content).digest("hex") };
+  }
+
+  async function validateDirectory(id: string) {
+    const path = automationDirectoryId.parse(id);
+    const root = await initialize();
+    const absolute = join(root, path);
+    if ((await realpath(absolute)) !== absolute || !(await lstat(absolute)).isDirectory())
+      throw new Error("Workflow folders must be directories, not symbolic links.");
+    return { root, path, absolute };
+  }
+
+  async function readDirectory(id: string) {
+    const { path, absolute } = await validateDirectory(id);
+    const pending = [""];
+    const entries: string[] = [];
+    while (pending.length) {
+      const relative = pending.pop()!;
+      const target = join(absolute, relative);
+      const stat = await lstat(target, { bigint: true });
+      if (!stat.isDirectory() && !stat.isFile())
+        throw new Error("Workflow folders cannot contain symbolic links or special files.");
+      entries.push(
+        JSON.stringify([
+          relative,
+          stat.mode.toString(),
+          stat.ino.toString(),
+          stat.size.toString(),
+          stat.mtimeNs.toString(),
+          stat.ctimeNs.toString(),
+        ]),
+      );
+      if (entries.length > MAX_ENTRIES) throw new Error("Workflow folder exceeds the entry limit.");
+      if (stat.isDirectory()) {
+        for await (const entry of await opendir(target)) pending.push(join(relative, entry.name));
+      }
+    }
+    entries.sort();
+    return { path, version: createHash("sha256").update(JSON.stringify(entries)).digest("hex") };
+  }
+
+  async function currentDirectory(input: { path: string; version: string }) {
+    const snapshot = await readDirectory(input.path);
+    if (snapshot.version !== input.version)
+      throw new Error("This folder changed on disk. Try again to review its current contents.");
+    return validateDirectory(input.path);
+  }
+
+  function moveDirectory(input: { path: string; destination: string; version: string }) {
+    return serialize(async () => {
+      const destination = automationDirectoryId.parse(input.destination);
+      const source = await currentDirectory(input);
+      if (destination === source.path) return readDirectory(source.path);
+      if (destination.startsWith(`${source.path}/`))
+        throw new Error("A folder cannot be moved inside itself.");
+      const parent = join(source.root, ...destination.split("/").slice(0, -1));
+      if ((await realpath(parent)) !== parent || !(await lstat(parent)).isDirectory())
+        throw new Error("Workflow folders cannot be symbolic links.");
+      const target = join(source.root, destination);
+      const existing = await lstat(target).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (existing) throw new Error(`A file or folder already exists at ${destination}.`);
+      await rename(source.absolute, target);
+      return readDirectory(destination);
+    });
+  }
+
+  function removeDirectory(input: { path: string; version: string }) {
+    return serialize(async () => {
+      const source = await currentDirectory(input);
+      await rm(source.absolute, { recursive: true });
+      return { path: source.path };
+    });
   }
 
   async function current(path: string, version: string) {
@@ -264,17 +347,37 @@ export function createWorkflowStore(home: string, validation?: WorkflowStoreVali
   function setEnabled(input: { path: string; version: string; enabled: boolean }) {
     return serialize(async () => {
       const source = await current(input.path, input.version);
-      const markdown = /\.md$/i.test(input.path);
-      const frontmatter = /^---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m.exec(source.content);
       if (validation) await validation.validate(input.path, source.content);
       else parseDefinition(input.path, source.content);
-      const yaml = markdown ? (frontmatter?.[1] ?? "{}") : source.content;
-      const document = parseDocument(yaml);
-      if (document.errors.length) throw new Error(document.errors[0].message);
-      document.set("disabled", !input.enabled);
-      const body = frontmatter ? source.content.slice(frontmatter[0].length) : source.content;
-      const content = markdown ? `---\n${document.toString()}---\n${body}` : document.toString();
-      return write(input.path, content);
+      return write(
+        input.path,
+        withDisabled({ path: input.path, content: source.content, disabled: !input.enabled }),
+      );
+    });
+  }
+
+  function duplicate(input: { path: string; destination: string; version: string }) {
+    return serialize(async () => {
+      const path = workflowId.parse(input.path);
+      const destination = workflowId.parse(input.destination);
+      if (/\.md$/i.test(path) !== /\.md$/i.test(destination))
+        throw new Error("Keep the workflow format when duplicating a file.");
+      const source = await current(path, input.version);
+      const content = withDisabled({ path, content: source.content, disabled: true });
+      if (validation) await validation.validate(destination, content);
+      else parseDefinition(destination, content);
+      const { root } = await validate(path);
+      const parent = join(root, ...destination.split("/").slice(0, -1));
+      if ((await realpath(parent)) !== parent || !(await lstat(parent)).isDirectory())
+        throw new Error("Workflow folders cannot be symbolic links.");
+      await writeFile(join(root, destination), content, { flag: "wx", mode: 0o600 }).catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code === "EEXIST")
+            throw new Error(`A file or folder already exists at ${destination}.`);
+          throw error;
+        },
+      );
+      return read(destination);
     });
   }
 
@@ -291,5 +394,19 @@ export function createWorkflowStore(home: string, validation?: WorkflowStoreVali
     setEnabled,
     hasConfiguration,
     createDirectory,
+    readDirectory,
+    moveDirectory,
+    removeDirectory,
+    duplicate,
   };
+}
+
+function withDisabled({ path, content, disabled }: WorkflowContentUpdate) {
+  const markdown = /\.md$/i.test(path);
+  const frontmatter = /^---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m.exec(content);
+  const document = parseDocument(markdown ? (frontmatter?.[1] ?? "{}") : content);
+  if (document.errors.length) throw new Error(document.errors[0].message);
+  document.set("disabled", disabled);
+  const body = frontmatter ? content.slice(frontmatter[0].length) : content;
+  return markdown ? `---\n${document.toString()}---\n${body}` : document.toString();
 }

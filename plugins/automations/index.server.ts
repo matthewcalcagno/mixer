@@ -5,6 +5,10 @@ import {
   createRpc,
   createDirectoryRpc,
   moveWorkflowRpc,
+  duplicateWorkflowRpc,
+  readDirectoryRpc,
+  moveDirectoryRpc,
+  deleteDirectoryRpc,
   replayRunRpc,
   cancelRunRpc,
   listRpc,
@@ -74,6 +78,10 @@ export default function contribute(server: PluginServerContext) {
   });
   server.handle(createDirectoryRpc, ({ path }) => store.createDirectory(path));
   server.handle(moveWorkflowRpc, (input) => store.move(input));
+  server.handle(duplicateWorkflowRpc, (input) => store.duplicate(input));
+  server.handle(readDirectoryRpc, ({ path }) => store.readDirectory(path));
+  server.handle(moveDirectoryRpc, (input) => store.moveDirectory(input));
+  server.handle(deleteDirectoryRpc, (input) => store.removeDirectory(input));
   server.handle(prepareChatRpc, async ({ path }, { mixer }) => {
     const root = path ? (await store.validate(path)).root : await store.initialize();
     const workspace = await mixer.workspaces.open(root);

@@ -139,6 +139,30 @@ export const moveWorkflowRpc = defineRpc({
   }),
   output: workflowSource,
 });
+export const duplicateWorkflowRpc = defineRpc({
+  name: "automations.workflows.duplicate",
+  input: moveWorkflowRpc.input,
+  output: workflowSource,
+});
+const directorySource = z.object({
+  path: automationDirectoryId,
+  version: workflowSource.shape.version,
+});
+export const readDirectoryRpc = defineRpc({
+  name: "automations.directories.read",
+  input: directorySource.pick({ path: true }),
+  output: directorySource,
+});
+export const moveDirectoryRpc = defineRpc({
+  name: "automations.directories.move",
+  input: directorySource.extend({ destination: automationDirectoryId }),
+  output: directorySource,
+});
+export const deleteDirectoryRpc = defineRpc({
+  name: "automations.directories.delete",
+  input: directorySource,
+  output: z.object({ path: automationDirectoryId }),
+});
 export const prepareChatRpc = defineRpc({
   name: "automations.chat.prepare",
   input: z.object({ path: workflowId.optional() }),

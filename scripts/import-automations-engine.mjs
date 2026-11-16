@@ -4,6 +4,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { namespaceAutomationEngine } from "./automations-engine-namespace.mjs";
+import { adaptGitHubEventPolling } from "./automations-engine-github.mjs";
+import { adaptGitHubReviewTriggers } from "./automations-engine-review-triggers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const destination = join(root, "plugins/automations/server/engine/upstream");
@@ -112,13 +114,17 @@ if (process.argv.includes("--verify")) {
     if (existsSync(target) && hash(readFileSync(target)) !== previous?.files[file]?.importedSha256)
       throw new Error(`Refusing to overwrite an unrecorded engine change: ${file}`);
     mkdirSync(dirname(target), { recursive: true });
-    content = Buffer.from(namespaceAutomationEngine(content.toString()));
+    content = Buffer.from(
+      namespaceAutomationEngine(
+        adaptGitHubReviewTriggers(file, adaptGitHubEventPolling(file, content.toString())),
+      ),
+    );
     writeFileSync(target, content);
     imported[file] = { upstreamSha256: hash(original), importedSha256: hash(content) };
   }
   writeFileSync(
     manifestFile,
-    `${JSON.stringify({ repository: "https://github.com/matthewcalcagno/roboplane", revision, branch: "main", adaptations: ["Mixer Automations protocol namespace, SDK package name, workflow CLI helper, and user-facing branding. Persisted storage names and source module identities other than the public SDK remain unchanged.", "Opt-in embedded storage paths, packaged SDK resolution and local extension dependency bundling, short private control socket, Electron Node subprocess flag, and draft-schema export."], files: imported }, null, 2)}\n`,
+    `${JSON.stringify({ repository: "https://github.com/matthewcalcagno/roboplane", revision, branch: "main", adaptations: ["Mixer Automations protocol namespace, SDK package name, workflow CLI helper, and user-facing branding. Persisted storage names and source module identities other than the public SDK remain unchanged.", "Opt-in embedded storage paths, packaged SDK resolution and local extension dependency bundling, short private control socket, Electron Node subprocess flag, and draft-schema export.", "Restart-safe GitHub polling history boundaries for deleted cursor events, with regression tests and documentation.", "GitHub PR scans inherit configured polling cadence; frontmatter approval-history and current-head review filters run before admission and after queueing."], files: imported }, null, 2)}\n`,
   );
   console.log(
     `Imported ${files.length} tracked engine, test, example, and documentation files from ${revision}.`,

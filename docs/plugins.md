@@ -24,7 +24,11 @@ no separate executor picker. Drafts start disabled. File tabs retain unsaved edi
 when switching files or Runs. Electron edits source in the bundled Monaco runtime.
 Drag a saved workflow onto a folder to move it, or onto blank tree space to return it to the root.
 Moves retain content and update open tabs. They reject collisions and stale source versions;
-unsaved files and config.json cannot be dragged. Folders remain in place.
+unsaved files and config.json cannot be dragged. Context menus rename and delete files and folders,
+duplicate workflow files as disabled drafts, copy relative paths, and collapse folders. Renaming a
+folder updates its open file tabs. Rename and duplicate require saved drafts; deletion confirms
+discarding unsaved changes and retains run history. Folder deletion includes all contents, even
+files not shown in the workflow tree, and rejects contents changed after confirmation was opened.
 
 Save and delete reject stale file versions; Reload explicitly discards a draft after confirmation.
 Invalid definitions stay visible for repair, but cannot be enabled. The floating AI action opens a

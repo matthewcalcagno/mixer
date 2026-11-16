@@ -174,7 +174,7 @@ Scheduled PRs are checked again after leaving the queue. A PR that has merged, c
 
 ### Event history gaps
 
-When a saved cursor is absent from the fetched event pages, Mixer Automations replays available events oldest-first and records a possible history gap. This does not identify which events, if any, were missed. Successful polling continues, but source readiness stays degraded until you acknowledge the unresolved gaps. Successful polls reset the consecutive failure count and update the last-success timestamp even while a historical warning remains. A repeated warning is not a new polling failure.
+GitHub can remove events when their comments are deleted, so polling retains up to 100 processed event IDs as restart-safe history boundaries. Startup also retains the first page of skipped historical events. If the saved cursor disappears, polling resumes at the first surviving boundary without replaying older events or recording a gap. When no retained boundary is present in the fetched pages, Mixer Automations replays available events oldest-first and records a possible history gap. This does not identify which events, if any, were missed. Successful polling continues, but source readiness stays degraded until you acknowledge the unresolved gaps. Successful polls reset the consecutive failure count and update the last-success timestamp even while a historical warning remains. A repeated warning is not a new polling failure.
 
 Inspect incidents before deciding whether to acknowledge them:
 
@@ -333,6 +333,37 @@ on:
 ```
 
 The complete normalized event payload is appended to the workflow prompt. The agent can fetch any additional context with `gh`.
+
+## Review workflow admission
+
+Use frontmatter to exclude PRs before an agent starts:
+
+```yaml
+github.execution:
+  oncePerHead: true
+on:
+  github.pr.schedule:
+    where: &needs-review
+      all:
+        - reviewer: me
+        - state: open
+        - draft: false
+        - merged: false
+        - not: { pull-request-author: me }
+        - not: { approved-by: me }
+        - not: { reviewed-by: me }
+        - labels: { none: [roboplane-ignore] }
+```
+
+Omitting `cron` uses `extensions.github.pollInterval`. An explicit cron keeps its independent cadence. The live scan discovers existing review requests and new heads even when repository-event polling does not deliver those transitions.
+
+`approved-by` matches an account with an APPROVED review anywhere in the complete available history, including an older head. Dismissed approvals no longer have APPROVED state in GitHub's review API and do not match. Keep a separate publication safeguard if your policy must exclude approvals that have since been dismissed.
+
+`reviewed-by` matches an account with a submitted APPROVED, COMMENTED, or CHANGES_REQUESTED review on the current head. Pending and dismissed reviews do not count. A comment-only review therefore prevents repeated review of an unchanged head, but a new commit permits another review. Both predicates accept the same identity syntax as `reviewer`, including case-insensitive `me`.
+
+Review history is fetched only for filters that use these predicates, with complete bounded pagination. Unavailable, malformed, or truncated history fails rather than treating an unknown history as empty. Filters are checked again against live PR state and fresh reviews after queueing, before workspace creation. These checks do not authorize publication. Refresh PR state and reviews immediately before publishing as well.
+
+For webhook installations, the same `where` condition can also be used on `github.pull-request` with `events: [review_requested, synchronize, ready_for_review, reopened]`. Repository-event polling does not reliably deliver those actions. Keep the live PR scan for recovery instead of replacing it with unsupported event hooks.
 
 ## Account, author, reviewer, and mention filters
 

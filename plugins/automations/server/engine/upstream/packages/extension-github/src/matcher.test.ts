@@ -4,6 +4,18 @@ import { isSelfAuthoredGitHubEvent, needsActiveRunSelfGuard, normalizeGitHubRepo
 import { evaluateGitHubTrigger, githubTriggerSchema, matchesGitHubTrigger } from "./matcher.js";
 
 describe("GitHub trigger matching", () => {
+  it("composes requested-reviewer and review-history predicates with me and negation", () => {
+    const identity = { login: "maintainer" };
+    const trigger = { where: { all: [
+      { reviewer: "me" }, { not: { "approved-by": "me" } }, { not: { "reviewed-by": "me" } },
+    ] } };
+    const data = { requestedReviewers: ["MAINTAINER"], approvedBy: [], reviewedBy: [] };
+    expect(matchesGitHubTrigger(data, trigger, identity)).toBe(true);
+    expect(matchesGitHubTrigger({ ...data, approvedBy: ["Maintainer"] }, trigger, identity)).toBe(false);
+    expect(matchesGitHubTrigger({ ...data, reviewedBy: ["Maintainer"] }, trigger, identity)).toBe(false);
+    expect(matchesGitHubTrigger({ ...data, requestedReviewers: [] }, trigger, identity)).toBe(false);
+    expect(evaluateGitHubTrigger({ ...data, approvedBy: ["maintainer"] }, { ...trigger, reconcile: true }, identity)).toBe("defer");
+  });
   const feedback = { action: "created", author: "copilot-pull-request-reviewer[bot]", pullRequestAuthor: "octocat",
     reviewState: "COMMENTED", state: "open", draft: true, merged: false, labels: ["automation"] };
   const reconciling = { events: ["created"], reconcile: true, where: { all: [

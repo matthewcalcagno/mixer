@@ -9,6 +9,11 @@ pre-commit:
       run: npm run format:check:files -- {staged_files}
     - name: lint
       glob: "*.{js,jsx,ts,tsx}"
+      exclude:
+        - ".dev/**"
+        - "plugins/automations/server/engine/upstream/**"
+        - "plugins/automations/server/engine/dist/**"
+        - "plugins/automations/server/engine/generated/**"
       run: npm run lint -- {staged_files}
     - name: typecheck
       run: npm run typecheck
