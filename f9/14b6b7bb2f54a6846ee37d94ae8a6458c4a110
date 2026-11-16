@@ -1,0 +1,33 @@
+plugins/automations/server/engine/provenance.json
+  s_97ad15873a2151::t_7ce848dab8e72f 8-9,54,98,534,538,542,546
+plugins/automations/server/engine/upstream/docs/github.md
+  s_97ad15873a2151::t_8e993a28e865e6 337-367
+plugins/automations/server/engine/upstream/docs/workflow-authoring.md
+  s_97ad15873a2151::t_126cefb483da65 208
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.test.ts
+  s_97ad15873a2151::t_4e5b3627f24a94 170,174,184-243
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.ts
+  s_97ad15873a2151::t_924fcc5b9b1e8f 141,774-805,1595,1778-1786,1853-1857,1894,1898
+plugins/automations/server/engine/upstream/packages/extension-github/src/matcher.test.ts
+  s_97ad15873a2151::t_aa64b11e41bb6b 7-18
+plugins/automations/server/engine/upstream/packages/extension-github/src/matcher.ts
+  s_97ad15873a2151::t_80a905b73cc3c9 66-67,118-119,269-270,324-325,327
+scripts/import-automations-engine.mjs
+  s_97ad15873a2151::t_f4526c236df451 8,118-120,127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "f914b6b7bb2f54a6846ee37d94ae8a6458c4a110",
+  "prompts": {},
+  "sessions": {
+    "s_97ad15873a2151": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1b22ca79ffeKeTJBYMoq9tWHn",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
