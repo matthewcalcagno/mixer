@@ -138,7 +138,7 @@ const prScheduleSchema = z.object({
   cron: z.string().min(1).refine((value) => {
     try { CronExpressionParser.parse(value); return true; }
     catch { return false; }
-  }, "invalid cron expression"),
+  }, "invalid cron expression").optional(),
   where: githubConditionSchema,
 }).strict();
 
@@ -770,6 +770,38 @@ export default defineExtension({
         reviewState: review.state,
         review: { state: review.state, body: review.body, url: review.html_url },
       };
+    };
+    const needsReviewHistory = (condition: import("./matcher.js").GitHubCondition | undefined): boolean => {
+      if (!condition) return false;
+      if ("all" in condition) return condition.all.some(needsReviewHistory);
+      if ("any" in condition) return condition.any.some(needsReviewHistory);
+      if ("not" in condition) return needsReviewHistory(condition.not);
+      return condition["approved-by"] !== undefined || condition["reviewed-by"] !== undefined;
+    };
+    const reviewHistorySchema = z.array(z.object({
+      state: z.enum(["APPROVED", "COMMENTED", "CHANGES_REQUESTED", "DISMISSED", "PENDING"]),
+      commit_id: z.string().nullable(),
+      user: z.object({ login: z.string().min(1) }).nullable(),
+    }));
+    const enrichReviewHistory = async (repository: string | undefined, data: GitHubEventData,
+      where: import("./matcher.js").GitHubCondition | undefined, signal?: AbortSignal): Promise<GitHubEventData> => {
+      if (!needsReviewHistory(where)) return data;
+      if (!repository || !data.isPullRequest || !data.number || !data.headSha) {
+        throw new Error("Review-history filters require an identified pull request and head");
+      }
+      const approvedBy: string[] = [];
+      const reviewedBy: string[] = [];
+      for (let page = 1; page <= 100; page++) {
+        const endpoint = "/repos/" + repository + "/pulls/" + data.number + "/reviews?per_page=100&page=" + page;
+        const reviews = reviewHistorySchema.parse(await request("GET", endpoint, undefined, signal));
+        for (const review of reviews) {
+          if (!review.user) continue;
+          if (review.state === "APPROVED") approvedBy.push(review.user.login);
+          if (review.commit_id === data.headSha && ["APPROVED", "COMMENTED", "CHANGES_REQUESTED"].includes(review.state)) reviewedBy.push(review.user.login);
+        }
+        if (reviews.length < 100) return { ...data, approvedBy, reviewedBy };
+      }
+      throw new Error("GitHub review history exceeded 100 pages");
     };
     const enrichPullRequestIdentity = async (event: Event, resource?: GitHubItem, signal?: AbortSignal): Promise<Event> => {
       let data = event.data as GitHubEventData;
@@ -1560,6 +1592,7 @@ export default defineExtension({
           data = data.isPullRequest ? (await enrichPullRequestIdentity(event, item, operation?.signal)).data as GitHubEventData
             : { ...data, state: item.state, title: item.title, labels: labels(item) };
         }
+        data = await enrichReviewHistory(event.repository, data, trigger.where, operation?.signal);
         const decision = evaluateGitHubTrigger(data, trigger, { login: user.login }, event.type !== "github.check");
         if (decision === "match" && event.type === "github.check" && policy.currentHeadChecks && data.triggerHeadSha && data.headSha !== data.triggerHeadSha) return false;
         if (decision === "match" && policy.readyWhen) {
@@ -1742,6 +1775,15 @@ export default defineExtension({
           isPullRequest: true,
         } satisfies GitHubEventData;
         if (!refreshed.headSha || !refreshed.headRepository || !refreshed.headBranch) throw new Error("GitHub PR activation lacks an exact head revision");
+        const rawTrigger = operation?.workflow?.on[event.type];
+        const where = event.type === "github.pr.schedule"
+          ? githubConditionSchema.parse(original.scheduledWhere)
+          : githubTriggerSchema.parse(rawTrigger ?? {}).where;
+        Object.assign(refreshed, await enrichReviewHistory(event.repository, refreshed, where, signal));
+        if (needsReviewHistory(where) && where && !matchesGitHubCondition(refreshed, where, { login: (await authenticatedUser(signal)).login })) {
+          const reason = event.type === "github.pr.schedule" ? "scheduled_pr_filter_changed" : "pr_filter_changed";
+          return { data: refreshed as unknown as JsonValue, decision: { kind: "skip", reason } };
+        }
         const key = workReceiptKey(operation?.workflow, { ...event, data: refreshed });
         const receipt = key ? state.get<{ expiresAt: number }>(key) : undefined;
         if (key && receipt && receipt.expiresAt <= Date.now()) state.delete(key);
@@ -1808,9 +1850,11 @@ export default defineExtension({
     let prScheduleSubscriptions: readonly import("@mixer/automations-sdk").WorkflowSubscription[] = [];
     let prScheduleTimer: NodeJS.Timeout | undefined;
     let prScheduleRunning = false;
-    const nextPrSchedule = (cron: string, after: Date) => CronExpressionParser.parse(cron, { currentDate: after }).next().toDate();
-    const prScheduleKey = (workflowId: string, repository: string, cron: string) =>
-      `pr-schedule:${workflowId}:${repository}:${createHash("sha256").update(cron).digest("hex").slice(0, 12)}`;
+    const nextPrSchedule = (cron: string | undefined, after: Date) => cron
+      ? CronExpressionParser.parse(cron, { currentDate: after }).next().toDate()
+      : new Date(after.getTime() + duration(config.pollInterval));
+    const prScheduleKey = (workflowId: string, repository: string, cron: string | undefined) =>
+      `pr-schedule:${workflowId}:${repository}:${createHash("sha256").update(cron ?? `poll:${config.pollInterval}`).digest("hex").slice(0, 12)}`;
 
     const armPrSchedule = () => {
       if (!prScheduleContext || prScheduleContext.signal.aborted || prScheduleRunning) return;
@@ -1847,10 +1891,11 @@ export default defineExtension({
             for (let page = 1; page <= 100; page++) {
               const pullRequests = await request<GitHubItem[]>("GET", `/repos/${repository}/pulls?state=open&per_page=100&page=${page}`);
               for (const pullRequest of pullRequests) {
-                const data = pullRequestData("scheduled", undefined, pullRequest);
+                let data = pullRequestData("scheduled", undefined, pullRequest);
                 if (!pullRequest.number || !data.headSha || !data.headRepository || !data.headBranch || !data.baseSha) {
                   throw new Error(`Incomplete pull request in scheduled scan of ${repository}`);
                 }
+                data = await enrichReviewHistory(repository, data, where, context.signal);
                 if (!matchesGitHubCondition(data, where, { login: identity.login })) continue;
                 const event: Event = {
                   id: `github.pr.schedule:${subscription.workflowId}:${repository}:${scheduledFor}:${pullRequest.number}`,

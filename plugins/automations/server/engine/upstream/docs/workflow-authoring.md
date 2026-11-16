@@ -205,7 +205,7 @@ Only `cron` is allowed under `schedule`. Keys such as `timezone`, `prompt`, `ena
 
 ### Scheduled GitHub pull requests
 
-Use `github.pr.schedule` when a recurring job must act on individual PRs rather than the repository. This trigger belongs to the GitHub extension and requires a repository, a cron expression, and a GitHub `where` condition:
+Use `github.pr.schedule` when a recurring job must act on individual PRs rather than the repository. This trigger belongs to the GitHub extension and requires a repository and a GitHub `where` condition. Omit `cron` to scan at `extensions.github.pollInterval`, or supply it for an independent schedule:
 
 ```yaml
 repository: owner/service

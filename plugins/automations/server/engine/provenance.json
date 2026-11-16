@@ -5,7 +5,8 @@
   "adaptations": [
     "Mixer Automations protocol namespace, SDK package name, workflow CLI helper, and user-facing branding. Persisted storage names and source module identities other than the public SDK remain unchanged.",
     "Opt-in embedded storage paths, packaged SDK resolution and local extension dependency bundling, short private control socket, Electron Node subprocess flag, and draft-schema export.",
-    "Restart-safe GitHub polling history boundaries for deleted cursor events, with regression tests and documentation."
+    "Restart-safe GitHub polling history boundaries for deleted cursor events, with regression tests and documentation.",
+    "GitHub PR scans inherit configured polling cadence; frontmatter approval-history and current-head review filters run before admission and after queueing."
   ],
   "files": {
     "README.md": {
@@ -50,7 +51,7 @@
     },
     "docs/github.md": {
       "upstreamSha256": "0c634d6849a28e09214c9e945aaf3df6ef0c67d8b03357a9b95622898e893621",
-      "importedSha256": "902c28dffcf1028400e2f7a8946eb3b9cdd146838dfedbed02b14d39a341bef9"
+      "importedSha256": "0106f3dd79b111fe9ed09f82b428d656d71f833f4c20a39b03f415dfc856f974"
     },
     "docs/hooks.md": {
       "upstreamSha256": "781f5946ce67159eb49cd02102f5535e41448326b14875bf0eaa8c4a023403de",
@@ -94,7 +95,7 @@
     },
     "docs/workflow-authoring.md": {
       "upstreamSha256": "0a3a0e11b921aba0d7d6a441bc6a85b0f66fda316451eaf5da7c4ab6f3104967",
-      "importedSha256": "f10d07237b4ed4649f68e0bc65b6a652a4e36dc10bc9d1a663aa33b6d423ac3b"
+      "importedSha256": "003a2d227d965b59e7d0bf0d6b879dc5980841d02a42a9634fe4bf8e90612dd3"
     },
     "docs/workflow-handoffs.md": {
       "upstreamSha256": "6e2b3616da63cf6efdbc5b55c36635c3251d16bdb24cae57110ce5205b1fa4ff",
@@ -530,19 +531,19 @@
     },
     "packages/extension-github/src/index.test.ts": {
       "upstreamSha256": "d680ee5b247cb2b276584955775cf6ee56661967561c635d96473a6ccfb6cab2",
-      "importedSha256": "bb2b22dff1aa39634c2b8f4781f63bb05f829c3d3fad42ea42db673a83b959ed"
+      "importedSha256": "a8efc068da5952a824b7b4b4f76cd03b14f57238c9e24302e256de169532b759"
     },
     "packages/extension-github/src/index.ts": {
       "upstreamSha256": "a7e9795f5cb56e4d011a572dce460591eb680287a590406b61aa9e6df48be136",
-      "importedSha256": "2f258709c7e8589ed0a5407a1d611f3d3fcf6e5e5f3aeeb3ffb8626d9468a35d"
+      "importedSha256": "27c869839736002a72fcc2e3fa717bce43f2a7af2ead1f0a184bfee51b765d11"
     },
     "packages/extension-github/src/matcher.test.ts": {
       "upstreamSha256": "d7c64cc467c53b80cd76d0b7c147525989af12e613d4d546226f549751d2b503",
-      "importedSha256": "17a36c94dcdfdfac94645189b7fd7d7461febb5fdff852030e6da9abca3a1fd8"
+      "importedSha256": "d647ea74b2440abffd762d475221bd76e2f427d7ba8cf01c0e23b2423ada1df6"
     },
     "packages/extension-github/src/matcher.ts": {
       "upstreamSha256": "ef74bf25f9ea75fe9b9cd038ef55ed64591801eb9b375973d906e2168e636c50",
-      "importedSha256": "ef74bf25f9ea75fe9b9cd038ef55ed64591801eb9b375973d906e2168e636c50"
+      "importedSha256": "24e752a6410bffe275f9ae70cf61d67c7e2d7dad09ad897bb53fac1432123c34"
     },
     "packages/extension-github/src/memory.test.ts": {
       "upstreamSha256": "514faca640571b2be4f7378e74a05ea19e455f405836e32c1e3b3e6a9b9c6598",

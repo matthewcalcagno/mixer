@@ -115,6 +115,13 @@ Electron's Node subprocess flag. `engine/sqlite.ts` bridges the synchronous driv
 Node's built-in SQLite while retaining upstream SQL, migrations, and transaction boundaries.
 The original control server is extracted during build rather than reimplemented.
 
+`scripts/automations-engine-review-triggers.mjs` adds review-history frontmatter filters and lets
+`github.pr.schedule` inherit `extensions.github.pollInterval` when `cron` is omitted. Use
+`reviewer: me` with `not: { approved-by: me }` and `not: { reviewed-by: me }` to exclude approved
+PRs and already-reviewed heads before starting an agent. The imported
+[review admission guide](../plugins/automations/server/engine/upstream/docs/github.md#review-workflow-admission)
+owns the exact semantics, dismissed-review limitation, and polling versus webhook setup.
+
 `scripts/automations-engine-github.mjs` preserves the deleted-cursor polling fix and its regression
 tests during re-import. SonarQube replaces PR comments, which can remove the event used as the
 latest polling cursor. The poller needs surviving history boundaries rather than assuming that

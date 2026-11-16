@@ -63,6 +63,8 @@ const predicateSchema = z.object({
   "pull-request-author": stringMatcherSchema.optional(),
   "reply-to": stringMatcherSchema.optional(),
   reviewer: stringMatcherSchema.optional(),
+  "approved-by": stringMatcherSchema.optional(),
+  "reviewed-by": stringMatcherSchema.optional(),
   mentioned: stringMatcherSchema.optional(),
   title: stringMatcherSchema.optional(),
   body: stringMatcherSchema.optional(),
@@ -113,6 +115,8 @@ export interface GitHubEventData {
   actor?: string;
   pullRequestAuthor?: string;
   requestedReviewers?: string[];
+  approvedBy?: string[];
+  reviewedBy?: string[];
   requestedTeams?: string[];
   title?: string;
   body?: string | null;
@@ -262,6 +266,8 @@ function matchesPredicate(
     predicate.reviewer,
     identity,
   )) return false;
+  if (predicate["approved-by"] && !matchesAnyIdentity(data.approvedBy ?? [], predicate["approved-by"], identity)) return false;
+  if (predicate["reviewed-by"] && !matchesAnyIdentity(data.reviewedBy ?? [], predicate["reviewed-by"], identity)) return false;
   if (predicate.mentioned && !matchesAnyIdentity(mentionedIdentities(data.body), predicate.mentioned, identity)) return false;
   if (predicate.labels && !matchesLabels(data.labels ?? [], predicate.labels)) return false;
   for (const [key, value] of [["draft", data.draft], ["merged", data.merged], ["fork", data.fork]] as const) {
@@ -315,9 +321,10 @@ function matchesEventFacts(data: GitHubEventData, condition: GitHubCondition, id
     return result === undefined ? undefined : !result;
   }
   const { labels, state, draft, merged, title, "head-branch": headBranch, "base-branch": baseBranch,
-    "branch-relation": branchRelation, "changed-files": changedFiles, ...facts } = condition;
+    "branch-relation": branchRelation, "changed-files": changedFiles,
+    reviewer, "approved-by": approvedBy, "reviewed-by": reviewedBy, ...facts } = condition;
   if (!matchesPredicate(data, resourceTitle ? facts : { ...facts, title }, identity)) return false;
-  return [labels, state, draft, merged, resourceTitle ? title : undefined, headBranch, baseBranch, branchRelation, changedFiles]
+  return [labels, state, draft, merged, resourceTitle ? title : undefined, headBranch, baseBranch, branchRelation, changedFiles, reviewer, approvedBy, reviewedBy]
     .some((value) => value !== undefined) ? undefined : true;
 }
 
