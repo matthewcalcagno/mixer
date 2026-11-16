@@ -115,6 +115,11 @@ Electron's Node subprocess flag. `engine/sqlite.ts` bridges the synchronous driv
 Node's built-in SQLite while retaining upstream SQL, migrations, and transaction boundaries.
 The original control server is extracted during build rather than reimplemented.
 
+`scripts/automations-engine-github.mjs` preserves the deleted-cursor polling fix and its regression
+tests during re-import. SonarQube replaces PR comments, which can remove the event used as the
+latest polling cursor. The poller needs surviving history boundaries rather than assuming that
+one missing event means history was lost. See the imported [history-gap contract](../plugins/automations/server/engine/upstream/docs/github.md#event-history-gaps).
+
 ```bash
 node scripts/import-automations-engine.mjs --verify
 npm run build:automations-engine

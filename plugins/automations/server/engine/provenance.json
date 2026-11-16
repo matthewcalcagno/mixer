@@ -4,7 +4,8 @@
   "branch": "main",
   "adaptations": [
     "Mixer Automations protocol namespace, SDK package name, workflow CLI helper, and user-facing branding. Persisted storage names and source module identities other than the public SDK remain unchanged.",
-    "Opt-in embedded storage paths, packaged SDK resolution and local extension dependency bundling, short private control socket, Electron Node subprocess flag, and draft-schema export."
+    "Opt-in embedded storage paths, packaged SDK resolution and local extension dependency bundling, short private control socket, Electron Node subprocess flag, and draft-schema export.",
+    "Restart-safe GitHub polling history boundaries for deleted cursor events, with regression tests and documentation."
   ],
   "files": {
     "README.md": {
@@ -49,7 +50,7 @@
     },
     "docs/github.md": {
       "upstreamSha256": "0c634d6849a28e09214c9e945aaf3df6ef0c67d8b03357a9b95622898e893621",
-      "importedSha256": "36d78c100b1094364832fa28c807ec3704f08658bc07bf0d404de326181fd432"
+      "importedSha256": "902c28dffcf1028400e2f7a8946eb3b9cdd146838dfedbed02b14d39a341bef9"
     },
     "docs/hooks.md": {
       "upstreamSha256": "781f5946ce67159eb49cd02102f5535e41448326b14875bf0eaa8c4a023403de",
@@ -529,11 +530,11 @@
     },
     "packages/extension-github/src/index.test.ts": {
       "upstreamSha256": "d680ee5b247cb2b276584955775cf6ee56661967561c635d96473a6ccfb6cab2",
-      "importedSha256": "3e85dc8d868181483037be2d0621618e4bb75638a50d4b2dc39cbac5a8166c27"
+      "importedSha256": "bb2b22dff1aa39634c2b8f4781f63bb05f829c3d3fad42ea42db673a83b959ed"
     },
     "packages/extension-github/src/index.ts": {
       "upstreamSha256": "a7e9795f5cb56e4d011a572dce460591eb680287a590406b61aa9e6df48be136",
-      "importedSha256": "39f817f8337147869bde6fceb3567130c0266bd8f845b7bfcc8ef50747a1425d"
+      "importedSha256": "2f258709c7e8589ed0a5407a1d611f3d3fcf6e5e5f3aeeb3ffb8626d9468a35d"
     },
     "packages/extension-github/src/matcher.test.ts": {
       "upstreamSha256": "d7c64cc467c53b80cd76d0b7c147525989af12e613d4d546226f549751d2b503",

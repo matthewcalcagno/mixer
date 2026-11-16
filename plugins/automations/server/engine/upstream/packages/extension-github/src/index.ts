@@ -1444,20 +1444,40 @@ export default defineExtension({
             const key = `events:${repository}:cursor`;
             try {
               const cursor = state.get<string>(key);
+              // GitHub removes events for deleted comments. Keep multiple processed
+              // boundaries rather than treating one disappearing event as lost history.
+              const checkpointKey = `events:${repository}:checkpoint`;
+              const stored = state.get(checkpointKey);
+              const checkpoint = stored === undefined ? undefined : z.object({
+                cursor: z.string(), anchors: z.array(z.string()).max(100),
+              }).parse(stored);
+              let anchors = checkpoint && checkpoint.cursor === cursor ? checkpoint.anchors : cursor ? [cursor] : [];
+              const acknowledge = (id: string) => {
+                anchors = [id, ...anchors.filter(anchor => anchor !== id)].slice(0, 100);
+                // A crash between writes leaves a mismatched checkpoint, which is
+                // ignored above instead of trusting an uncommitted boundary.
+                state.set(checkpointKey, { cursor: id, anchors });
+                state.set(key, id);
+              };
               const collected: GitHubRepositoryEvent[] = [];
               let foundCursor = !cursor;
               let reachedEnd = false;
               for (let page = 1; page <= config.maxPages && !foundCursor && !reachedEnd; page++) {
                 const events = await request<GitHubRepositoryEvent[]>("GET", `/repos/${repository}/events?per_page=100&page=${page}`, undefined, context.signal);
                 for (const event of events) {
-                  if (event.id === cursor) { foundCursor = true; break; }
+                  if (event.id === cursor || anchors.includes(event.id)) { foundCursor = true; break; }
                   collected.push(event);
                 }
                 if (events.length < 100) reachedEnd = true;
               }
               if (!cursor) {
-                const initial = await request<GitHubRepositoryEvent[]>("GET", `/repos/${repository}/events?per_page=1`, undefined, context.signal);
-                if (initial[0]) state.set(key, initial[0].id);
+                const initial = await request<GitHubRepositoryEvent[]>("GET", `/repos/${repository}/events?per_page=100`, undefined, context.signal);
+                if (initial[0]) {
+                  // Startup deliberately skips existing history; any of those events
+                  // can establish that same boundary if the newest one is deleted.
+                  anchors = initial.map(event => event.id).slice(0, 100);
+                  acknowledge(initial[0].id);
+                }
                 continue;
               }
                if (!foundCursor) {
@@ -1495,7 +1515,7 @@ export default defineExtension({
                  }
                  // Acknowledge only this event. A later transient failure must
                  // not discard earlier deliveries or move past the failed event.
-                 state.set(key, raw.id);
+                 acknowledge(raw.id);
                }
             } catch (error) {
               if (context.signal.aborted) return;

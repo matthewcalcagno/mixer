@@ -174,7 +174,7 @@ Scheduled PRs are checked again after leaving the queue. A PR that has merged, c
 
 ### Event history gaps
 
-When a saved cursor is absent from the fetched event pages, Mixer Automations replays available events oldest-first and records a possible history gap. This does not identify which events, if any, were missed. Successful polling continues, but source readiness stays degraded until you acknowledge the unresolved gaps. Successful polls reset the consecutive failure count and update the last-success timestamp even while a historical warning remains. A repeated warning is not a new polling failure.
+GitHub can remove events when their comments are deleted, so polling retains up to 100 processed event IDs as restart-safe history boundaries. Startup also retains the first page of skipped historical events. If the saved cursor disappears, polling resumes at the first surviving boundary without replaying older events or recording a gap. When no retained boundary is present in the fetched pages, Mixer Automations replays available events oldest-first and records a possible history gap. This does not identify which events, if any, were missed. Successful polling continues, but source readiness stays degraded until you acknowledge the unresolved gaps. Successful polls reset the consecutive failure count and update the last-success timestamp even while a historical warning remains. A repeated warning is not a new polling failure.
 
 Inspect incidents before deciding whether to acknowledge them:
 

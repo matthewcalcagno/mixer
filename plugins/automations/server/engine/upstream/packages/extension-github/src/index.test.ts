@@ -370,6 +370,87 @@ describe("GitHub repository event polling", () => {
     } finally { poller.stop(); }
   });
 
+  it.each([1, 2])("resumes after %i processed comment events disappear across restart without reporting a history gap", async (deleted) => {
+    const state = new Map<string, unknown>([[cursorKey, "0"]]);
+    let events = [repositoryComment("3"), repositoryComment("2"), repositoryComment("1"), { id: "0", type: "Unsupported" }];
+    const emitted: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok(events);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+    const first = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(state.get(cursorKey)).toBe("3"));
+      expect(emitted).toEqual(["github:owner/repo:1", "github:owner/repo:2", "github:owner/repo:3"]);
+    } finally { first.stop(); }
+    events = [repositoryComment("4"), ...events.slice(deleted)];
+    emitted.length = 0;
+    const restarted = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(restarted.reportHealth).toHaveBeenCalled());
+      expect(emitted).toEqual(["github:owner/repo:4"]);
+      expect(state.get(cursorKey)).toBe("4");
+      expect(state.get("events:owner/repo:gap")).toBeUndefined();
+      expect(restarted.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "ready", result: "success" }));
+    } finally { restarted.stop(); }
+  });
+
+  it("retains startup history boundaries when the initial cursor event is deleted", async () => {
+    const state = new Map<string, unknown>();
+    let events = [repositoryComment("3"), repositoryComment("2"), repositoryComment("1")];
+    const emitted: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok(events);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+    const first = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(state.get(cursorKey)).toBe("3"));
+      expect(emitted).toEqual([]);
+    } finally { first.stop(); }
+    events = [repositoryComment("4"), repositoryComment("2"), repositoryComment("1")];
+    const restarted = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(restarted.reportHealth).toHaveBeenCalled());
+      expect(emitted).toEqual(["github:owner/repo:4"]);
+      expect(state.get(cursorKey)).toBe("4");
+      expect(state.get("events:owner/repo:gap")).toBeUndefined();
+      expect(restarted.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "ready", result: "success" }));
+    } finally { restarted.stop(); }
+  });
+
+  it.each([
+    { checkpointCursor: "2", ids: ["4"], expected: ["github:owner/repo:4"] },
+    { checkpointCursor: "uncommitted", ids: ["4", "1"], expected: ["github:owner/repo:1", "github:owner/repo:4"] },
+  ])("reports a real gap when checkpoint $checkpointCursor cannot establish continuity", async ({ checkpointCursor, ids, expected }) => {
+    const state = new Map<string, unknown>([
+      [cursorKey, "2"],
+      ["events:owner/repo:checkpoint", { cursor: checkpointCursor, anchors: [checkpointCursor, "1"] }],
+    ]);
+    // A matching checkpoint has no surviving anchor; a mismatched checkpoint's
+    // apparent overlap must not let an uncommitted event become a boundary.
+    const events = ids.map(repositoryComment);
+    const emitted: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok(events);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error(`unexpected request ${url}`);
+    }));
+    const poller = await startPoller(state, async (event) => { emitted.push(event.id); return true; });
+    try {
+      await vi.waitFor(() => expect(poller.reportHealth).toHaveBeenCalled());
+      expect(emitted).toEqual(expected);
+      expect(state.get(cursorKey)).toBe("4");
+      expect(state.get("events:owner/repo:gap")).toMatchObject({ cursor: "2", newestAvailable: "4" });
+      expect(poller.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "degraded", result: "success", reason: "github_event_history_gap" }));
+    } finally { poller.stop(); }
+  });
+
   it("replays available events oldest-first when the cursor is missing instead of discarding the batch", async () => {
     const state = new Map<string, unknown>([[cursorKey, "expired"]]);
     const emitted: string[] = [];
