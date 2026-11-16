@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRpc, type PluginScreenProps } from "@mixer/plugin/client";
 import {
   ContextMenu,
+  confirmDialog,
+  copyText,
   FileTreeRow,
   TreeDragSource,
   TreeDropTarget,
@@ -23,6 +25,11 @@ import {
   listRpc,
   readWorkflowRpc,
   moveWorkflowRpc,
+  deleteWorkflowRpc,
+  duplicateWorkflowRpc,
+  readDirectoryRpc,
+  moveDirectoryRpc,
+  deleteDirectoryRpc,
   workflowId,
 } from "../shared/contracts.js";
 
@@ -30,9 +37,18 @@ interface Creation {
   kind: "file" | "folder";
   parent: string;
 }
+interface Entry {
+  path: string;
+  kind: "file" | "folder";
+}
+interface Editing {
+  entry: Entry;
+  operation: "rename" | "duplicate";
+}
 interface Props extends Pick<PluginScreenProps, "theme" | "host"> {
   dirtyPaths: ReadonlySet<string>;
   moved(from: string, to: string): void;
+  removed(path: string): void;
   selected: string;
   select(path: string): void;
 }
@@ -45,6 +61,21 @@ const fileActions: readonly ContextMenuAction[] = [
   { id: "open", label: "Open" },
   { id: "file", label: "New file", separatorBefore: true },
   { id: "folder", label: "New folder" },
+  { id: "copy-path", label: "Copy relative path", separatorBefore: true },
+  { id: "rename", label: "Rename", separatorBefore: true },
+  { id: "duplicate", label: "Duplicate" },
+  { id: "delete", label: "Delete", separatorBefore: true },
+];
+const folderActions: readonly ContextMenuAction[] = [
+  ...createActions,
+  { id: "collapse", label: "Collapse folder", separatorBefore: true },
+  { id: "copy-path", label: "Copy relative path", separatorBefore: true },
+  { id: "rename", label: "Rename", separatorBefore: true },
+  { id: "delete", label: "Delete", separatorBefore: true },
+];
+const rootActions: readonly ContextMenuAction[] = [
+  ...createActions,
+  { id: "collapse-all", label: "Collapse all", separatorBefore: true },
 ];
 
 function useStyles(theme: Props["theme"]) {
@@ -66,12 +97,23 @@ function useStyles(theme: Props["theme"]) {
 }
 type Styles = ReturnType<typeof useStyles>;
 
-export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, moved }: Props) {
+export function WorkflowLibrary({
+  theme,
+  host,
+  selected,
+  select,
+  dirtyPaths,
+  moved,
+  removed,
+}: Props) {
   const dragScope = `automations:${host.id}`;
   const styles = useStyles(theme);
   const listCall = useRpc(listRpc);
   const readFile = useRpc(readWorkflowRpc);
   const moveFile = useRpc(moveWorkflowRpc);
+  const readDirectory = useRpc(readDirectoryRpc);
+  const deleteFile = useRpc(deleteWorkflowRpc);
+  const deleteDirectory = useRpc(deleteDirectoryRpc);
   const query = useQueryClient();
   const toast = useToast();
   const movement = useMutation({
@@ -110,6 +152,7 @@ export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, mov
   const [filter, setFilter] = useState("");
   const [scope, setScope] = useState("");
   const [creation, setCreation] = useState<Creation | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
   const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
     if (!selected) return;
@@ -121,6 +164,7 @@ export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, mov
     });
   }, [selected]);
   const create = useCallback((next: Creation) => {
+    setEditing(null);
     setFilter("");
     setCreation(next);
     setScope(next.parent);
@@ -134,8 +178,9 @@ export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, mov
   const rootAction = useCallback(
     (id: string) => {
       if (id === "file" || id === "folder") create({ kind: id, parent: "" });
+      else if (id === "collapse-all") setClosed(new Set(list.data?.directories ?? []));
     },
-    [create],
+    [create, list.data?.directories],
   );
   const cancel = useCallback(() => setCreation(null), []);
   const open = useCallback(
@@ -166,6 +211,95 @@ export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, mov
       return next;
     });
   }, []);
+  const deletion = useMutation({
+    mutationFn: async (entry: Entry) => {
+      const source =
+        entry.kind === "file"
+          ? await readFile({ path: entry.path })
+          : await readDirectory({ path: entry.path });
+      const unsaved = [...dirtyPaths].some((path) => within(path, entry.path));
+      const message =
+        entry.kind === "folder"
+          ? `Delete ${entry.path} and all its contents? Run history will be kept.`
+          : `Delete ${entry.path}? Run history will be kept.`;
+      if (
+        !(await confirmDialog({
+          title: entry.kind === "folder" ? "Delete folder?" : "Delete workflow?",
+          message: unsaved ? `${message} Unsaved changes will be discarded.` : message,
+          confirmLabel: entry.kind === "folder" ? "Delete folder" : "Delete workflow",
+          destructive: true,
+        }))
+      )
+        return null;
+      return entry.kind === "file" ? deleteFile(source) : deleteDirectory(source);
+    },
+    onSuccess: async (result) => {
+      if (!result) return;
+      removed(result.path);
+      setScope((previous) => (within(previous, result.path) ? parentOf(result.path) : previous));
+      setClosed((previous) => new Set([...previous].filter((path) => !within(path, result.path))));
+      query.removeQueries({
+        predicate: (item) =>
+          item.queryKey[0] === "automations" &&
+          item.queryKey[1] === host.id &&
+          item.queryKey[2] === "source" &&
+          typeof item.queryKey[3] === "string" &&
+          within(item.queryKey[3], result.path),
+      });
+      await query.invalidateQueries({ queryKey: ["automations", host.id] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const action = useCallback(
+    (entry: Entry, id: string) => {
+      if (id === "open") open(entry.path);
+      else if (id === "file" || id === "folder")
+        create({ kind: id, parent: entry.kind === "folder" ? entry.path : parentOf(entry.path) });
+      else if (id === "copy-path")
+        void copyText(entry.path).catch((error: unknown) =>
+          toast.error(error instanceof Error ? error.message : "Could not copy path."),
+        );
+      else if (id === "collapse") setClosed((previous) => new Set([...previous, entry.path]));
+      else if (id === "delete") {
+        if (!deletion.isPending && !movement.isPending) deletion.mutate(entry);
+      } else if (id === "rename" || id === "duplicate") {
+        if ([...dirtyPaths].some((path) => within(path, entry.path))) {
+          toast.error("Save your drafts before renaming or duplicating this entry.");
+          return;
+        }
+        setCreation(null);
+        setEditing({ entry, operation: id });
+      }
+    },
+    [open, create, toast, deletion, movement.isPending, dirtyPaths],
+  );
+  const cancelEdit = useCallback(() => setEditing(null), []);
+  const edited = useCallback(
+    async (edit: Editing, path: string) => {
+      setEditing(null);
+      if (edit.operation === "duplicate") select(path);
+      else {
+        moved(edit.entry.path, path);
+        setScope((previous) =>
+          within(previous, edit.entry.path)
+            ? `${path}${previous.slice(edit.entry.path.length)}`
+            : previous,
+        );
+        setClosed(
+          (previous) =>
+            new Set(
+              [...previous].map((folder) =>
+                within(folder, edit.entry.path)
+                  ? `${path}${folder.slice(edit.entry.path.length)}`
+                  : folder,
+              ),
+            ),
+        );
+      }
+      await query.invalidateQueries({ queryKey: ["automations", host.id] });
+    },
+    [moved, select, query, host.id],
+  );
   const files = useMemo(() => {
     const paths = (list.data?.workflows ?? [])
       .filter((item) =>
@@ -207,7 +341,12 @@ export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, mov
           {list.error.message}
         </Text>
       )}
-      <ContextMenu fill actions={createActions} onOpen={noop} onSelect={rootAction}>
+      {deletion.isPending && (
+        <Text accessibilityLiveRegion="polite" style={styles.muted}>
+          Deleting {deletion.variables.path}…
+        </Text>
+      )}
+      <ContextMenu fill actions={rootActions} onOpen={noop} onSelect={rootAction}>
         <TreeDropTarget fill scope={dragScope} onDropPath={dropRoot}>
           <ScrollView
             style={styles.fill}
@@ -232,6 +371,11 @@ export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, mov
               creation={creation}
               cancel={cancel}
               created={created}
+              editing={editing}
+              cancelEdit={cancelEdit}
+              edited={edited}
+              action={action}
+              busy={deletion.isPending || movement.isPending || editing !== null}
             />
             {list.isPending && <Text style={styles.muted}>Loading workflows…</Text>}
             {!list.isPending && !files.length && !directories.length && !!filter && (
@@ -248,6 +392,11 @@ export function WorkflowLibrary({ theme, host, selected, select, dirtyPaths, mov
 }
 
 interface TreeProps {
+  editing: Editing | null;
+  cancelEdit(): void;
+  edited(edit: Editing, path: string): Promise<void>;
+  action(entry: Entry, id: string): void;
+  busy: boolean;
   dragScope: string;
   dirtyPaths: ReadonlySet<string>;
   move(path: string, directory: string): void;
@@ -301,6 +450,12 @@ function Tree({ prefix, ...props }: TreeProps) {
       ))}
       {entries.files.map((path) => (
         <File
+          editing={props.editing}
+          cancelEdit={props.cancelEdit}
+          edited={props.edited}
+          styles={props.styles}
+          action={props.action}
+          busy={props.busy}
           dragScope={props.dragScope}
           dirty={props.dirtyPaths.has(path)}
           depth={props.depth}
@@ -308,26 +463,43 @@ function Tree({ prefix, ...props }: TreeProps) {
           path={path}
           selected={props.selected === path}
           select={props.select}
-          create={props.create}
         />
       ))}
     </View>
   );
 }
 function Folder({ path, ...props }: Omit<TreeProps, "prefix"> & { path: string }) {
-  const { toggle, create, move } = props;
+  const { toggle, action, move } = props;
   const drop = useCallback((source: string) => move(source, path), [move, path]);
   const expanded = !!props.filter || !props.closed.has(path);
   const press = useCallback(() => toggle(path), [toggle, path]);
   const menu = useCallback(
     (id: string) => {
-      if (id === "file" || id === "folder") create({ kind: id, parent: path });
+      action({ path, kind: "folder" }, id);
     },
-    [create, path],
+    [action, path],
   );
+  const actions = useMemo(
+    () =>
+      folderActions.map((item) =>
+        Object.assign({}, item, { disabled: props.busy && ["rename", "delete"].includes(item.id) }),
+      ),
+    [props.busy],
+  );
+  if (props.editing?.entry.path === path)
+    return (
+      <EditEntry
+        depth={props.depth}
+        dirty={[...props.dirtyPaths].some((file) => within(file, path))}
+        edit={props.editing}
+        styles={props.styles}
+        cancel={props.cancelEdit}
+        completed={props.edited}
+      />
+    );
   return (
     <TreeDropTarget scope={props.dragScope} onDropPath={drop}>
-      <ContextMenu actions={createActions} onOpen={noop} onSelect={menu}>
+      <ContextMenu actions={actions} onOpen={noop} onSelect={menu}>
         <FileTreeRow
           path={path}
           depth={props.depth}
@@ -351,7 +523,12 @@ function File({
   path,
   selected,
   select,
-  create,
+  editing,
+  cancelEdit,
+  edited,
+  styles,
+  action,
+  busy,
 }: {
   dragScope: string;
   dirty: boolean;
@@ -359,19 +536,47 @@ function File({
   path: string;
   selected: boolean;
   select(path: string): void;
-  create(creation: Creation): void;
+  editing: Editing | null;
+  cancelEdit(): void;
+  edited(edit: Editing, path: string): Promise<void>;
+  styles: Styles;
+  action(entry: Entry, id: string): void;
+  busy: boolean;
 }) {
   const press = useCallback(() => select(path), [select, path]);
   const menu = useCallback(
     (id: string) => {
-      if (id === "open") select(path);
-      else if (id === "file" || id === "folder") create({ kind: id, parent: parentOf(path) });
+      action({ path, kind: "file" }, id);
     },
-    [select, create, path],
+    [action, path],
   );
+  const actions = useMemo(
+    () =>
+      fileActions.map((item) =>
+        Object.assign({}, item, {
+          disabled: busy && ["rename", "duplicate", "delete"].includes(item.id),
+        }),
+      ),
+    [busy],
+  );
+  if (editing?.entry.path === path)
+    return (
+      <EditEntry
+        depth={depth}
+        dirty={dirty}
+        edit={editing}
+        styles={styles}
+        cancel={cancelEdit}
+        completed={edited}
+      />
+    );
   return (
-    <TreeDragSource scope={dragScope} path={path} disabled={dirty || path === "config.json"}>
-      <ContextMenu actions={fileActions} onOpen={noop} onSelect={menu}>
+    <TreeDragSource
+      scope={dragScope}
+      path={path}
+      disabled={busy || dirty || path === "config.json"}
+    >
+      <ContextMenu actions={actions} onOpen={noop} onSelect={menu}>
         <FileTreeRow path={path} depth={depth} selected={selected} onPress={press} />
       </ContextMenu>
     </TreeDragSource>
@@ -442,4 +647,89 @@ function NewEntry({
 }
 function parentOf(path: string) {
   return path.split("/").slice(0, -1).join("/");
+}
+
+function within(path: string, parent: string) {
+  return path === parent || path.startsWith(`${parent}/`);
+}
+
+interface EditEntryProps {
+  depth: number;
+  dirty: boolean;
+  edit: Editing;
+  styles: Styles;
+  cancel(): void;
+  completed(edit: Editing, path: string): Promise<void>;
+}
+function EditEntry({ depth, dirty, edit, styles, cancel, completed }: EditEntryProps) {
+  const basename = edit.entry.path.split("/").at(-1)!;
+  const initialName =
+    edit.operation === "duplicate" ? basename.replace(/(\.[^.]+)$/, " copy$1") : basename;
+  const [name, setName] = useState(initialName);
+  const [attempt, setAttempt] = useState(0);
+  const read = useRpc(readWorkflowRpc);
+  const move = useRpc(moveWorkflowRpc);
+  const duplicate = useRpc(duplicateWorkflowRpc);
+  const readFolder = useRpc(readDirectoryRpc);
+  const moveFolder = useRpc(moveDirectoryRpc);
+  const operation = useMutation({
+    mutationFn: async (value: string) => {
+      if (dirty) throw new Error("Save your drafts before renaming or duplicating this entry.");
+      const filename = value.trim();
+      if (!filename || filename.includes("/"))
+        throw new Error("Enter a name without folder separators.");
+      const parent = parentOf(edit.entry.path);
+      const destination = `${parent ? `${parent}/` : ""}${filename}`;
+      if (edit.entry.kind === "folder") {
+        automationDirectoryId.parse(destination);
+        const source = await readFolder({ path: edit.entry.path });
+        return moveFolder({ ...source, destination });
+      }
+      if (!workflowId.safeParse(destination).success)
+        throw new Error("Workflow files use .yaml, .yml, or .md.");
+      const source = await read({ path: edit.entry.path });
+      const input = { path: source.path, version: source.version, destination };
+      return edit.operation === "duplicate" ? duplicate(input) : move(input);
+    },
+    onSuccess: (result) => completed(edit, result.path),
+    onError: () => setAttempt((value) => value + 1),
+  });
+  const submit = useCallback(
+    (value: string) => {
+      if (operation.isPending) return;
+      setName(value);
+      if (edit.operation === "rename" && value === basename) cancel();
+      else operation.mutate(value);
+    },
+    [operation, edit.operation, basename, cancel],
+  );
+  const cancelInput = useCallback(() => {
+    if (!operation.isPending) cancel();
+  }, [operation.isPending, cancel]);
+  return (
+    <View>
+      <TreeNameInput
+        key={attempt}
+        depth={depth}
+        kind={edit.entry.kind === "folder" ? "directory" : "file"}
+        initialName={name}
+        accessibilityLabel={
+          edit.operation === "duplicate" ? "Duplicate workflow filename" : "Rename entry"
+        }
+        onCommit={submit}
+        onCancel={cancelInput}
+        editable={!operation.isPending}
+      />
+      {operation.isPending && (
+        <Text accessibilityLiveRegion="polite" style={styles.muted}>
+          {edit.operation === "duplicate" ? "Duplicating…" : "Renaming…"}
+        </Text>
+      )}
+      {operation.error && (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {operation.error.message}
+        </Text>
+      )}
+    </View>
+  );
 }

@@ -327,11 +327,25 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
     [],
   );
   const movedWorkflow = useCallback((from: string, to: string) => {
+    const remap = (path: string) =>
+      path === from || path.startsWith(`${from}/`) ? `${to}${path.slice(from.length)}` : path;
     setDocuments((previous) => ({
       ...previous,
-      selected: previous.selected === from ? to : previous.selected,
-      paths: [...new Set(previous.paths.map((path) => (path === from ? to : path)))],
+      selected: remap(previous.selected),
+      paths: [...new Set(previous.paths.map(remap))],
+      dirtyPaths: new Set([...previous.dirtyPaths].map(remap)),
     }));
+  }, []);
+  const removedWorkflow = useCallback((removed: string) => {
+    const keep = (path: string) => path !== removed && !path.startsWith(`${removed}/`);
+    setDocuments((previous) => {
+      const paths = previous.paths.filter(keep);
+      return {
+        paths,
+        dirtyPaths: new Set([...previous.dirtyPaths].filter(keep)),
+        selected: keep(previous.selected) ? previous.selected : (paths.at(-1) ?? ""),
+      };
+    });
   }, []);
   const clearFilter = useCallback(() => setWorkflowFilter(""), []);
   const workflowsActive = page === "Workflows" && documents.paths.length > 0;
@@ -465,6 +479,7 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
           <WorkflowLibrary
             dirtyPaths={documents.dirtyPaths}
             moved={movedWorkflow}
+            removed={removedWorkflow}
             theme={theme}
             host={host}
             selected={documents.selected}

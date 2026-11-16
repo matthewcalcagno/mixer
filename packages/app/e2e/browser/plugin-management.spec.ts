@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import overviewCorpus from "../../../protocol/tests/fixtures/plugin-overview.json";
 import { pluginRequirements } from "../support/helpers/plugin-fixture";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -238,6 +238,181 @@ base(
     await expect(screen.getByTestId("automations-runs-table")).toBeVisible();
     await expect(runs).toBeVisible();
     await screen.screenshot({ path: testInfo.outputPath("automations-pinned-runs.png") });
+  },
+);
+
+base(
+  "Automations workflow tree renames, duplicates, copies paths, and deletes files and folders",
+  async ({ page, context }, testInfo) => {
+    const home = process.env.E2E_MIXER_HOME;
+    if (!home) throw new Error("Missing isolated daemon home");
+    const root = path.join(home, "automations");
+    await mkdir(path.join(root, "tree-actions"), { recursive: true });
+    const content =
+      "---\nname: Tree actions\ndisabled: false\non: {}\n---\n\nReview tree actions.\n";
+    await writeFile(path.join(root, "tree-actions/task.md"), content);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await gotoAppShell(page);
+    await page.getByRole("button", { name: "Automations", exact: true }).click();
+    const screen = page.getByTestId("automations-screen").filter({ visible: true });
+    const row = (name: string) => screen.getByRole("button", { name: `Open ${name}`, exact: true });
+    const folder = (name: string) =>
+      screen.getByRole("button", { name: `Folder ${name}`, exact: true });
+    await row("tree-actions/task.md").click();
+    await expect(
+      screen.getByRole("textbox", { name: "Source for tree-actions/task.md", exact: true }),
+    ).toContainText("Review tree actions.");
+    await row("tree-actions/task.md").click({ button: "right" });
+    await waitForSettledPosition(
+      page.getByRole("menuitem", { name: "Copy relative path", exact: true }),
+    );
+    await page.screenshot({ path: testInfo.outputPath("automations-file-actions.png") });
+    await page.getByRole("menuitem", { name: "Copy relative path", exact: true }).click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe("tree-actions/task.md");
+    await row("tree-actions/task.md").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    const rename = screen.getByRole("textbox", { name: "Rename entry", exact: true });
+    await expect(rename).toHaveValue("task.md");
+    await rename.fill("renamed.md");
+    await rename.press("Enter");
+    await expect(row("tree-actions/renamed.md")).toBeVisible();
+    await expect(
+      screen.getByRole("button", { name: "Edit tree-actions/renamed.md", exact: true }),
+    ).toBeVisible();
+    await expect(row("tree-actions/task.md")).toHaveCount(0);
+    await row("tree-actions/renamed.md").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Duplicate", exact: true }).click();
+    const duplicate = screen.getByRole("textbox", {
+      name: "Duplicate workflow filename",
+      exact: true,
+    });
+    await duplicate.fill("copy.md");
+    await duplicate.press("Enter");
+    await expect(row("tree-actions/copy.md")).toBeVisible();
+    await expect(
+      screen.getByRole("textbox", { name: "Source for tree-actions/copy.md", exact: true }),
+    ).toContainText("disabled: true");
+    expect(await readFile(path.join(root, "tree-actions/renamed.md"), "utf8")).toBe(content);
+    await folder("tree-actions").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    await rename.fill("renamed-folder");
+    await rename.press("Enter");
+    await expect(row("renamed-folder/copy.md")).toBeVisible();
+    await expect(
+      screen.getByRole("button", { name: "Edit renamed-folder/renamed.md", exact: true }),
+    ).toBeVisible();
+    await expect(
+      screen.getByRole("button", { name: "Edit renamed-folder/copy.md", exact: true }),
+    ).toBeVisible();
+    await folder("renamed-folder").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Collapse folder", exact: true }).click();
+    await expect(row("renamed-folder/copy.md")).toHaveCount(0);
+    await folder("renamed-folder").click();
+    await row("renamed-folder/copy.md").click({ button: "right" });
+    page.once("dialog", (dialog) => void dialog.dismiss());
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(row("renamed-folder/copy.md")).toBeVisible();
+    await row("renamed-folder/copy.md").click({ button: "right" });
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(row("renamed-folder/copy.md")).toHaveCount(0);
+    await expect(
+      screen.getByRole("button", { name: "Edit renamed-folder/copy.md", exact: true }),
+    ).toHaveCount(0);
+    const source = screen.getByRole("textbox", {
+      name: "Source for renamed-folder/renamed.md",
+      exact: true,
+    });
+    await source.fill(`${content}\nUnsaved draft.\n`);
+    await folder("renamed-folder").click({ button: "right" });
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("Unsaved changes will be discarded.");
+      await dialog.accept();
+    });
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(folder("renamed-folder")).toHaveCount(0);
+    await expect(
+      screen.getByRole("button", { name: "Edit renamed-folder/renamed.md", exact: true }),
+    ).toHaveCount(0);
+    await expect(screen.getByTestId("automations-runs-table")).toBeVisible();
+    expect(existsSync(path.join(root, "renamed-folder"))).toBe(false);
+  },
+);
+
+base(
+  "Automations workflow tree keeps failures visible and permits retry without losing files",
+  async ({ page }) => {
+    const home = process.env.E2E_MIXER_HOME;
+    if (!home) throw new Error("Missing isolated daemon home");
+    const root = path.join(home, "automations/tree-failures");
+    await mkdir(root, { recursive: true });
+    const content = "---\ndisabled: true\non: {}\n---\n\nReview the current project.\n";
+    await writeFile(path.join(root, "task.md"), content);
+    await writeFile(path.join(root, "occupied.md"), content);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await gotoAppShell(page);
+    await page.getByRole("button", { name: "Automations", exact: true }).click();
+    const screen = page.getByTestId("automations-screen").filter({ visible: true });
+    const row = screen.getByRole("button", { name: "Open tree-failures/task.md", exact: true });
+    await row.click();
+    const source = screen.getByRole("textbox", {
+      name: "Source for tree-failures/task.md",
+      exact: true,
+    });
+    await source.fill(`${content}\nUnsaved draft.\n`);
+    await row.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    await expect(
+      page
+        .getByText("Save your drafts before renaming or duplicating this entry.", { exact: true })
+        .first(),
+    ).toBeVisible();
+    await expect(screen.getByRole("textbox", { name: "Rename entry", exact: true })).toHaveCount(0);
+    await screen.getByRole("button", { name: "Save workflow", exact: true }).click();
+    await expect(screen.getByText("Workflow saved.", { exact: true })).toBeVisible();
+    const savedContent = `${content}\nUnsaved draft.\n`;
+    await row.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    const rename = screen.getByRole("textbox", { name: "Rename entry", exact: true });
+    await rename.fill("occupied.md");
+    await rename.press("Enter");
+    await expect(screen.getByRole("alert").filter({ hasText: "already exists" })).toBeVisible();
+    await expect(rename).toHaveValue("occupied.md");
+    expect(await readFile(path.join(root, "task.md"), "utf8")).toBe(savedContent);
+    expect(await readFile(path.join(root, "occupied.md"), "utf8")).toBe(content);
+    await rename.press("Escape");
+    await row.click({ button: "right" });
+    page.once("dialog", async (dialog) => {
+      await writeFile(path.join(root, "task.md"), `${content}\nChanged externally.\n`);
+      await dialog.accept();
+    });
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(page.getByText(/This workflow changed on disk/).first()).toBeVisible();
+    await expect(row).toBeVisible();
+    await row.click({ button: "right" });
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(row).toHaveCount(0);
+    await expect(
+      screen.getByRole("button", { name: "Edit tree-failures/task.md", exact: true }),
+    ).toHaveCount(0);
+    const folder = screen.getByRole("button", { name: "Folder tree-failures", exact: true });
+    await folder.click({ button: "right" });
+    page.once("dialog", async (dialog) => {
+      await writeFile(path.join(root, "new.md"), content);
+      await dialog.accept();
+    });
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(page.getByText(/This folder changed on disk/).first()).toBeVisible();
+    await expect(folder).toBeVisible();
+    await folder.click({ button: "right" });
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(folder).toHaveCount(0);
   },
 );
 
