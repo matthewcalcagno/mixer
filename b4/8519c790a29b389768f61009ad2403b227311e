@@ -1,0 +1,25 @@
+packages/app/e2e/browser/plugin-management.spec.ts
+  s_97ad15873a2151::t_276fe3fcb7a7c4 5,244-418
+plugins/automations/client/library.tsx
+  s_97ad15873a2151::t_55d3a16d91dbf5 7-8,28-32,40-47,51,64-78,100-108,114-116,155,167,181,183,214-302,344-349,374-378,395-399,453-458,472,478,480,482-499,502,526-531,539-544,549,551-560,562-572,574-579,651-735
+plugins/automations/client/screen.tsx
+  s_97ad15873a2151::t_036fefc1b43856 330-331,334-336,339-349,482
+plugins/automations/server/workflows.ts
+  s_97ad15873a2151::t_f5cbb4eaa20d15 39-43,144-171,173,177-194,203-276,352-380,397-400,403-412
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "b48519c790a29b389768f61009ad2403b227311e",
+  "prompts": {},
+  "sessions": {
+    "s_97ad15873a2151": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1b22ca79ffeKeTJBYMoq9tWHn",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
