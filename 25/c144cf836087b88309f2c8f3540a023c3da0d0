@@ -1,0 +1,29 @@
+plugins/automations/server/engine/provenance.json
+  s_410eacaf2911be::t_4157d51d431ce5 7-8,53,533,537
+plugins/automations/server/engine/upstream/docs/github.md
+  s_410eacaf2911be::t_9eccc9c47ca040 177
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.test.ts
+  s_410eacaf2911be::t_b36d60e40f026c 373-453
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.ts
+  s_410eacaf2911be::t_5040b3e31b8436 1447-1461,1468,1474-1480,1518
+scripts/automations-engine-github.mjs
+  s_410eacaf2911be::t_20a3102f293af0 1-150
+scripts/import-automations-engine.mjs
+  s_410eacaf2911be::t_26aaa97f0e02b5 7,116-118,124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "25c144cf836087b88309f2c8f3540a023c3da0d0",
+  "prompts": {},
+  "sessions": {
+    "s_410eacaf2911be": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1b34a247ffeUmqZF04dxoEbeW",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
