@@ -1,0 +1,19 @@
+packages/app/e2e/browser/explorer-sidebar.spec.ts
+  s_97ad15873a2151::t_5f11caaa7593e0 397-432
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "08c71986d57d5958f1c490c180578e5a776718ab",
+  "prompts": {},
+  "sessions": {
+    "s_97ad15873a2151": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1b22ca79ffeKeTJBYMoq9tWHn",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
