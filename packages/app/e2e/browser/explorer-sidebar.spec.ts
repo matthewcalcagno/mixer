@@ -394,6 +394,42 @@ test.describe("Explorer sidebar", () => {
       await workspace.cleanup();
     }
   });
+  for (const [mode, expected] of [
+    ["dark", "rgb(92, 170, 246)"],
+    ["light", "rgb(38, 138, 224)"],
+  ] as const) {
+    test(`Source Control modified badges are blue in ${mode} mode`, async ({ page }) => {
+      const workspace = await seedWorkspace({
+        repoPrefix: "scm-modified-color-",
+        repo: { files: [{ path: "modified.txt", content: "original\n" }] },
+      });
+      try {
+        await page.emulateMedia({ colorScheme: mode });
+        await writeFile(path.join(workspace.repoPath, "modified.txt"), "modified\n");
+        await gotoWorkspace(page, workspace.workspaceId);
+        const explorer = await ensureExplorerSidebar(page);
+        await explorer.getByRole("button", { name: "Source Control", exact: true }).click();
+        const scm = explorer.getByTestId("source-control-panel");
+        const status = scm.getByLabel("Git status M", { exact: true });
+        await expect(status).toHaveText("M");
+        await expect(status).toHaveCSS("color", expected);
+        await scm
+          .getByRole("button", { name: "Open working tree diff for modified.txt", exact: true })
+          .hover();
+        await scm.getByRole("button", { name: "Stage modified.txt", exact: true }).click();
+        await expect(
+          scm.getByRole("button", { name: "Open staged diff for modified.txt", exact: true }),
+        ).toBeVisible();
+        await expect(status).toHaveCSS("color", expected);
+        await scm.screenshot({
+          path: test.info().outputPath(`source-control-modified-${mode}.png`),
+        });
+      } finally {
+        await workspace.cleanup();
+      }
+    });
+  }
+
   test("Source Control badge follows discard, refresh, partial staging, and commit", async ({
     page,
   }) => {
