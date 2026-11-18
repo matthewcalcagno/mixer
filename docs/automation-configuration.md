@@ -121,9 +121,16 @@ The original control server is extracted during build rather than reimplemented.
 PRs and already-reviewed heads before starting an agent. The imported
 [review admission guide](../plugins/automations/server/engine/upstream/docs/github.md#review-workflow-admission)
 owns the exact semantics, dismissed-review limitation, and polling versus webhook setup.
+It also delays unchanged blocked snapshot runs rather than treating them as successful work.
 
-`scripts/automations-engine-github.mjs` preserves the deleted-cursor polling fix and its regression
-tests during re-import. SonarQube replaces PR comments, which can remove the event used as the
+`scripts/automations-engine-review-publication.mjs` supports SHA-bound pending review creation
+and run-owned submission through the normal guarded CLI. Supply inline findings together at
+creation. The [publication contract](../plugins/automations/server/engine/upstream/docs/github.md#guarded-review-publication)
+owns the supported commands and restrictions. Historical guard rejections do not describe the
+capabilities of an updated engine; refresh live state before using its supported procedure.
+
+`scripts/automations-engine-github.mjs` preserves polling fixes and failure diagnostics during
+re-import. SonarQube replaces PR comments, which can remove the event used as the
 latest polling cursor. The poller needs surviving history boundaries rather than assuming that
 one missing event means history was lost. See the imported [history-gap contract](../plugins/automations/server/engine/upstream/docs/github.md#event-history-gaps).
 

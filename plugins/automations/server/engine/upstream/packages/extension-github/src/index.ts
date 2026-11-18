@@ -8,7 +8,7 @@ import {
   defineExtension, requireMaintainerMessage, webhookRequestSchema, type Event, type EventSourceContext, type JsonValue, type MaintainerCommunication,
   type EventMatch, type HookContext, type MaintainerMessagePurpose, type ProcessResult, type MixerAutomationsAPI, type Run, type SafeActionDefinition, type WorkspaceArtifact,
 } from "@mixer/automations-sdk";
-import { evaluateGitHubTrigger, githubConditionSchema, githubTriggerSchema, matchesGitHubCondition, type GitHubEventData } from "./matcher.js";
+import { matchesEventFacts, evaluateGitHubTrigger, githubConditionSchema, githubTriggerSchema, matchesGitHubCondition, type GitHubEventData } from "./matcher.js";
 import { caseForEvent, caseKey, GitHubCaseLocks, GitHubCaseMemory } from "./memory.js";
 import { publishedIssueComment } from "./comments.js";
 import { checkMergeEligibility, mergeCheckCommand, mergeCheckPolicySchema } from "./merge-check.js";
@@ -786,6 +786,9 @@ export default defineExtension({
     const enrichReviewHistory = async (repository: string | undefined, data: GitHubEventData,
       where: import("./matcher.js").GitHubCondition | undefined, signal?: AbortSignal): Promise<GitHubEventData> => {
       if (!needsReviewHistory(where)) return data;
+      // Review history does not exist for issues or checks without an associated PR.
+      // Keep boolean composition intact, including OR branches and negation.
+      if (!data.isPullRequest) return { ...data, approvedBy: [], reviewedBy: [] };
       if (!repository || !data.isPullRequest || !data.number || !data.headSha) {
         throw new Error("Review-history filters require an identified pull request and head");
       }
@@ -1012,7 +1015,7 @@ export default defineExtension({
               publicationChain: data.headSha ? [data.headSha] : undefined,
              prNumber,
              prAuthor: data.pullRequestAuthor,
-           } : prNumber ? { prNumber, prAuthor: data.pullRequestAuthor } : resumedOwnedBranch ? {
+           } : prNumber ? { prNumber, prAuthor: data.pullRequestAuthor, activatedRemoteSha: data.headSha } : resumedOwnedBranch ? {
             allowedBranch: data.headBranch,
             expectedRemoteSha: data.headSha,
           } : {}),
@@ -1030,7 +1033,7 @@ export default defineExtension({
         hook.instructions.push([
           "Mixer Automations protects publication through the normal git and gh commands in PATH.",
           capability.mode === "review-only"
-            ? `This is a review-only run for normal git and gh commands because workflow policy does not allow updating pull request #${prNumber}. Do not commit, push, edit, close, create another PR, or run a direct merge; review and comment on that exact PR only.`
+            ? `This is a review-only run for normal git and gh commands because workflow policy does not allow updating pull request #${prNumber}. Do not commit, push, edit, close, create another PR, or run a direct merge; review and comment on that exact PR only. Guarded gh api POST to repos/<owner>/<repo>/pulls/<number>/reviews supports pending reviews with commit_id bound to the activated head and all inline findings supplied together in the comments array. Submit that run-owned pending review through POST reviews/<review-id>/events. This supported procedure replaces older guard versions that rejected review creation. Historical rejections in memory do not establish that the current supported procedure is blocked; refresh live state and follow current capabilities. Never retry a fresh rejection through another path. Other mutating API routes remain restricted.`
             : capability.mode === "owned-pr"
               ? `You may commit and push only to the existing PAT-authored PR branch ${capability.allowedBranch}. The remote head must still be ${capability.expectedRemoteSha}.`
               : capability.mode === "allowed-pr"
@@ -1193,6 +1196,11 @@ export default defineExtension({
           && hook.run.status === "completed" && outcome.success && ["acted", "no-op"].includes(outcome.data.outcome)
           && outcome.data.reason !== "event_no_longer_matches" && !hook.run.activation?.decision) {
           state.set(key, { runId: hook.run.id, expiresAt: Date.now() + api.config.historyRetentionMs() });
+        }
+        if (key && outcome.success && outcome.data.outcome === "blocked") {
+          state.set(key + ":blocked", { runId: hook.run.id, expiresAt: Date.now() + Math.min(30 * 60_000, api.config.historyRetentionMs()) });
+        } else if (key && outcome.success && ["acted", "no-op"].includes(outcome.data.outcome)) {
+          state.delete(key + ":blocked");
         }
         state.delete(`work:started:${hook.run.id}`);
       }
@@ -1470,6 +1478,7 @@ export default defineExtension({
         const poll = async () => {
           if (context.signal.aborted || !running) return;
           let failure: string | undefined;
+          const failures: Array<{ repository?: string; error: string }> = [];
           const repositories = [...new Set([...subscriptions.values()].flat()
             .map((item) => item.repository).filter((item): item is string => !!item))];
           for (const repository of repositories) {
@@ -1541,7 +1550,10 @@ export default defineExtension({
                       wakeResource(enriched);
                    }
                  } catch (error) {
-                   if (!(error instanceof MissingReviewCommentError)) throw error;
+                   if (!(error instanceof MissingReviewCommentError)) {
+                      const message = error instanceof Error ? error.message : String(error);
+                      throw new Error("GitHub event " + raw.id + " (" + raw.type + ") failed: " + message, { cause: error });
+                    }
                    api.logger.warn({ repository, eventId: raw.id, commentId: error.commentId }, "Skipping GitHub event with missing review comment");
                    state.set(`events:${repository}:skipped:${raw.id}`, { reason: "missing_review_comment", commentId: error.commentId, observedAt: new Date().toISOString() });
                  }
@@ -1552,19 +1564,23 @@ export default defineExtension({
             } catch (error) {
               if (context.signal.aborted) return;
               failure = "github_poll_failed";
-              api.logger.error({ repository, error: error instanceof Error ? error.message : String(error) }, "GitHub poll failed");
+              const detail = { repository, error: error instanceof Error ? error.message : String(error) };
+               failures.push(detail);
+               api.logger.error(detail, "GitHub poll failed");
             }
           }
           let gaps: ReturnType<typeof readEventGaps> = [];
           try { gaps = readEventGaps(state).filter(gap => !gap.acknowledgedAt && repositories.includes(gap.repository)); }
           catch (error) {
             failure = "github_poll_failed";
-            api.logger.error({ error: error instanceof Error ? error.message : String(error) }, "GitHub event gap state could not be read");
+            const detail = { error: error instanceof Error ? error.message : String(error) };
+             failures.push(detail);
+             api.logger.error(detail, "GitHub event gap state could not be read");
           }
           for (const observer of contexts.values()) observer.reportHealth?.({ version: 1, status: failure || gaps.length ? "degraded" : "ready", observedAt: new Date().toISOString(),
             result: failure ? "failure" : "success",
             ...(failure ? { reason: failure } : gaps.length ? { reason: "github_event_history_gap" } : {}),
-            ...(gaps.length ? { details: { gaps } } : {}) });
+            ...(gaps.length || failures.length ? { details: { gaps, failures } } : {}) });
           if (!context.signal.aborted && running) timer = setTimeout(() => void poll(), duration(config.pollInterval));
         };
         if (config.polling) queueMicrotask(() => void poll());
@@ -1592,7 +1608,15 @@ export default defineExtension({
           data = data.isPullRequest ? (await enrichPullRequestIdentity(event, item, operation?.signal)).data as GitHubEventData
             : { ...data, state: item.state, title: item.title, labels: labels(item) };
         }
-        data = await enrichReviewHistory(event.repository, data, trigger.where, operation?.signal);
+        const actions = trigger.events ?? trigger.types;
+        if (actions && !actions.includes(data.action ?? "")) return false;
+        if (trigger.where && matchesEventFacts(data, trigger.where, { login: user.login }, event.type !== "github.check") === false) return false;
+        try {
+          data = await enrichReviewHistory(event.repository, data, trigger.where, operation?.signal);
+        } catch (error) {
+          throw new Error("GitHub review-history matching failed for workflow " + (operation?.workflowId ?? "unknown") +
+            " event " + event.id + " (" + event.type + "): " + (error instanceof Error ? error.message : String(error)), { cause: error });
+        }
         const decision = evaluateGitHubTrigger(data, trigger, { login: user.login }, event.type !== "github.check");
         if (decision === "match" && event.type === "github.check" && policy.currentHeadChecks && data.triggerHeadSha && data.headSha !== data.triggerHeadSha) return false;
         if (decision === "match" && policy.readyWhen) {
@@ -1603,6 +1627,9 @@ export default defineExtension({
             reason: `merge_readiness_${report.decision}`, retryAfter: 30_000, expiresAfter: 7 * 86_400_000 };
         }
         const key = decision === "match" ? workReceiptKey(operation?.workflow, { ...event, data }) : undefined;
+        const blocked = key ? state.get<{ expiresAt: number }>(key + ":blocked") : undefined;
+        if (key && blocked && blocked.expiresAt <= Date.now()) state.delete(key + ":blocked");
+        if (blocked && blocked.expiresAt > Date.now()) return { kind: "ignore", reason: "work_blocked_retry_pending" };
         const receipt = key ? state.get<{ expiresAt: number }>(key) : undefined;
         if (key && receipt && receipt.expiresAt <= Date.now()) state.delete(key);
         if (receipt && receipt.expiresAt > Date.now()) return { kind: "ignore", reason: "work_already_handled" };
@@ -1785,6 +1812,9 @@ export default defineExtension({
           return { data: refreshed as unknown as JsonValue, decision: { kind: "skip", reason } };
         }
         const key = workReceiptKey(operation?.workflow, { ...event, data: refreshed });
+        const blocked = key ? state.get<{ expiresAt: number }>(key + ":blocked") : undefined;
+        if (key && blocked && blocked.expiresAt <= Date.now()) state.delete(key + ":blocked");
+        if (blocked && blocked.expiresAt > Date.now()) return { data: refreshed as unknown as JsonValue, decision: { kind: "skip", reason: "work_blocked_retry_pending" } };
         const receipt = key ? state.get<{ expiresAt: number }>(key) : undefined;
         if (key && receipt && receipt.expiresAt <= Date.now()) state.delete(key);
         if (receipt && receipt.expiresAt > Date.now()) return { data: refreshed as unknown as JsonValue, decision: { kind: "skip", reason: "work_already_handled" } };

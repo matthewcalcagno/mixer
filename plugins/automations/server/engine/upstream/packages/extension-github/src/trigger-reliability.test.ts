@@ -147,6 +147,29 @@ describe("GitHub trigger reliability", () => {
     expect(await source?.activate?.(event, { signal: new AbortController().signal, workflow })).toMatchObject({ data: { headSha: sha, title: "CI" } });
   });
 
+  it("delays blocked snapshot retries without marking work successful, and permits recovery", async () => {
+    const runtime = await fixture({ publishGuard: { enabled: false }, failureReports: { enabled: false } });
+    const source = runtime.registry.eventSources.get("github.pull-request")!;
+    const workflow: Workflow = { id: "qa.md", path: "/qa.md", name: "QA", repository: "owner/repo", agent: "fake", execution: "host", prompt: "Inspect", on: {}, safeActions: {},
+      extensions: { "github.execution": { oncePerHead: true } } };
+    const event: Event = { id: "qa", type: "github.pull-request", source: "github", timestamp: new Date().toISOString(), repository: "owner/repo", data: { number: 42, isPullRequest: true } };
+    const operation = { signal: new AbortController().signal, workflow };
+    const activation = await source.activate!(event, operation);
+    const run: Run = { id: "blocked-run", workflowId: workflow.id, repository: "owner/repo", event, activation, status: "running", createdAt: event.timestamp, updatedAt: event.timestamp };
+    const activated = { ...event, data: activation.data };
+    await runtime.registry.runHooks("agent:before", { event: activated, run, workflow, instructions: [], metadata: {} });
+    run.status = "completed";
+    await runtime.registry.runHooks("run:finalized", { event, run, workflow, instructions: [], metadata: { outcome: { outcome: "blocked", reason: "publication unavailable" } } });
+    const key = workReceiptKey(workflow, activated)!;
+    expect(runtime.database.state("github").get(key)).toBeUndefined();
+    expect(await source.activate!(event, operation)).toMatchObject({ decision: { kind: "skip", reason: "work_blocked_retry_pending" } });
+    expect(await source.match!(activated, {}, operation)).toEqual({ kind: "ignore", reason: "work_blocked_retry_pending" });
+    expect(await source.activate!(event, { ...operation, workflow: { ...workflow, prompt: "Fixed publication procedure" } })).not.toHaveProperty("decision");
+    expect(await source.activate!({ ...event, provenance: { kind: "replay", sourceRunId: run.id, rootRunId: run.id, sourceEventId: event.id } }, operation)).not.toHaveProperty("decision");
+    runtime.database.state("github").set(key + ":blocked", { runId: run.id, expiresAt: Date.now() - 1 });
+    expect(await source.activate!(event, operation)).not.toHaveProperty("decision");
+    expect(runtime.database.state("github").get(key + ":blocked")).toBeUndefined();
+  });
   it("suppresses only successful equivalent snapshot work, preserving new feedback and definition changes", async () => {
     const runtime = await fixture({ publishGuard: { enabled: false }, failureReports: { enabled: false } });
     const source = runtime.registry.eventSources.get("github.pull-request");

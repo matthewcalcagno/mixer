@@ -154,6 +154,38 @@ const data = {
   commentId: 9, commentKind: "conversation" as const,
 };
 
+describe("review-history event admission", () => {
+  it.each(["github.issue.comment", "github.check"])("rejects a non-PR %s without fetching review history", async type => {
+    const sources = await setupSources();
+    const fetch = vi.fn(async () => Response.json({ login: "maintainer", id: 1 }));
+    vi.stubGlobal("fetch", fetch);
+    const event: Event = { id: "issue", type, source: "github", repository: "owner/repo", timestamp: "now",
+      data: { action: "created", isPullRequest: false, number: 42 } };
+    expect(await sources.get(type)!.match!(event, { where: { all: [
+      { "pull-request": true }, { "approved-by": { exists: true } },
+    ] } })).toBe(false);
+    expect(fetch.mock.calls).toHaveLength(1);
+  });
+
+  it("preserves any and not semantics for issue events with PR review predicates", async () => {
+    const source = (await setupSources()).get("github.issue.comment")!;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ login: "maintainer", id: 1 })));
+    const event: Event = { id: "issue", type: "github.issue.comment", source: "github", repository: "owner/repo", timestamp: "now",
+      data: { action: "created", isPullRequest: false, number: 42, author: "human" } };
+    expect(await source.match!(event, { where: { any: [{ "approved-by": "me" }, { author: "human" }] } })).toBe(true);
+    expect(await source.match!(event, { where: { not: { "approved-by": "me" } } })).toBe(true);
+    expect(await source.match!(event, { where: { "approved-by": { exists: true } } })).toBe(false);
+  });
+
+  it("skips excluded actions but fails closed for an applicable PR missing its head", async () => {
+    const source = (await setupSources()).get("github.issue.comment")!;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ login: "maintainer", id: 1 })));
+    const event: Event = { id: "pr", type: "github.issue.comment", source: "github", repository: "owner/repo", timestamp: "now",
+      data: { action: "deleted", isPullRequest: true, number: 42, pullRequestAuthor: "author", draft: false } };
+    expect(await source.match!(event, { events: ["created"], where: { "approved-by": "me" } })).toBe(false);
+    await expect(source.match!(event, { where: { "approved-by": "me" } })).rejects.toThrow("identified pull request and head");
+  });
+});
 describe("scheduled pull-request runs", () => {
   const config = { cron: "0 * * * *", where: { all: [
     { "pull-request-author": "me" }, { state: "open" }, { draft: false }, { merged: false },
@@ -430,6 +462,24 @@ describe("GitHub repository event polling", () => {
     } finally { poller.stop(); }
   });
 
+  it("reports the failed event and underlying delivery error without advancing its cursor", async () => {
+    const state = new Map<string, unknown>([[cursorKey, "0"]]);
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok([repositoryComment("1"), { id: "0", type: "Unsupported" }]);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error("unexpected request " + url);
+    }));
+    const poller = await startPoller(state, async () => { throw new Error("workflow review.md could not read review history"); });
+    try {
+      await vi.waitFor(() => expect(poller.reportHealth).toHaveBeenCalled());
+      expect(state.get(cursorKey)).toBe("0");
+      expect(poller.error).toHaveBeenCalledWith({ repository: "owner/repo", error: "GitHub event 1 (IssueCommentEvent) failed: workflow review.md could not read review history" }, "GitHub poll failed");
+      expect(poller.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "degraded", details: { gaps: [], failures: [
+        { repository: "owner/repo", error: "GitHub event 1 (IssueCommentEvent) failed: workflow review.md could not read review history" },
+      ] } }));
+    } finally { poller.stop(); }
+  });
   it.each([1, 2])("resumes after %i processed comment events disappear across restart without reporting a history gap", async (deleted) => {
     const state = new Map<string, unknown>([[cursorKey, "0"]]);
     let events = [repositoryComment("3"), repositoryComment("2"), repositoryComment("1"), { id: "0", type: "Unsupported" }];

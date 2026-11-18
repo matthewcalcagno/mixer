@@ -27,6 +27,7 @@ export interface GitHubBranchCapability {
   /** PAT identity attested by the extension before installing the command guard. */
   authenticatedLogin?: string;
   allowedReviewCommentIds?: number[];
+  pendingReviewId?: number;
   confirmedAt?: string;
   prCreatedAt?: string;
   pending?: { operation: "push" | "pr-create"; branch: string; head: string; expectedRemoteSha?: string; baseBranch?: string; startedAt: string };
@@ -295,6 +296,87 @@ const guardedPush = (invocation) => {
   }
   return result;
 };
+const reviewApiRead = endpoint => {
+  const result = run("gh", ["api", "--method", "GET", endpoint], { capture: true });
+  if (result.status !== 0) throw new Error("Mixer Automations could not verify live review publication state");
+  return JSON.parse(result.stdout);
+};
+const reviewApiReviews = root => {
+  const reviews = [];
+  for (let page = 1; page <= 100; page++) {
+    const batch = reviewApiRead(root + "/reviews?per_page=100&page=" + page);
+    if (!Array.isArray(batch)) throw new Error("Mixer Automations could not parse review history");
+    reviews.push(...batch);
+    if (batch.length < 100) return reviews;
+  }
+  throw new Error("Mixer Automations review history exceeded 100 pages");
+};
+const guardReviewApi = (capability, method, endpoint) => {
+  const match = /^repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/reviews(?:\/(\d+)\/events)?$/.exec(endpoint || "");
+  if (!match) return undefined;
+  if (method !== "POST" || match[1] !== capability.repository || Number(match[2]) !== capability.prNumber) {
+    throw new Error("Mixer Automations review publication requires POST to the exact activated pull request");
+  }
+  // Reject transport overrides and ambiguous inputs rather than validate one body
+  // and let gh send another. Rewrite the accepted payload to a private JSON file.
+  const payload = {};
+  const retained = ["api", "--method", "POST", endpoint];
+  let input;
+  for (let index = 1; index < args.length; index++) {
+    const arg = args[index];
+    const flag = arg.split("=", 1)[0];
+    if (arg === endpoint) continue;
+    if (["--method", "-X"].includes(flag)) {
+      const value = arg.includes("=") ? arg.slice(arg.indexOf("=") + 1) : args[++index];
+      if (value?.toUpperCase() !== "POST") throw new Error("Mixer Automations review publication requires POST");
+      continue;
+    }
+    if (["--input", "--field", "--raw-field", "-f", "-F"].includes(flag)) {
+      const value = arg.includes("=") ? arg.slice(arg.indexOf("=") + 1) : args[++index];
+      if (flag === "--input") {
+        if (input !== undefined || value === "-") throw new Error("Mixer Automations review publication requires one explicit JSON file, not stdin");
+        input = JSON.parse(fs.readFileSync(value, "utf8"));
+      } else {
+        const separator = value?.indexOf("=") ?? -1;
+        if (separator <= 0) throw new Error("Mixer Automations review publication requires explicit field values");
+        const key = value.slice(0, separator);
+        if (Object.hasOwn(payload, key) || key.includes("[") || value.slice(separator + 1).startsWith("@")) throw new Error("Mixer Automations review publication requires JSON input for complex fields");
+        payload[key] = value.slice(separator + 1);
+      }
+    } else if (["--jq", "-q", "--template", "-t"].includes(flag)) {
+      retained.push(arg);
+      if (!arg.includes("=")) retained.push(args[++index]);
+    } else if (["--silent", "--include", "-i", "--verbose"].includes(arg)) retained.push(arg);
+    else throw new Error("Mixer Automations review publication rejects unsupported option or transport override " + flag);
+  }
+  if (input !== undefined && Object.keys(payload).length) throw new Error("Mixer Automations review publication rejects mixed body inputs");
+  const body = input ?? payload;
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Mixer Automations review publication requires a JSON object");
+  const login = capability.authenticatedLogin;
+  const head = capability.expectedRemoteSha || capability.activatedRemoteSha;
+  if (!login || !/^[0-9a-f]{40}$/.test(head ?? "")) throw new Error("Mixer Automations review publication requires an attested account and head");
+  const root = "repos/" + capability.repository + "/pulls/" + capability.prNumber;
+  const live = reviewApiRead(root);
+  if (live.state !== "open" || live.merged || live.draft || live.head?.sha !== head) throw new Error("Mixer Automations review publication rejected changed head or ineligible pull request");
+  const id = match[3] && Number(match[3]);
+  if (id) {
+    if (id !== capability.pendingReviewId) throw new Error("Mixer Automations review submission requires this run's pending review");
+    const review = reviewApiRead(root + "/reviews/" + id);
+    if (review.state !== "PENDING" || review.commit_id !== head || review.user?.login?.toLowerCase() !== login.toLowerCase()) throw new Error("Mixer Automations pending review ownership or head changed");
+    if (!['COMMENT', 'APPROVE', 'REQUEST_CHANGES'].includes(body.event) || Object.keys(body).some(key => !['event', 'body'].includes(key))) throw new Error("Mixer Automations review submission requires a supported event and body");
+  } else {
+    if (body.commit_id !== head || (body.event !== undefined && !['COMMENT', 'APPROVE', 'REQUEST_CHANGES'].includes(body.event)) ||
+        Object.keys(body).some(key => !['commit_id', 'event', 'body', 'comments'].includes(key))) throw new Error("Mixer Automations review creation requires the exact activated commit_id and supported review fields");
+    // Fail closed on truncated history. Do not reuse another run's pending review.
+    const reviews = reviewApiReviews(root);
+    if (reviews.some(review => review.user?.login?.toLowerCase() === login.toLowerCase() &&
+        (review.state === "PENDING" || (review.commit_id === head && review.state !== "DISMISSED")))) throw new Error("Mixer Automations review already exists; inspect GitHub before retrying");
+  }
+  const bodyFile = path.join(path.dirname(configPath), "review-" + randomUUID() + ".json");
+  fs.writeFileSync(bodyFile, JSON.stringify(body), { mode: 0o600 });
+  args.splice(0, args.length, ...retained, "--input", bodyFile);
+  return { capability, post: id ? "review-submit" : body.event === undefined ? "review-create" : undefined, bodyFile };
+};
 const guardGh = () => {
   const capability = readCapability();
   const group = args[0];
@@ -310,6 +392,8 @@ const guardGh = () => {
     const method = (option("--method") || option("-X") || (args[1] === "graphql" || args.some((value) => ["--field", "-f", "--raw-field", "-F", "--input"].includes(value)) ? "POST" : "GET")).toUpperCase();
     if (method !== "GET") {
       const endpoint = apiEndpoint()?.replace(/^\//, "");
+      const review = guardReviewApi(capability, method, endpoint);
+      if (review) return review;
       const match = /^repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/comments\/(\d+)\/replies$/.exec(endpoint || "");
       const pullNumber = match ? Number(match[2]) : undefined;
       const commentId = match ? Number(match[3]) : undefined;
@@ -407,6 +491,18 @@ try {
           writeCommentReceipt(guarded.receiptFile, { ...guarded.receipt, status: "confirmed", commentId });
         }
       }
+    }
+    if (guarded.bodyFile && guarded.post !== "issue-comment") fs.rmSync(guarded.bodyFile, { force: true });
+    if (result.status === 0 && guarded.post === "review-create") {
+      const pending = reviewApiReviews("repos/" + guarded.capability.repository + "/pulls/" + guarded.capability.prNumber)
+        .filter(review => review.state === "PENDING" && review.user?.login?.toLowerCase() === guarded.capability.authenticatedLogin.toLowerCase());
+      if (pending.length !== 1 || !Number.isSafeInteger(pending[0].id)) throw new Error("Mixer Automations could not confirm the pending review; inspect GitHub before retrying");
+      guarded.capability.pendingReviewId = pending[0].id;
+      writeCapability(guarded.capability);
+    }
+    if (result.status === 0 && guarded.post === "review-submit") {
+      delete guarded.capability.pendingReviewId;
+      writeCapability(guarded.capability);
     }
     if (result.status === 0 && guarded.post === "pr-create") {
       promoteCreatedPullRequest(guarded.capability);

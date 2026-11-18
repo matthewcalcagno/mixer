@@ -342,7 +342,7 @@ export class Runtime {
       consecutiveFailures: succeeded ? 0 : (previous?.consecutiveFailures ?? 0) + 1,
       lastSuccessAt: succeeded ? health.observedAt : previous?.lastSuccessAt,
       lastFailureAt: succeeded ? previous?.lastFailureAt : health.observedAt,
-      error: health.reason,
+      error: health.reason && health.details ? health.reason + ": " + JSON.stringify(health.details) : health.reason,
       updatedAt: health.observedAt,
     });
   }

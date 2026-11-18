@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { classifyRunLogLine, inspectRunLogs } from "./run-inspection.js";
+import { classifyRunLogLine, completedRunStatus, inspectRunLogs } from "./run-inspection.js";
+
+describe("completed run outcomes", () => {
+  it.each([
+    ["blocked", "attention"],
+    ["failed", "failed"],
+    ["acted", "succeeded"],
+    ["no-op", "succeeded"],
+    [undefined, "succeeded"],
+  ] as const)("shows %s as %s", (outcome, status) => {
+    expect(completedRunStatus(outcome)).toBe(status);
+  });
+});
 
 describe("classifyRunLogLine", () => {
   it.each([
