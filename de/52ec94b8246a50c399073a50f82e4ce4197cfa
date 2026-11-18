@@ -1,0 +1,21 @@
+packages/app/e2e/browser/plugin-management.spec.ts
+  s_86fc1e7ede0dee::t_d7dd852677414a 15-16,102-175
+plugins/automations/client/assistant.tsx
+  s_86fc1e7ede0dee::t_3220ad3b0224e8 1,7,33-37,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "de52ec94b8246a50c399073a50f82e4ce4197cfa",
+  "prompts": {},
+  "sessions": {
+    "s_86fc1e7ede0dee": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1205ac1fffeRWL2hPPovp32Zs",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
