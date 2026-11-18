@@ -32,6 +32,11 @@ object uses the imported engine's enabled defaults. Existing configuration is ne
 The settings icon beside Refresh opens `config.json` in a headerless Automations editor tab;
 configuration stays hidden from the workflow tree. Use Save or the editor shortcut to save drafts.
 Ask AI remains available when integration configuration is incomplete, so it can help edit the file.
+The renderer saves open workflow and conversation tabs, the active tab, the floating Ask AI window,
+and unsaved workflow drafts per host. Project navigation and renderer reloads restore that workspace.
+Conversation history stays with the host's agent; local state stores its identity, not a second copy
+of its messages. Unsaved workflow drafts retain their original file version so restoring them cannot
+silently overwrite changes made while you were away.
 An installation with native `automation-state` data pauses the new engine until you review
 configuration and click **Start**. Safe Actions use the imported engine's policies and effect
 reconciliation, not the native executor's former per-run confirmation UI. Legacy proposals
