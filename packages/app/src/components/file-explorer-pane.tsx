@@ -20,6 +20,7 @@ import {
   Text,
   View,
   type NativeSyntheticEvent,
+  type LayoutChangeEvent,
   type PressableStateCallbackType,
   type TextInputKeyPressEventData,
 } from "react-native";
@@ -36,6 +37,7 @@ import {
   WORKSPACE_TREE_ICON_LABEL_GAP,
   WORKSPACE_TREE_ICON_SIZE,
   WORKSPACE_TREE_LOADING_ICON_SIZE,
+  WORKSPACE_FILE_ROW_VERTICAL_PADDING,
 } from "@/components/tree-primitives";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -68,6 +70,8 @@ import {
   fileExplorerRowMetrics,
   fileExplorerRowPaddingLeft,
 } from "@/file-explorer/geometry";
+import { indexStickyTree, stickyFolderLimit } from "@/file-explorer/sticky-scroll";
+import { useExplorerStickyScroll } from "@/file-explorer/use-sticky-scroll";
 import {
   flattenExplorerTree,
   restoreExpandedDirectories,
@@ -488,7 +492,7 @@ const TreeRowItem = memo(function TreeRowItem({
     </View>
   );
 });
-function revealExplorerRow(list: FlatList<ExplorerListRow>, index: number) {
+function revealExplorerRow(list: FlatList<ExplorerListRow>, index: number, depth: number) {
   if (isWeb) {
     const viewport: unknown = list.getScrollableNode();
     if (viewport instanceof HTMLElement) {
@@ -498,10 +502,13 @@ function revealExplorerRow(list: FlatList<ExplorerListRow>, index: number) {
         // Read the current geometry before deciding whether scrolling is necessary.
         const bounds = viewport.getBoundingClientRect();
         const rowBounds = row.getBoundingClientRect();
+        const stickyInset =
+          Math.min(depth, stickyFolderLimit(viewport.clientHeight, rowBounds.height)) *
+          rowBounds.height;
         const offset = fileExplorerRevealOffset({
           rowTop: rowBounds.top,
           rowBottom: rowBounds.bottom,
-          viewportTop: bounds.top,
+          viewportTop: bounds.top + stickyInset,
           viewportBottom: bounds.top + viewport.clientHeight,
           scrollOffset: viewport.scrollTop,
         });
@@ -511,7 +518,7 @@ function revealExplorerRow(list: FlatList<ExplorerListRow>, index: number) {
     }
   }
   // Rows outside the virtualized render window have no DOM geometry yet.
-  list.scrollToIndex({ index, animated: false });
+  list.scrollToIndex({ index, animated: false, viewPosition: 0.5 });
 }
 
 interface FileExplorerPaneProps {
@@ -991,11 +998,12 @@ export function FileExplorerPane({
     );
     if (index < 0) return;
     lastRevealRequest.current = revealRequest;
-    revealExplorerRow(treeListRef.current, index);
+    const row = listRows[index];
+    if (row.type === "entry") revealExplorerRow(treeListRef.current, index, row.row.depth);
   }, [listRows, revealRequest]);
   const showBackFromError = Boolean(error && selectedEntryPath);
   const renderTreeRow = useCallback(
-    (info: ListRenderItemInfo<ExplorerListRow>) => {
+    (info: Pick<ListRenderItemInfo<ExplorerListRow>, "item" | "index">, sticky = false) => {
       if (info.item.type === "draft") {
         return (
           <EntryNameInputRow
@@ -1024,6 +1032,7 @@ export function FileExplorerPane({
           row={info.item.row}
           gitDecoration={gitDecorations.get(info.item.row.entry.path)}
           index={info.index}
+          testID={sticky ? `file-explorer-sticky-row-${info.index}` : undefined}
           expandedPaths={expandedPaths}
           selectedEntryPath={selectedEntryPath}
           isDirectoryLoading={isDirectoryLoading}
@@ -1197,7 +1206,10 @@ interface FileExplorerPaneContentProps {
   isRefreshFetching: boolean;
   treeListRef: RefObject<FlatList<ExplorerListRow> | null>;
   scrollbar: OverlayFlatListScrollbar;
-  renderTreeRow: (info: ListRenderItemInfo<ExplorerListRow>) => ReactElement;
+  renderTreeRow: (
+    info: Pick<ListRenderItemInfo<ExplorerListRow>, "item" | "index">,
+    sticky?: boolean,
+  ) => ReactElement;
   handleToggleHiddenFiles: () => void;
   handleRefresh: () => void;
   handleBackFromError: () => void;
@@ -1225,6 +1237,58 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
     handleRetry,
   } = props;
   const showHiddenFiles = usePanelStore((state) => state.explorerShowHiddenFiles);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const { onScroll: onScrollbarScroll, onLayout: onScrollbarLayout } = scrollbar;
+  const metrics = fileExplorerRowMetrics(theme.fontSize.chrome);
+  const rowHeight = Math.max(
+    metrics.minHeight,
+    metrics.lineHeight + 2 * WORKSPACE_FILE_ROW_VERTICAL_PADDING,
+    WORKSPACE_TREE_ICON_SIZE + 2 * WORKSPACE_FILE_ROW_VERTICAL_PADDING,
+  );
+  const stickyIndex = useMemo(
+    () =>
+      indexStickyTree(
+        listRows.map((item) => ({
+          depth: item.type === "entry" ? item.row.depth : item.depth,
+          directory: item.type === "entry" && item.row.entry.kind === "directory",
+        })),
+      ),
+    [listRows],
+  );
+  const {
+    folders: pinnedFolders,
+    containerRef: stickyContainer,
+    getRowRef,
+  } = useExplorerStickyScroll({
+    listRef: treeListRef,
+    nodes: stickyIndex,
+    rowHeight,
+    paddingTop: theme.spacing[1],
+  });
+  const hasPinnedFolders = pinnedFolders.length > 0;
+  useEffect(() => {
+    if (!hasPinnedFolders) return;
+    const element = stickyContainer.current;
+    if (!(element instanceof HTMLElement)) return;
+    const wheel = (event: WheelEvent) => {
+      const scroller: unknown = treeListRef.current?.getScrollableNode();
+      if (!(scroller instanceof HTMLElement) || event.ctrlKey) return;
+      const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? rowHeight : 1;
+      const pageUnit = event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? scroller.clientHeight : unit;
+      scroller.scrollTop += event.deltaY * pageUnit;
+      event.preventDefault();
+    };
+    element.addEventListener("wheel", wheel, { passive: false });
+    return () => element.removeEventListener("wheel", wheel);
+  }, [hasPinnedFolders, rowHeight, treeListRef, stickyContainer]);
+  const onLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      onScrollbarLayout(event);
+      const height = event.nativeEvent.layout.height;
+      if (height > 0 && event.nativeEvent.layout.width > 0) setViewportHeight(height);
+    },
+    [onScrollbarLayout],
+  );
   const handleNewFileAtRoot = useCallback(() => {
     onNewEntryAtRoot?.(".", "file");
   }, [onNewEntryAtRoot]);
@@ -1233,9 +1297,13 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
   }, [onNewEntryAtRoot]);
   const handleScrollToIndexFailed = useCallback(
     ({ index, averageItemLength }: { index: number; averageItemLength: number }) => {
-      treeListRef.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
+      const top = Math.max(viewportHeight * 0.4, (viewportHeight - averageItemLength) / 2);
+      treeListRef.current?.scrollToOffset({
+        offset: Math.max(0, index * averageItemLength - top),
+        animated: false,
+      });
     },
-    [treeListRef],
+    [treeListRef, viewportHeight],
   );
   const hiddenFilesToggleAccessibilityLabel = showHiddenFiles
     ? t("workspace.fileExplorer.actions.hideHiddenFiles")
@@ -1383,8 +1451,8 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
               onScrollToIndexFailed={handleScrollToIndexFailed}
               testID="file-explorer-tree-scroll"
               contentContainerStyle={styles.entriesContent}
-              onLayout={scrollbar.onLayout}
-              onScroll={scrollbar.onScroll}
+              onLayout={onLayout}
+              onScroll={onScrollbarScroll}
               onContentSizeChange={scrollbar.onContentSizeChange}
               scrollEventThrottle={16}
               showsVerticalScrollIndicator={!scrollbar.enabled}
@@ -1393,6 +1461,31 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
               windowSize={12}
             />
           )}
+          <View
+            ref={stickyContainer}
+            testID="file-explorer-sticky-folders"
+            style={[
+              styles.stickyFolders,
+              {
+                height: pinnedFolders.length
+                  ? Math.max(...pinnedFolders.map((folder) => folder.top + rowHeight))
+                  : 0,
+              },
+            ]}
+          >
+            {pinnedFolders.map((folder, position) => (
+              <View
+                key={listRowKeyExtractor(listRows[folder.index])}
+                ref={getRowRef(folder.index)}
+                style={[
+                  styles.stickyFolder,
+                  { top: folder.top, height: rowHeight, zIndex: pinnedFolders.length - position },
+                ]}
+              >
+                {renderTreeRow({ item: listRows[folder.index], index: folder.index }, true)}
+              </View>
+            ))}
+          </View>
           {listRows.length > 0 ? scrollbar.overlay : null}
         </RootCreationContextTarget>
         {onNewEntryAtRoot ? (
@@ -1477,6 +1570,7 @@ function TreeRowDispatcher({
   row,
   gitDecoration,
   index,
+  testID,
   expandedPaths,
   selectedEntryPath,
   isDirectoryLoading,
@@ -1502,6 +1596,7 @@ function TreeRowDispatcher({
   gitDecoration?: GitDecoration;
   row: ExplorerTreeRow;
   index: number;
+  testID?: string;
   expandedPaths: Set<string>;
   selectedEntryPath: string | null;
   isDirectoryLoading: (path: string) => boolean;
@@ -1554,7 +1649,7 @@ function TreeRowDispatcher({
       onRenameEntry={onRenameEntry}
       onDuplicateEntry={onDuplicateEntry}
       onDeleteEntry={onDeleteEntry}
-      testID={`file-explorer-row-${index}`}
+      testID={testID ?? `file-explorer-row-${index}`}
     />
   );
 }
@@ -1662,6 +1757,20 @@ const styles = StyleSheet.create((theme) => ({
   treeList: {
     flex: 1,
     minHeight: 0,
+  },
+  stickyFolders: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    overflow: "hidden",
+  },
+  stickyFolder: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    backgroundColor: theme.colors.surfaceSidebar,
   },
   entriesContent: {
     flexGrow: 1,

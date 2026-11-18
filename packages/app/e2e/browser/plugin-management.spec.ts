@@ -12,6 +12,8 @@ import { expect, test as base, type Page } from "../support/fixtures";
 import { gotoAppShell, openSettings } from "../support/helpers/app";
 import { daemonWsRoutePattern } from "../support/helpers/daemon-port";
 import { getServerId } from "../support/helpers/server-id";
+import { seedWorkspace } from "../support/helpers/seed-client";
+import { switchWorkspaceViaSidebar } from "../support/helpers/workspace-ui";
 import { connectNewWorkspaceDaemonClient } from "../support/helpers/new-workspace";
 import { waitForSettledPosition } from "../support/helpers/sheet-layout";
 import {
@@ -96,6 +98,80 @@ base.beforeEach(async ({ e2eWorkerClient }, testInfo) => {
     action: "restart",
   });
 });
+
+base(
+  "Automations restores floating chat, conversation tabs, and workflow drafts after project switches and reload",
+  async ({ page, e2eWorkerClient }) => {
+    base.setTimeout(120_000);
+    const existing = new Set(
+      (await e2eWorkerClient.fetchWorkspaces()).entries.map((workspace) => workspace.projectId),
+    );
+    const workspace = await seedWorkspace({ repoPrefix: "automations-persistence-" });
+    const serverId = getServerId();
+    const openAutomations = async () => {
+      await page.getByRole("button", { name: "Automations", exact: true }).click();
+      await expect(page.getByTestId("automations-screen")).toBeVisible();
+    };
+    try {
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await gotoAppShell(page);
+      await openAutomations();
+      await page.getByRole("button", { name: "Automations configuration", exact: true }).click();
+      await expect(page.getByTestId("automations-workflow-editor")).toBeVisible();
+      await page.getByRole("button", { name: "Ask Automations AI", exact: true }).click();
+      const floating = page.getByTestId("automations-assistant");
+      const composer = floating.getByRole("textbox", { name: "Message agent..." });
+      await expect(composer).toBeEditable({ timeout: 30_000 });
+      await composer.fill("Remember this Automations conversation.");
+      await composer.press("Enter");
+      await expect(
+        floating.getByRole("button", { name: "Open full conversation", exact: true }),
+      ).toBeVisible({ timeout: 30_000 });
+      const source = page.getByRole("textbox", { name: "Source for config.json", exact: true });
+      await source.fill('{"workspacePersistenceTest":true}');
+      await expect(
+        page.getByRole("button", { name: "Save configuration", exact: true }),
+      ).toBeEnabled();
+
+      await switchWorkspaceViaSidebar({ page, serverId, workspaceId: workspace.workspaceId });
+      await openAutomations();
+      await expect(floating).toBeVisible();
+      await expect(
+        floating.getByText("Remember this Automations conversation.", { exact: true }),
+      ).toBeVisible();
+      await expect(source).toHaveText('{"workspacePersistenceTest":true}');
+
+      await floating.getByRole("button", { name: "Open full conversation", exact: true }).click();
+      const conversation = page.getByTestId("automations-agent-tab");
+      await expect(conversation).toBeVisible();
+      await switchWorkspaceViaSidebar({ page, serverId, workspaceId: workspace.workspaceId });
+      await openAutomations();
+      await expect(conversation).toBeVisible();
+      await expect(
+        conversation.getByText("Remember this Automations conversation.", { exact: true }),
+      ).toBeVisible();
+      await expect(floating).not.toBeVisible();
+      await page.reload();
+      await expect(conversation).toBeVisible({ timeout: 30_000 });
+      await expect(
+        conversation.getByText("Remember this Automations conversation.", { exact: true }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Edit config.json", exact: true }).click();
+      await expect(source).toHaveText('{"workspacePersistenceTest":true}');
+      await expect(
+        page.getByRole("button", { name: "Save configuration", exact: true }),
+      ).toBeEnabled();
+    } finally {
+      await workspace.cleanup();
+      const added = new Set(
+        (await e2eWorkerClient.fetchWorkspaces()).entries
+          .map((item) => item.projectId)
+          .filter((id) => !existing.has(id)),
+      );
+      for (const projectId of added) await e2eWorkerClient.removeProject(projectId);
+    }
+  },
+);
 
 base(
   "Automations Ask AI submits its first draft using live host defaults",

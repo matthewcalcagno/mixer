@@ -172,6 +172,16 @@ describe("durable trigger reliability", () => {
     expect(restarted.database.getRun(accepted.runIds?.[0] ?? "")).toMatchObject({ status: "completed", attempts: 1 });
   });
 
+  it("persists source failure details in health history", async () => {
+    const { instance } = await runtime();
+    const source = instance.registry.eventSources.get("provider.item"); if (!source) throw new Error("No source");
+    source.start = context => context.reportHealth?.({ version: 1, status: "degraded", result: "failure", reason: "github_poll_failed",
+      details: { failures: [{ repository: "owner/repo", error: "GitHub event 123 failed for workflow review.md" }] }, observedAt: new Date().toISOString() });
+    await instance.start();
+    expect(instance.database.getSourceHealth("provider.item")).toMatchObject({ status: "degraded", consecutiveFailures: 1,
+      error: 'github_poll_failed: {"failures":[{"repository":"owner/repo","error":"GitHub event 123 failed for workflow review.md"}]}' });
+  });
+
   it("does not overwrite degraded health reported by a source during startup", async () => {
     const { instance } = await runtime();
     const source = instance.registry.eventSources.get("provider.item"); if (!source) throw new Error("No source");

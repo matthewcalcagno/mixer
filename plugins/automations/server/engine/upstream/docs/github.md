@@ -217,6 +217,12 @@ The guard rejects direct base-branch pushes, unrelated or existing branch claims
 
 The activated base revision is an ancestry constraint, not a promise that the target branch still points to that revision. A writable PR branch may merge newer target-branch commits when the workflow permits synchronization, provided the resulting head preserves the activated base and remote-head ancestry. The PR-reported base SHA can differ from the live target tip, so synchronization decisions require an independent target-branch lookup. Direct merges into the target branch remain prohibited; a declared `github.pr.merge` Safe Action has separate authority and live-state validation.
 
+### Guarded review publication
+
+Review-only runs may create a pending review through `gh api --method POST repos/<owner>/<repo>/pulls/<number>/reviews --input review.json`. Include the activated head as `commit_id` and supply all inline findings together in the `comments` array. Omit `event` to keep the review pending. Submit it with `POST repos/<owner>/<repo>/pulls/<number>/reviews/<review-id>/events` and an explicit `event`. The guard checks the live head, open/non-draft state, prior reviews, and run ownership before submission. It never adopts another pending review. Use one JSON input file or explicit scalar fields, not mixed inputs, stdin, transport overrides, or arbitrary GraphQL mutations. After an ambiguous response, inspect live state before retrying.
+
+Snapshot workflows using `oncePerHead` delay retries of a blocked outcome for 30 minutes, bounded by history retention. This does not mark the work successful. A changed workflow definition, changed head/base revision, or explicit replay bypasses the delay. New comment and review events remain independent.
+
 ## Deferred triggers
 
 Opt into reconciliation when an event should wait for the issue or PR to become eligible:

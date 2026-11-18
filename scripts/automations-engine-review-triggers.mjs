@@ -6,6 +6,7 @@ export function adaptGitHubReviewTriggers(file, text) {
     text = text.replace(before, after);
   };
   if (file === "packages/extension-github/src/matcher.ts") {
+    replace("function matchesEventFacts(", "export function matchesEventFacts(");
     replace(
       "  reviewer: stringMatcherSchema.optional(),",
       '  reviewer: stringMatcherSchema.optional(),\n  "approved-by": stringMatcherSchema.optional(),\n  "reviewed-by": stringMatcherSchema.optional(),',
@@ -30,6 +31,23 @@ export function adaptGitHubReviewTriggers(file, text) {
     );
   }
   if (file === "packages/extension-github/src/index.ts") {
+    replace(
+      "        state.delete(`work:started:${hook.run.id}`);",
+      `        if (key && outcome.success && outcome.data.outcome === "blocked") {
+          state.set(key + ":blocked", { runId: hook.run.id, expiresAt: Date.now() + Math.min(30 * 60_000, api.config.historyRetentionMs()) });
+        } else if (key && outcome.success && ["acted", "no-op"].includes(outcome.data.outcome)) {
+          state.delete(key + ":blocked");
+        }
+        state.delete(\u0060work:started:\u0024{hook.run.id}\u0060);`,
+    );
+    replace(
+      "        const receipt = key ? state.get<{ expiresAt: number }>(key) : undefined;",
+      `        const blocked = key ? state.get<{ expiresAt: number }>(key + ":blocked") : undefined;
+        if (key && blocked && blocked.expiresAt <= Date.now()) state.delete(key + ":blocked");
+        if (blocked && blocked.expiresAt > Date.now()) return { kind: "ignore", reason: "work_blocked_retry_pending" };
+        const receipt = key ? state.get<{ expiresAt: number }>(key) : undefined;`,
+    );
+    replace("evaluateGitHubTrigger,", "matchesEventFacts, evaluateGitHubTrigger,");
     replace('  }, "invalid cron expression"),', '  }, "invalid cron expression").optional(),');
     replace(
       "    const nextPrSchedule = (cron: string, after: Date) => CronExpressionParser.parse(cron, { currentDate: after }).next().toDate();",
@@ -51,7 +69,15 @@ export function adaptGitHubReviewTriggers(file, text) {
     );
     replace(
       "        const decision = evaluateGitHubTrigger(data, trigger,",
-      `        data = await enrichReviewHistory(event.repository, data, trigger.where, operation?.signal);
+      `        const actions = trigger.events ?? trigger.types;
+        if (actions && !actions.includes(data.action ?? "")) return false;
+        if (trigger.where && matchesEventFacts(data, trigger.where, { login: user.login }, event.type !== "github.check") === false) return false;
+        try {
+          data = await enrichReviewHistory(event.repository, data, trigger.where, operation?.signal);
+        } catch (error) {
+          throw new Error("GitHub review-history matching failed for workflow " + (operation?.workflowId ?? "unknown") +
+            " event " + event.id + " (" + event.type + "): " + (error instanceof Error ? error.message : String(error)), { cause: error });
+        }
         const decision = evaluateGitHubTrigger(data, trigger,`,
     );
     replace(
@@ -65,7 +91,10 @@ export function adaptGitHubReviewTriggers(file, text) {
           const reason = event.type === "github.pr.schedule" ? "scheduled_pr_filter_changed" : "pr_filter_changed";
           return { data: refreshed as unknown as JsonValue, decision: { kind: "skip", reason } };
         }
-        const key = workReceiptKey(operation?.workflow, { ...event, data: refreshed });`,
+        const key = workReceiptKey(operation?.workflow, { ...event, data: refreshed });
+        const blocked = key ? state.get<{ expiresAt: number }>(key + ":blocked") : undefined;
+        if (key && blocked && blocked.expiresAt <= Date.now()) state.delete(key + ":blocked");
+        if (blocked && blocked.expiresAt > Date.now()) return { data: refreshed as unknown as JsonValue, decision: { kind: "skip", reason: "work_blocked_retry_pending" } };`,
     );
     replace(
       '                const data = pullRequestData("scheduled", undefined, pullRequest);',
@@ -79,6 +108,10 @@ export function adaptGitHubReviewTriggers(file, text) {
   }
   if (file === "packages/extension-github/src/index.test.ts") {
     replace(
+      'describe("scheduled pull-request runs", () => {',
+      `${admissionTests}\ndescribe("scheduled pull-request runs", () => {`,
+    );
+    replace(
       "async function scheduledSource(values: Map<string, unknown>) {",
       'async function scheduledSource(values: Map<string, unknown>, pollInterval = "30s") {',
     );
@@ -89,6 +122,12 @@ export function adaptGitHubReviewTriggers(file, text) {
     replace(
       '  it("starts one activated PR run per eligible PR and not for ignored, draft, or other authors",',
       `${reviewTests}\n  it("starts one activated PR run per eligible PR and not for ignored, draft, or other authors",`,
+    );
+  }
+  if (file === "packages/extension-github/src/trigger-reliability.test.ts") {
+    replace(
+      '  it("suppresses only successful equivalent snapshot work, preserving new feedback and definition changes",',
+      `${blockedRetryTest}\n  it("suppresses only successful equivalent snapshot work, preserving new feedback and definition changes",`,
     );
   }
   if (file === "packages/extension-github/src/matcher.test.ts") {
@@ -232,6 +271,9 @@ const reviewEnrichment = `    const needsReviewHistory = (condition: import("./m
     const enrichReviewHistory = async (repository: string | undefined, data: GitHubEventData,
       where: import("./matcher.js").GitHubCondition | undefined, signal?: AbortSignal): Promise<GitHubEventData> => {
       if (!needsReviewHistory(where)) return data;
+      // Review history does not exist for issues or checks without an associated PR.
+      // Keep boolean composition intact, including OR branches and negation.
+      if (!data.isPullRequest) return { ...data, approvedBy: [], reviewedBy: [] };
       if (!repository || !data.isPullRequest || !data.number || !data.headSha) {
         throw new Error("Review-history filters require an identified pull request and head");
       }
@@ -249,3 +291,60 @@ const reviewEnrichment = `    const needsReviewHistory = (condition: import("./m
       }
       throw new Error("GitHub review history exceeded 100 pages");
     };`;
+
+const admissionTests = `describe("review-history event admission", () => {
+  it.each(["github.issue.comment", "github.check"])("rejects a non-PR %s without fetching review history", async type => {
+    const sources = await setupSources();
+    const fetch = vi.fn(async () => Response.json({ login: "maintainer", id: 1 }));
+    vi.stubGlobal("fetch", fetch);
+    const event: Event = { id: "issue", type, source: "github", repository: "owner/repo", timestamp: "now",
+      data: { action: "created", isPullRequest: false, number: 42 } };
+    expect(await sources.get(type)!.match!(event, { where: { all: [
+      { "pull-request": true }, { "approved-by": { exists: true } },
+    ] } })).toBe(false);
+    expect(fetch.mock.calls).toHaveLength(1);
+  });
+
+  it("preserves any and not semantics for issue events with PR review predicates", async () => {
+    const source = (await setupSources()).get("github.issue.comment")!;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ login: "maintainer", id: 1 })));
+    const event: Event = { id: "issue", type: "github.issue.comment", source: "github", repository: "owner/repo", timestamp: "now",
+      data: { action: "created", isPullRequest: false, number: 42, author: "human" } };
+    expect(await source.match!(event, { where: { any: [{ "approved-by": "me" }, { author: "human" }] } })).toBe(true);
+    expect(await source.match!(event, { where: { not: { "approved-by": "me" } } })).toBe(true);
+    expect(await source.match!(event, { where: { "approved-by": { exists: true } } })).toBe(false);
+  });
+
+  it("skips excluded actions but fails closed for an applicable PR missing its head", async () => {
+    const source = (await setupSources()).get("github.issue.comment")!;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ login: "maintainer", id: 1 })));
+    const event: Event = { id: "pr", type: "github.issue.comment", source: "github", repository: "owner/repo", timestamp: "now",
+      data: { action: "deleted", isPullRequest: true, number: 42, pullRequestAuthor: "author", draft: false } };
+    expect(await source.match!(event, { events: ["created"], where: { "approved-by": "me" } })).toBe(false);
+    await expect(source.match!(event, { where: { "approved-by": "me" } })).rejects.toThrow("identified pull request and head");
+  });
+});`;
+
+const blockedRetryTest = `  it("delays blocked snapshot retries without marking work successful, and permits recovery", async () => {
+    const runtime = await fixture({ publishGuard: { enabled: false }, failureReports: { enabled: false } });
+    const source = runtime.registry.eventSources.get("github.pull-request")!;
+    const workflow: Workflow = { id: "qa.md", path: "/qa.md", name: "QA", repository: "owner/repo", agent: "fake", execution: "host", prompt: "Inspect", on: {}, safeActions: {},
+      extensions: { "github.execution": { oncePerHead: true } } };
+    const event: Event = { id: "qa", type: "github.pull-request", source: "github", timestamp: new Date().toISOString(), repository: "owner/repo", data: { number: 42, isPullRequest: true } };
+    const operation = { signal: new AbortController().signal, workflow };
+    const activation = await source.activate!(event, operation);
+    const run: Run = { id: "blocked-run", workflowId: workflow.id, repository: "owner/repo", event, activation, status: "running", createdAt: event.timestamp, updatedAt: event.timestamp };
+    const activated = { ...event, data: activation.data };
+    await runtime.registry.runHooks("agent:before", { event: activated, run, workflow, instructions: [], metadata: {} });
+    run.status = "completed";
+    await runtime.registry.runHooks("run:finalized", { event, run, workflow, instructions: [], metadata: { outcome: { outcome: "blocked", reason: "publication unavailable" } } });
+    const key = workReceiptKey(workflow, activated)!;
+    expect(runtime.database.state("github").get(key)).toBeUndefined();
+    expect(await source.activate!(event, operation)).toMatchObject({ decision: { kind: "skip", reason: "work_blocked_retry_pending" } });
+    expect(await source.match!(activated, {}, operation)).toEqual({ kind: "ignore", reason: "work_blocked_retry_pending" });
+    expect(await source.activate!(event, { ...operation, workflow: { ...workflow, prompt: "Fixed publication procedure" } })).not.toHaveProperty("decision");
+    expect(await source.activate!({ ...event, provenance: { kind: "replay", sourceRunId: run.id, rootRunId: run.id, sourceEventId: event.id } }, operation)).not.toHaveProperty("decision");
+    runtime.database.state("github").set(key + ":blocked", { runId: run.id, expiresAt: Date.now() - 1 });
+    expect(await source.activate!(event, operation)).not.toHaveProperty("decision");
+    expect(runtime.database.state("github").get(key + ":blocked")).toBeUndefined();
+  });`;

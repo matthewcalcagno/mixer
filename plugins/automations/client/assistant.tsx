@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMixer, useRpc, type PluginScreenProps } from "@mixer/plugin/client";
 import { Button, FloatingAgentChat, useToast } from "@mixer/plugin/client/ui";
 import { automationFileId, prepareChatRpc } from "../shared/contracts.js";
+import { useAutomationWorkspaceField } from "./workspace-state.js";
 
 export function AutomationAssistant({
   theme,
@@ -29,8 +30,11 @@ export function AutomationAssistant({
   const prepare = useRpc(prepareChatRpc);
   const query = useQueryClient();
   const toast = useToast();
-  const [agentId, setAgentId] = useState<string>();
-  const [draftId] = useState(() => globalThis.crypto.randomUUID());
+  const [{ agentId, draftId }, setAssistant] = useAutomationWorkspaceField(host.id, "assistant");
+  const setAgentId = useCallback(
+    (id: string) => setAssistant((previous) => ({ ...previous, agentId: id })),
+    [setAssistant],
+  );
   const {
     data: workspace,
     error,
@@ -48,7 +52,7 @@ export function AutomationAssistant({
   );
   const draft = useMemo(
     () => (workspace ? { ...workspace, id: draftId, onCreated: setAgentId } : undefined),
-    [draftId, workspace],
+    [draftId, workspace, setAgentId],
   );
   useEffect(() => {
     if (!data) return;

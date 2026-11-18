@@ -14,6 +14,7 @@ import {
 import type { Server } from "node:net";
 import { z } from "zod";
 import { runSchema, runResultSchema, type runtimeStatusRpc } from "../shared/contracts.js";
+import { completedRunStatus } from "../shared/run-inspection.js";
 import { importRoboPlane, readLog } from "./import.js";
 import type { WorkflowStoreValidation } from "./workflows.js";
 import { initialAutomationConfiguration } from "../shared/configuration-template.js";
@@ -178,7 +179,7 @@ export function createEngineRuntime(hostHome: string) {
     const result = parsed.success ? parsed.data : undefined;
     let projectedStatus: Run["status"] = "running";
     if (run.status === "queued") projectedStatus = "queued";
-    else if (run.status === "completed") projectedStatus = "succeeded";
+    else if (run.status === "completed") projectedStatus = completedRunStatus(result?.outcome);
     else if (run.status === "failed") projectedStatus = "failed";
     else if (run.status === "interrupted" || run.status === "cancelled")
       projectedStatus = "interrupted";

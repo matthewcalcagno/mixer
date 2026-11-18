@@ -1,5 +1,13 @@
 import { runResultSchema, type runSchema } from "./contracts.js";
 
+export function completedRunStatus(
+  outcome: string | undefined,
+): "succeeded" | "attention" | "failed" {
+  if (outcome === "blocked") return "attention";
+  if (outcome === "failed") return "failed";
+  return "succeeded";
+}
+
 export function runStatusTone(
   run: Pick<(typeof runSchema)["_output"], "status" | "sourceStatus">,
 ): "success" | "warning" | "danger" | "muted" {

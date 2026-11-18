@@ -1,5 +1,30 @@
 // Keep the deleted-cursor regression in the import path so engine refreshes retain it.
 export function adaptGitHubEventPolling(file, text) {
+  if (file === "packages/core/src/runtime.ts") {
+    const before = "      error: health.reason,";
+    if (!text.includes(before))
+      throw new Error("Review the upstream source-health diagnostics seam.");
+    return text.replace(
+      before,
+      '      error: health.reason && health.details ? health.reason + ": " + JSON.stringify(health.details) : health.reason,',
+    );
+  }
+  if (file === "packages/core/src/trigger-reliability.test.ts") {
+    const marker = '  it("does not overwrite degraded health reported by a source during startup",';
+    if (!text.includes(marker)) throw new Error("Review the upstream source-health test seam.");
+    return text.replace(
+      marker,
+      `  it("persists source failure details in health history", async () => {
+    const { instance } = await runtime();
+    const source = instance.registry.eventSources.get("provider.item"); if (!source) throw new Error("No source");
+    source.start = context => context.reportHealth?.({ version: 1, status: "degraded", result: "failure", reason: "github_poll_failed",
+      details: { failures: [{ repository: "owner/repo", error: "GitHub event 123 failed for workflow review.md" }] }, observedAt: new Date().toISOString() });
+    await instance.start();
+    expect(instance.database.getSourceHealth("provider.item")).toMatchObject({ status: "degraded", consecutiveFailures: 1,
+      error: 'github_poll_failed: {"failures":[{"repository":"owner/repo","error":"GitHub event 123 failed for workflow review.md"}]}' });
+  });\n\n${marker}`,
+    );
+  }
   if (file === "docs/github.md") {
     const before =
       "When a saved cursor is absent from the fetched event pages, RoboPlane replays available events oldest-first and records a possible history gap.";
@@ -24,11 +49,38 @@ export function adaptGitHubEventPolling(file, text) {
   if (!text.includes(marker)) throw new Error("Review the upstream GitHub polling test seam.");
   return text.replace(
     marker,
-    `${deletedCursorTest}\n${initialCursorTest}\n${checkpointSafetyTest}\n${marker}`,
+    `${pollDiagnosticsTest}\n${deletedCursorTest}\n${initialCursorTest}\n${checkpointSafetyTest}\n${marker}`,
   );
 }
 
 const pollingChanges = [
+  [
+    "let failure: string | undefined;",
+    "let failure: string | undefined;\n          const failures: Array<{ repository?: string; error: string }> = [];",
+  ],
+  [
+    "if (!(error instanceof MissingReviewCommentError)) throw error;",
+    `if (!(error instanceof MissingReviewCommentError)) {
+                      const message = error instanceof Error ? error.message : String(error);
+                      throw new Error("GitHub event " + raw.id + " (" + raw.type + ") failed: " + message, { cause: error });
+                    }`,
+  ],
+  [
+    'api.logger.error({ repository, error: error instanceof Error ? error.message : String(error) }, "GitHub poll failed");',
+    `const detail = { repository, error: error instanceof Error ? error.message : String(error) };
+               failures.push(detail);
+               api.logger.error(detail, "GitHub poll failed");`,
+  ],
+  [
+    'api.logger.error({ error: error instanceof Error ? error.message : String(error) }, "GitHub event gap state could not be read");',
+    `const detail = { error: error instanceof Error ? error.message : String(error) };
+             failures.push(detail);
+             api.logger.error(detail, "GitHub event gap state could not be read");`,
+  ],
+  [
+    "...(gaps.length ? { details: { gaps } } : {})",
+    "...(gaps.length || failures.length ? { details: { gaps, failures } } : {})",
+  ],
   [
     "const cursor = state.get<string>(key);",
     `const cursor = state.get<string>(key);
@@ -64,6 +116,25 @@ const pollingChanges = [
   ],
   ["state.set(key, raw.id);", "acknowledge(raw.id);"],
 ];
+
+const pollDiagnosticsTest = `  it("reports the failed event and underlying delivery error without advancing its cursor", async () => {
+    const state = new Map<string, unknown>([[cursorKey, "0"]]);
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/events?")) return ok([repositoryComment("1"), { id: "0", type: "Unsupported" }]);
+      if (url.endsWith("/user")) return ok({ login: "maintainer", id: 1 });
+      throw new Error("unexpected request " + url);
+    }));
+    const poller = await startPoller(state, async () => { throw new Error("workflow review.md could not read review history"); });
+    try {
+      await vi.waitFor(() => expect(poller.reportHealth).toHaveBeenCalled());
+      expect(state.get(cursorKey)).toBe("0");
+      expect(poller.error).toHaveBeenCalledWith({ repository: "owner/repo", error: "GitHub event 1 (IssueCommentEvent) failed: workflow review.md could not read review history" }, "GitHub poll failed");
+      expect(poller.reportHealth).toHaveBeenLastCalledWith(expect.objectContaining({ status: "degraded", details: { gaps: [], failures: [
+        { repository: "owner/repo", error: "GitHub event 1 (IssueCommentEvent) failed: workflow review.md could not read review history" },
+      ] } }));
+    } finally { poller.stop(); }
+  });`;
 
 const deletedCursorTest = `  it.each([1, 2])("resumes after %i processed comment events disappear across restart without reporting a history gap", async (deleted) => {
     const state = new Map<string, unknown>([[cursorKey, "0"]]);

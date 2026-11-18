@@ -33,6 +33,11 @@ import {
 import { Workflows } from "./workflows.js";
 import { WorkflowLibrary } from "./library.js";
 import { AutomationAssistant } from "./assistant.js";
+import {
+  useAutomationWorkspaceField,
+  useAutomationWorkspaceError,
+  type AutomationsPage,
+} from "./workspace-state.js";
 import { useConfiguration } from "./configuration.js";
 import { inspectRunResult, runOverviewSummary, runStatusTone } from "../shared/run-inspection.js";
 import { RunLogs } from "./run-logs.js";
@@ -240,8 +245,6 @@ function Action({
   );
 }
 
-type AutomationsPage = "Runs" | "Workflows" | { kind: "agent"; agentId: string };
-
 export function AutomationsScreen(props: PluginScreenProps) {
   return <AutomationsWorkspace key={props.host.id} {...props} />;
 }
@@ -249,25 +252,30 @@ export function AutomationsScreen(props: PluginScreenProps) {
 function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenProps) {
   const mixer = useMixer();
   const toast = useToast();
-  const [agentTabs, setAgentTabs] = useState<{ agentId: string; workspaceId: string }[]>([]);
-  const [page, setPage] = useState<AutomationsPage>("Runs");
-  const [selectedRun, setSelectedRun] = useState<string>();
-  const [workflowFilter, setWorkflowFilter] = useState("");
+  const [agentTabs, setAgentTabs] = useAutomationWorkspaceField(host.id, "agentTabs");
+  const [page, setPage] = useAutomationWorkspaceField(host.id, "page");
+  const [selectedRun, setSelectedRun] = useAutomationWorkspaceField(host.id, "selectedRun");
+  const [workflowFilter, setWorkflowFilter] = useAutomationWorkspaceField(
+    host.id,
+    "workflowFilter",
+  );
   const [sideOpen, setSideOpen] = useState(!layout.compact);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [documents, setDocuments] = useState<{
-    selected: string;
-    paths: string[];
-    dirtyPaths: Set<string>;
-  }>({ selected: "", paths: [], dirtyPaths: new Set() });
+  const [aiOpen, setAiOpen] = useAutomationWorkspaceField(host.id, "aiOpen");
+  const [documents, setDocuments] = useAutomationWorkspaceField(host.id, "documents");
+  const [editorDrafts, setEditorDrafts] = useAutomationWorkspaceField(host.id, "editorDrafts");
+  const dirtyPaths = useMemo(() => new Set(Object.keys(editorDrafts)), [editorDrafts]);
+  const persistenceError = useAutomationWorkspaceError(host.id);
   const styles = useStyles(theme);
-  const navigate = useCallback((target: AutomationsPage) => {
-    if (target === "Runs") {
-      setWorkflowFilter("");
-      setSelectedRun(undefined);
-    }
-    setPage(target);
-  }, []);
+  const navigate = useCallback(
+    (target: AutomationsPage) => {
+      if (target === "Runs") {
+        setWorkflowFilter("");
+        setSelectedRun(undefined);
+      }
+      setPage(target);
+    },
+    [setWorkflowFilter, setPage, setSelectedRun],
+  );
   const openConversation = useCallback(
     async (agentId: string) => {
       try {
@@ -288,7 +296,7 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
         );
       }
     },
-    [mixer, toast],
+    [mixer, toast, setAiOpen, setAgentTabs, setPage],
   );
   const selectWorkflow = useCallback(
     (path: string) => {
@@ -300,12 +308,12 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
       setPage("Workflows");
       if (layout.compact) setSideOpen(false);
     },
-    [layout.compact],
+    [layout.compact, setDocuments, setPage],
   );
   const closeWorkflow = useCallback(
     (path: string) =>
       setDocuments((previous) => {
-        if (previous.dirtyPaths.has(path)) return previous;
+        if (dirtyPaths.has(path)) return previous;
         const paths = previous.paths.filter((item) => item !== path);
         return {
           ...previous,
@@ -313,54 +321,58 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
           selected: previous.selected === path ? (paths.at(-1) ?? "") : previous.selected,
         };
       }),
-    [],
+    [setDocuments, dirtyPaths],
   );
-  const changeDirty = useCallback(
-    (path: string, dirty: boolean) =>
+  const movedWorkflow = useCallback(
+    (from: string, to: string) => {
+      const remap = (path: string) =>
+        path === from || path.startsWith(`${from}/`) ? `${to}${path.slice(from.length)}` : path;
+      setDocuments((previous) => ({
+        ...previous,
+        selected: remap(previous.selected),
+        paths: [...new Set(previous.paths.map(remap))],
+      }));
+      setEditorDrafts((previous) =>
+        Object.fromEntries(
+          Object.entries(previous).map(([path, draft]) => [
+            remap(path),
+            { ...draft, source: { ...draft.source, path: remap(draft.source.path) } },
+          ]),
+        ),
+      );
+    },
+    [setDocuments, setEditorDrafts],
+  );
+  const removedWorkflow = useCallback(
+    (removed: string) => {
+      const keep = (path: string) => path !== removed && !path.startsWith(`${removed}/`);
       setDocuments((previous) => {
-        if (previous.dirtyPaths.has(path) === dirty) return previous;
-        const dirtyPaths = new Set(previous.dirtyPaths);
-        if (dirty) dirtyPaths.add(path);
-        else dirtyPaths.delete(path);
-        return { ...previous, dirtyPaths };
-      }),
-    [],
+        const paths = previous.paths.filter(keep);
+        return {
+          paths,
+          selected: keep(previous.selected) ? previous.selected : (paths.at(-1) ?? ""),
+        };
+      });
+      setEditorDrafts((previous) =>
+        Object.fromEntries(Object.entries(previous).filter(([path]) => keep(path))),
+      );
+    },
+    [setDocuments, setEditorDrafts],
   );
-  const movedWorkflow = useCallback((from: string, to: string) => {
-    const remap = (path: string) =>
-      path === from || path.startsWith(`${from}/`) ? `${to}${path.slice(from.length)}` : path;
-    setDocuments((previous) => ({
-      ...previous,
-      selected: remap(previous.selected),
-      paths: [...new Set(previous.paths.map(remap))],
-      dirtyPaths: new Set([...previous.dirtyPaths].map(remap)),
-    }));
-  }, []);
-  const removedWorkflow = useCallback((removed: string) => {
-    const keep = (path: string) => path !== removed && !path.startsWith(`${removed}/`);
-    setDocuments((previous) => {
-      const paths = previous.paths.filter(keep);
-      return {
-        paths,
-        dirtyPaths: new Set([...previous.dirtyPaths].filter(keep)),
-        selected: keep(previous.selected) ? previous.selected : (paths.at(-1) ?? ""),
-      };
-    });
-  }, []);
-  const clearFilter = useCallback(() => setWorkflowFilter(""), []);
+  const clearFilter = useCallback(() => setWorkflowFilter(""), [setWorkflowFilter]);
   const workflowsActive = page === "Workflows" && documents.paths.length > 0;
   let selectedTab = workflowsActive ? documents.selected : "runs";
   if (typeof page === "object") selectedTab = `agent:${page.agentId}`;
   const files = useMemo<EditorTabsProps["files"]>(
     () => [
-      ...documents.paths.map((path) => ({ path, dirty: documents.dirtyPaths.has(path) })),
+      ...documents.paths.map((path) => ({ path, dirty: dirtyPaths.has(path) })),
       ...agentTabs.map((tab) => ({
         path: `agent:${tab.agentId}`,
         kind: "agent" as const,
         label: "Agent",
       })),
     ],
-    [documents.paths, documents.dirtyPaths, agentTabs],
+    [documents.paths, dirtyPaths, agentTabs],
   );
   const selectTab = useCallback(
     (path: string) => {
@@ -368,7 +380,7 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
       else if (path.startsWith("agent:")) setPage({ kind: "agent", agentId: path.slice(6) });
       else selectWorkflow(path);
     },
-    [navigate, selectWorkflow],
+    [navigate, selectWorkflow, setPage],
   );
   const closeTab = useCallback(
     (path: string) => {
@@ -382,7 +394,7 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
         typeof previous === "object" && previous.agentId === agentId ? "Runs" : previous,
       );
     },
-    [closeWorkflow],
+    [closeWorkflow, setAgentTabs, setPage],
   );
   const openAgentFile = useCallback(
     (path: string) => {
@@ -395,17 +407,28 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
     () => [styles.fill, !workflowsActive && styles.hidden],
     [styles, workflowsActive],
   );
-  const showHistory = useCallback((path: string) => {
-    setWorkflowFilter(path);
-    setSelectedRun(undefined);
-    setPage("Runs");
-  }, []);
-  const showRun = useCallback((id: string) => {
-    setSelectedRun(id);
-    setPage("Runs");
-  }, []);
+  const showHistory = useCallback(
+    (path: string) => {
+      setWorkflowFilter(path);
+      setSelectedRun(undefined);
+      setPage("Runs");
+    },
+    [setWorkflowFilter, setPage, setSelectedRun],
+  );
+  const showRun = useCallback(
+    (id: string) => {
+      setSelectedRun(id);
+      setPage("Runs");
+    },
+    [setPage, setSelectedRun],
+  );
   return (
     <View style={styles.screen} testID="automations-screen">
+      {persistenceError && (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {persistenceError}
+        </Text>
+      )}
       <WorkspaceLayout>
         <WorkspaceIsland>
           <AutomationsToolbar
@@ -423,12 +446,11 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
               host={host}
               selected={documents.selected}
               paths={documents.paths}
-              dirtyPaths={documents.dirtyPaths}
+              dirtyPaths={dirtyPaths}
               select={selectWorkflow}
               close={closeWorkflow}
               onHistory={showHistory}
               onRun={showRun}
-              onDirtyChange={changeDirty}
             />
           </View>
           {agentTabs.map((tab) => (
@@ -461,7 +483,7 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
             host={host}
             navigation={navigation}
             path={documents.selected}
-            dirty={documents.dirtyPaths.size > 0}
+            dirty={dirtyPaths.size > 0}
             visible={aiOpen}
             launcherVisible={typeof page !== "object"}
             onOpenChange={setAiOpen}
@@ -477,7 +499,7 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
           testID="automations-sidebar"
         >
           <WorkflowLibrary
-            dirtyPaths={documents.dirtyPaths}
+            dirtyPaths={dirtyPaths}
             moved={movedWorkflow}
             removed={removedWorkflow}
             theme={theme}

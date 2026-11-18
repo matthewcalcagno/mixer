@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join } from "node:path";
 import { parseDocument } from "yaml";
 import { z } from "zod";
 import { runSchema, workflowId } from "../shared/contracts.js";
-import { readRunResult } from "../shared/run-inspection.js";
+import { completedRunStatus, readRunResult } from "../shared/run-inspection.js";
 
 const MAX_BYTES = 1024 * 1024;
 const logsLimit = 128 * 1024;
@@ -149,8 +149,8 @@ export async function importRoboPlane(
         }
         const path = workflowId.safeParse(row.workflow_id);
         const sourcePath = path.success ? path.data : `${row.workflow_id}.md`;
-        const status = importedStatus(row.status);
         const recordedResult = readRunResult(row.outcome_json);
+        const status = importedStatus(row.status, recordedResult?.outcome);
         const run = runSchema.safeParse({
           id: idFor(`roboplane:${row.id}`),
           path: sourcePath,
@@ -179,8 +179,8 @@ export async function importRoboPlane(
   return result;
 }
 
-function importedStatus(status: string): Run["status"] {
-  if (status === "completed" || status === "succeeded") return "succeeded";
+function importedStatus(status: string, outcome?: string): Run["status"] {
+  if (status === "completed" || status === "succeeded") return completedRunStatus(outcome);
   if (status === "failed") return "failed";
   return "interrupted";
 }

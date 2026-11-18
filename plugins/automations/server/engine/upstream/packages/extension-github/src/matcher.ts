@@ -307,7 +307,7 @@ export function matchesGitHubTrigger(data: GitHubEventData, rawConfig: unknown, 
 
 // Unknown means the condition depends on live resource state. Preserve boolean
 // structure, especially negation, instead of dropping failed mutable predicates.
-function matchesEventFacts(data: GitHubEventData, condition: GitHubCondition, identity: GitHubMatchIdentity, resourceTitle: boolean): boolean | undefined {
+export function matchesEventFacts(data: GitHubEventData, condition: GitHubCondition, identity: GitHubMatchIdentity, resourceTitle: boolean): boolean | undefined {
   if ("all" in condition) {
     const results = condition.all.map((child) => matchesEventFacts(data, child, identity, resourceTitle));
     return results.includes(false) ? false : results.includes(undefined) ? undefined : true;

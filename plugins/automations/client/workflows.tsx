@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRpc, type PluginScreenProps } from "@mixer/plugin/client";
+import { useAutomationWorkspaceField } from "./workspace-state.js";
 import {
   ActionMenu,
   Button,
@@ -38,7 +39,6 @@ type Props = HostProps &
     close(path: string): void;
     onHistory(path: string): void;
     onRun(id: string): void;
-    onDirtyChange(path: string, dirty: boolean): void;
   };
 
 function useStyles(theme: HostProps["theme"]) {
@@ -141,15 +141,12 @@ function WorkflowDocument(props: DocumentProps) {
   );
 }
 function WorkflowEditor({ initial, ...props }: DocumentProps & { initial: Source }) {
-  const { styles, path, host, onDirtyChange, close, onRun } = props;
-  const [source, setSource] = useState(initial);
-  const [content, setContent] = useState(initial.content);
+  const { styles, path, host, close, onRun } = props;
+  const [drafts, setDrafts] = useAutomationWorkspaceField(host.id, "editorDrafts");
+  const source = drafts[path]?.source ?? initial;
+  const content = drafts[path]?.content ?? initial.content;
   const [notice, setNotice] = useState("");
   const dirty = content !== source.content;
-  if (!dirty && initial.version !== source.version) {
-    setSource(initial);
-    setContent(initial.content);
-  }
   const list = useWorkflows(host);
   const workflow = list.data?.workflows.find((item) => item.path === path);
   const read = useRpc(readWorkflowRpc);
@@ -198,10 +195,12 @@ function WorkflowEditor({ initial, ...props }: DocumentProps & { initial: Source
           next = await read({ path });
         } else if (action === "save") next = await save({ path, content, version: source.version });
         else next = await enabled({ path, version: source.version, enabled: action === "enable" });
-        setSource(next);
-        setContent(next.content);
-        onDirtyChange(path, false);
         query.setQueryData(["automations", host.id, "source", path], next);
+        setDrafts((previous) => {
+          const nextDrafts = { ...previous };
+          delete nextDrafts[path];
+          return nextDrafts;
+        });
         setNotice(action === "save" ? "Workflow saved." : "Workflow updated.");
       }
       await query.invalidateQueries({ queryKey: ["automations"] });
@@ -209,10 +208,14 @@ function WorkflowEditor({ initial, ...props }: DocumentProps & { initial: Source
   });
   const change = useCallback(
     (value: string) => {
-      setContent(value);
-      onDirtyChange(path, value !== source.content);
+      setDrafts((previous) => {
+        const next = { ...previous };
+        if (value === source.content) delete next[path];
+        else next[path] = { source, content: value };
+        return next;
+      });
     },
-    [onDirtyChange, path, source.content],
+    [path, source, setDrafts],
   );
   const saveShortcut = useCallback(() => {
     if (dirty && !operation.isPending) operation.mutate("save");

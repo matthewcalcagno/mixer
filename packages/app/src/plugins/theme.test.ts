@@ -72,6 +72,13 @@ function installed(serverId: string, themes: PluginThemeContribution[]): Install
 }
 
 describe("toPluginTheme", () => {
+  it.each([
+    { name: "dark", theme: darkTheme, expected: "#5caaf6" },
+    { name: "light", theme: lightTheme, expected: "#268ae0" },
+  ])("exposes a concrete blue modified-status color in $name mode", ({ theme, expected }) => {
+    expect(toPluginTheme(theme).colors.statusModified).toBe(expected);
+  });
+
   it("maps host colors, interface sizing, and fonts into plugin tokens", () => {
     expect(toPluginTheme(lightTheme)).toEqual({
       colorScheme: "light",
@@ -96,7 +103,7 @@ describe("toPluginTheme", () => {
         statusSuccess: lightTheme.colors.statusSuccess,
         statusWarning: lightTheme.colors.statusWarning,
         statusDanger: lightTheme.colors.statusDanger,
-        statusModified: `color-mix(in srgb, ${lightTheme.colors.statusDotRunning} 80%, ${lightTheme.colors.foreground})`,
+        statusModified: "#268ae0",
       },
     });
   });

@@ -32,6 +32,11 @@ object uses the imported engine's enabled defaults. Existing configuration is ne
 The settings icon beside Refresh opens `config.json` in a headerless Automations editor tab;
 configuration stays hidden from the workflow tree. Use Save or the editor shortcut to save drafts.
 Ask AI remains available when integration configuration is incomplete, so it can help edit the file.
+The renderer saves open workflow and conversation tabs, the active tab, the floating Ask AI window,
+and unsaved workflow drafts per host. Project navigation and renderer reloads restore that workspace.
+Conversation history stays with the host's agent; local state stores its identity, not a second copy
+of its messages. Unsaved workflow drafts retain their original file version so restoring them cannot
+silently overwrite changes made while you were away.
 An installation with native `automation-state` data pauses the new engine until you review
 configuration and click **Start**. Safe Actions use the imported engine's policies and effect
 reconciliation, not the native executor's former per-run confirmation UI. Legacy proposals
@@ -121,9 +126,16 @@ The original control server is extracted during build rather than reimplemented.
 PRs and already-reviewed heads before starting an agent. The imported
 [review admission guide](../plugins/automations/server/engine/upstream/docs/github.md#review-workflow-admission)
 owns the exact semantics, dismissed-review limitation, and polling versus webhook setup.
+It also delays unchanged blocked snapshot runs rather than treating them as successful work.
 
-`scripts/automations-engine-github.mjs` preserves the deleted-cursor polling fix and its regression
-tests during re-import. SonarQube replaces PR comments, which can remove the event used as the
+`scripts/automations-engine-review-publication.mjs` supports SHA-bound pending review creation
+and run-owned submission through the normal guarded CLI. Supply inline findings together at
+creation. The [publication contract](../plugins/automations/server/engine/upstream/docs/github.md#guarded-review-publication)
+owns the supported commands and restrictions. Historical guard rejections do not describe the
+capabilities of an updated engine; refresh live state before using its supported procedure.
+
+`scripts/automations-engine-github.mjs` preserves polling fixes and failure diagnostics during
+re-import. SonarQube replaces PR comments, which can remove the event used as the
 latest polling cursor. The poller needs surviving history boundaries rather than assuming that
 one missing event means history was lost. See the imported [history-gap contract](../plugins/automations/server/engine/upstream/docs/github.md#event-history-gaps).
 

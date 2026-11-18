@@ -29,6 +29,7 @@ async function fixture(options: {
   missingComment?: boolean;
   wrongParentPr?: boolean;
   mergeAction?: boolean;
+  reviewPublication?: boolean;
 } = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "roboplane-review-replies-"));
   temporary.push(home);
@@ -106,9 +107,28 @@ async function fixture(options: {
   const realBin = path.join(home, "real-bin");
   fs.mkdirSync(realBin);
   const captured = path.join(home, "requests.jsonl");
+  const reviewState = path.join(home, "reviews.json");
+  fs.writeFileSync(reviewState, JSON.stringify({ head: sha, reviews: [] }));
   fs.writeFileSync(path.join(realBin, "gh"), `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
+if (${JSON.stringify(options.reviewPublication ?? false)}) {
+  const file = ${JSON.stringify(reviewState)};
+  const state = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const endpoint = args.find(arg => arg.startsWith('repos/'));
+  const post = args.includes('POST');
+  if (post) {
+    const body = JSON.parse(fs.readFileSync(args[args.indexOf('--input') + 1], 'utf8'));
+    fs.appendFileSync(${JSON.stringify(captured)}, JSON.stringify(args) + '\\n');
+    if (endpoint.endsWith('/events')) state.reviews[0].state = 'COMMENTED';
+    else state.reviews.push({ id: 101, commit_id: body.commit_id, state: body.event ? 'COMMENTED' : 'PENDING', user: { login: 'maintainer' }, body: body.body ?? '', comments: body.comments ?? [] });
+    fs.writeFileSync(file, JSON.stringify(state));
+    console.log(JSON.stringify(state.reviews[0]));
+  } else if (endpoint.includes('/reviews?')) console.log(JSON.stringify(state.reviews));
+  else if (endpoint.endsWith('/reviews/101')) console.log(JSON.stringify(state.reviews[0]));
+  else console.log(JSON.stringify({ state: 'open', draft: false, merged: false, head: { sha: state.head } }));
+  process.exit(0);
+}
 if (args.includes('--method') && args[args.indexOf('--method') + 1] === 'POST') {
   fs.appendFileSync(${JSON.stringify(captured)}, JSON.stringify(args) + '\\n');
   console.log(JSON.stringify({id: 101, in_reply_to_id: 55}));
@@ -119,7 +139,7 @@ if (args.includes('--method') && args[args.indexOf('--method') + 1] === 'POST') 
       MIXER_AUTOMATIONS_REAL_PATH: `${realBin}${path.delimiter}${process.env.PATH ?? ""}` },
   });
   const requests = () => fs.existsSync(captured) ? fs.readFileSync(captured, "utf8").trim().split("\n").map(line => JSON.parse(line)) : [];
-  return { activate, invoke, requests };
+  return { activate, invoke, requests, reviewState };
 }
 
 function replyArgs(commentId = 55, publicationKey = "rp_feedback") {
@@ -127,6 +147,55 @@ function replyArgs(commentId = 55, publicationKey = "rp_feedback") {
     "-f", `body=The duplicate test is removed.\n\n<!-- roboplane:${publicationKey}:reply:${commentId} -->`];
 }
 
+describe("guarded pending review publication", () => {
+  it("creates a SHA-bound review with inline findings and submits only its own pending review", async () => {
+    const check = await fixture({ thirdParty: true, reviewPublication: true });
+    await check.activate();
+    const bodyFile = path.join(path.dirname(check.reviewState), "body.json");
+    fs.writeFileSync(bodyFile, JSON.stringify({ commit_id: sha, comments: [{ path: "src/file.ts", line: 1, side: "RIGHT", body: "A verified finding" }] }));
+    const root = "repos/owner/repo/pulls/42/reviews";
+    const created = check.invoke(["api", "--method", "POST", root, "--input", bodyFile, "--jq", ".id"]);
+    expect(created.status, created.stderr).toBe(0);
+    expect(JSON.parse(fs.readFileSync(check.reviewState, "utf8")).reviews).toEqual([
+      { id: 101, commit_id: sha, state: "PENDING", user: { login: "maintainer" }, body: "", comments: [{ path: "src/file.ts", line: 1, side: "RIGHT", body: "A verified finding" }] },
+    ]);
+    expect(check.invoke(["api", "--method", "POST", root + "/102/events", "-f", "event=COMMENT"]).status).toBe(73);
+    const submitted = check.invoke(["api", "--method", "POST", root + "/101/events", "-f", "event=COMMENT"]);
+    expect(submitted.status, submitted.stderr).toBe(0);
+    expect(JSON.parse(fs.readFileSync(check.reviewState, "utf8")).reviews[0].state).toBe("COMMENTED");
+    expect(check.requests()).toHaveLength(2);
+    expect(check.invoke(["api", "--method", "POST", root, "-f", "commit_id=" + sha, "-f", "event=COMMENT"]).status).toBe(73);
+    expect(check.requests()).toHaveLength(2);
+  });
+
+  it.each(["changed head", "changed review owner"])("revalidates %s immediately before submission", async scenario => {
+    const check = await fixture({ thirdParty: true, reviewPublication: true });
+    await check.activate();
+    const root = "repos/owner/repo/pulls/42/reviews";
+    const created = check.invoke(["api", "--method", "POST", root, "-f", "commit_id=" + sha]);
+    expect(created.status, created.stderr).toBe(0);
+    const state = JSON.parse(fs.readFileSync(check.reviewState, "utf8"));
+    if (scenario === "changed head") state.head = "b".repeat(40);
+    else state.reviews[0].user.login = "another-reviewer";
+    fs.writeFileSync(check.reviewState, JSON.stringify(state));
+    expect(check.invoke(["api", "--method", "POST", root + "/101/events", "-f", "event=COMMENT"]).status).toBe(73);
+    expect(check.requests()).toHaveLength(1);
+  });
+
+  it.each(["wrong PR", "wrong head", "changed live head", "unrelated pending", "transport override", "mixed input"])("rejects %s without forwarding a review mutation", async scenario => {
+    const check = await fixture({ thirdParty: true, reviewPublication: true });
+    await check.activate();
+    const args = ["api", "--method", "POST", "repos/owner/repo/pulls/42/reviews", "-f", "commit_id=" + sha];
+    if (scenario === "wrong PR") args[3] = "repos/owner/repo/pulls/43/reviews";
+    if (scenario === "wrong head") args[5] = "commit_id=" + "b".repeat(40);
+    if (scenario === "changed live head") fs.writeFileSync(check.reviewState, JSON.stringify({ head: "b".repeat(40), reviews: [] }));
+    if (scenario === "unrelated pending") fs.writeFileSync(check.reviewState, JSON.stringify({ head: sha, reviews: [{ id: 99, state: "PENDING", user: { login: "maintainer" } }] }));
+    if (scenario === "transport override") args.push("--hostname", "other.example.com");
+    if (scenario === "mixed input") args.push("--input", check.reviewState);
+    expect(check.invoke(args).status).toBe(73);
+    expect(check.requests()).toEqual([]);
+  });
+});
 describe("activated review replies", () => {
   it.each([true, false])("explains ancestry and separate merge authority when mergeAction is %s", async mergeAction => {
     const check = await fixture({ mergeAction });
