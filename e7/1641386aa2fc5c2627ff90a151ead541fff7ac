@@ -1,0 +1,43 @@
+plugins/automations/server/engine/provenance.json
+  s_86fc1e7ede0dee::t_d7b58b800bac34 8-10,55,387,407,535,539,547,575,579,591
+plugins/automations/server/engine/upstream/docs/github.md
+  s_86fc1e7ede0dee::t_5cb3fdf71fc8fe 220-225
+plugins/automations/server/engine/upstream/packages/core/src/runtime.ts
+  s_86fc1e7ede0dee::t_0f6e452c7149d0 345
+plugins/automations/server/engine/upstream/packages/core/src/trigger-reliability.test.ts
+  s_86fc1e7ede0dee::t_dab90aadd26143 175-184
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.test.ts
+  s_86fc1e7ede0dee::t_46dc1d7e2d0094 157-188,465-482
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.ts
+  s_86fc1e7ede0dee::t_3ce65ce16eda9b 11,789-791,1018,1036,1200-1204,1481,1553-1556,1567-1569,1576-1578,1583,1611-1619,1630-1632,1815-1817
+plugins/automations/server/engine/upstream/packages/extension-github/src/matcher.ts
+  s_86fc1e7ede0dee::t_1bcc16962f373e 310
+plugins/automations/server/engine/upstream/packages/extension-github/src/publication.ts
+  s_86fc1e7ede0dee::t_2f5807fb131d3c 30,299-379,395-396,495-506
+plugins/automations/server/engine/upstream/packages/extension-github/src/review-replies.test.ts
+  s_86fc1e7ede0dee::t_8de73a8bc0e7be 32,110-111,115-131,142,150-198
+plugins/automations/server/engine/upstream/packages/extension-github/src/trigger-reliability.test.ts
+  s_86fc1e7ede0dee::t_e3c8f3c46689fb 150-172
+plugins/automations/shared/run-inspection.ts
+  s_86fc1e7ede0dee::t_f3801be8b6b568 3-10
+scripts/automations-engine-review-triggers.mjs
+  s_86fc1e7ede0dee::t_0073e642ecadfe 9,34-50,72-80,94-97,110-113,127-132,274-276,294-350
+scripts/import-automations-engine.mjs
+  s_86fc1e7ede0dee::t_6bde4e90e02e2f 9,120-123,131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "e71641386aa2fc5c2627ff90a151ead541fff7ac",
+  "prompts": {},
+  "sessions": {
+    "s_86fc1e7ede0dee": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1205ac1fffeRWL2hPPovp32Zs",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
