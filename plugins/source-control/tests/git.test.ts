@@ -8,6 +8,8 @@ import { git, status, diff, selectHunk, validatePaths, parseFiles } from "../ser
 import { optimisticStatus } from "../shared/optimistic.js";
 import { getFileIconSvg } from "../client/vendor/file-icon-svg.js";
 import { executeGitAction } from "../server/action.js";
+import { describeGitFailure, GitCommandError, redactGitOutput } from "../server/errors.js";
+import { gitIdentityAction } from "../shared/git.js";
 import { statusRpc, actionRpc, documentRpc } from "../shared/git.js";
 import {
   conflictLabel,
@@ -25,6 +27,140 @@ import {
   visibleResourceItems,
   type ResourceItem,
 } from "../shared/selection.js";
+
+test("Git failures classify recovery without leaking URL credentials or commit messages", () => {
+  const cases = [
+    ["push", " ! [rejected] main -> main (non-fast-forward)", "push-rejected"],
+    ["push", " ! [rejected] main -> main (fetch first)", "push-rejected"],
+    [
+      "fetch",
+      "fatal: Authentication failed for 'https://user:token@example.test/repo'",
+      "authentication",
+    ],
+    ["fetch", "git@example.test: Permission denied (publickey).", "authentication"],
+    ["commit", "Author identity unknown", "identity"],
+    [
+      "pull",
+      "Your local changes to the following files would be overwritten by merge:",
+      "local-changes",
+    ],
+    ["commit", "husky - pre-commit hook exited with code 1", "hook"],
+    [
+      "cherry-pick",
+      "The previous cherry-pick is now empty, possibly due to conflict resolution.",
+      "empty-cherry-pick",
+    ],
+    ["fetch", "fatal: Could not resolve host: example.test", "network"],
+    ["push", "remote: error: protected branch hook declined", "unknown"],
+    ["commit", "An unfamiliar Git failure", "unknown"],
+  ];
+  for (const [command, output, code] of cases) {
+    const failure = describeGitFailure(
+      new GitCommandError([command, "-m", "private draft"], 1, output),
+    );
+    assert.equal(failure.code, code);
+    assert.equal(failure.command, `git ${command}`);
+    assert.doesNotMatch(failure.message, /user:token/);
+  }
+  assert.equal(
+    redactGitOutput("https://secret@example.test/a https://user:pass@example.test/b"),
+    "https://[redacted]@example.test/a https://[redacted]@example.test/b",
+  );
+  assert.equal(describeGitFailure(new Error("integration failed"), true).code, "conflict");
+  assert.equal(
+    describeGitFailure(new Error("Resolve conflict markers in file.ts before staging.")).code,
+    "conflict",
+  );
+  assert.equal(
+    actionRpc.output.parse({ message: "", error: { message: "legacy", conflict: false } }).error
+      ?.message,
+    "legacy",
+  );
+});
+
+test("Git identity recovery writes repository-local settings and preserves staged work", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "mixer-scm-identity-"));
+  try {
+    await git(cwd, ["init", "-b", "main"]);
+    await git(cwd, ["config", "commit.gpgsign", "false"]);
+    await writeFile(join(cwd, "file.txt"), "staged work\n");
+    await git(cwd, ["add", "file.txt"]);
+    const before = await status(cwd);
+    const identity = gitIdentityAction.parse({
+      kind: "configure-identity",
+      name: " Mixer Author ",
+      email: "author@example.test",
+    });
+    assert.equal(
+      await executeGitAction({ cwd, revision: before.revision, action: identity }),
+      "Git identity saved for this repository. Retry your commit when ready.",
+    );
+    assert.equal((await git(cwd, ["config", "--local", "user.name"])).trim(), "Mixer Author");
+    assert.equal(
+      (await git(cwd, ["config", "--local", "user.email"])).trim(),
+      "author@example.test",
+    );
+    assert.deepEqual((await status(cwd)).files, before.files);
+    assert.equal(
+      gitIdentityAction.safeParse({
+        kind: "configure-identity",
+        name: "bad\nname",
+        email: "invalid",
+      }).success,
+      false,
+    );
+    await executeGitAction({
+      cwd,
+      revision: (await status(cwd)).revision,
+      action: { kind: "commit", message: "preserved draft" },
+    });
+    assert.equal(
+      (await git(cwd, ["log", "-1", "--format=%an <%ae>: %s"])).trim(),
+      "Mixer Author <author@example.test>: preserved draft",
+    );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a real failing commit hook keeps the index and exposes command diagnostics", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "mixer-scm-hook-"));
+  try {
+    await git(cwd, ["init", "-b", "main"]);
+    await git(cwd, ["config", "user.name", "Plugin test"]);
+    await git(cwd, ["config", "user.email", "plugin@example.test"]);
+    await git(cwd, ["config", "commit.gpgsign", "false"]);
+    await mkdir(join(cwd, "hooks"));
+    await git(cwd, ["config", "core.hooksPath", join(cwd, "hooks")]);
+    await writeFile(
+      join(cwd, "hooks", "pre-commit"),
+      "#!/bin/sh\necho 'pre-commit hook failed: format file.txt' >&2\nexit 1\n",
+      { mode: 0o755 },
+    );
+    await writeFile(join(cwd, "file.txt"), "work\n");
+    await git(cwd, ["add", "file.txt"]);
+    const before = await status(cwd);
+    await assert.rejects(
+      executeGitAction({
+        cwd,
+        revision: before.revision,
+        action: { kind: "commit", message: "private draft" },
+      }),
+      (error: unknown) => {
+        assert.deepEqual(describeGitFailure(error), {
+          code: "hook",
+          conflict: false,
+          command: "git commit",
+          message: "pre-commit hook failed: format file.txt",
+        });
+        return true;
+      },
+    );
+    assert.deepEqual((await status(cwd)).files, before.files);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
 
 test("SCM selection supports toggle and anchored ranges in displayed order", () => {
   const order = ["c", "a", "b", "d"];
@@ -400,6 +536,11 @@ test("remote fetch, fast-forward pull, and push use a local bare remote", async 
     await git(cwd, ["fetch"]);
     assert.equal((await status(cwd)).ahead, 1);
     assert.equal((await status(cwd)).behind, 1);
+    await assert.rejects(git(cwd, ["push"]), (error: unknown) => {
+      assert.equal(describeGitFailure(error).code, "push-rejected");
+      assert.equal(describeGitFailure(error).command, "git push");
+      return true;
+    });
     await assert.rejects(git(cwd, ["pull", "--ff-only"]));
     const divergent = await status(cwd);
     await executeGitAction({ cwd, revision: divergent.revision, action: { kind: "sync" } });

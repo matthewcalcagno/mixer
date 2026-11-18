@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("../", import.meta.url)));
 
 const clientShim = `let files=[{path:'src/price.tsx',index:'M',worktree:' ',head:'M'}];let ahead=0;let behind=0;
-window.resetCommitFixture=()=>{files=[{path:'src/price.tsx',index:'M',worktree:' ',head:'M'}];ahead=0;behind=0;window.deferStatus=false;window.fixtureActions=[];window.failRemote=false;window.deferDiscard=false;window.deferRemote=false;delete window.completeRemote;};
+window.resetCommitFixture=()=>{files=[{path:'src/price.tsx',index:'M',worktree:' ',head:'M'}];ahead=0;behind=0;window.deferStatus=false;window.fixtureActions=[];window.failRemote=false;window.actionFailure=null;window.deferDiscard=false;window.deferRemote=false;delete window.completeRemote;};
 window.setSourceControlFiles=(next)=>{files=next;};
 window.setSourceControlBehind=(next)=>{behind=next;};
 export function useRpc(contract) { return async (input) => {
@@ -15,6 +15,7 @@ export function useRpc(contract) { return async (input) => {
   if(contract.name === 'git.autofetch') return {lastFetched:Date.now(),error:null};
   if(contract.name === 'git.action') {
     window.fixtureActions ??= [];window.fixtureActions.push(input.action);
+    if(window.actionFailure?.kind === input.action.kind) return {message:'',error:window.actionFailure.error};
     if(input.action.kind === 'stage') files=files.map(file=>input.action.paths.includes(file.path)?{...file,index:file.index==='?'?'A':file.worktree,worktree:' '}:file);
     if(input.action.kind === 'unstage') files=files.map(file=>input.action.paths.includes(file.path)?{...file,index:' ',worktree:file.index}:file);
     if(input.action.kind === 'discard') {
@@ -24,15 +25,23 @@ export function useRpc(contract) { return async (input) => {
     if(input.action.kind === 'commit' || input.action.kind === 'amend') {files=[];ahead++;}
     if(input.action.kind === 'push' || input.action.kind === 'sync' || input.action.kind === 'pull') {
       if(window.deferRemote) await new Promise(resolve=>{window.completeRemote=resolve;});
-      if(window.failRemote) throw new Error('Remote unavailable');
+      if(window.failRemote) return {message:'',error:typeof window.failRemote === 'object' ? window.failRemote : {message:'Remote unavailable',conflict:false,code:'network',command:'git '+input.action.kind}};
       ahead=0;behind=0;
     }
   }
   return {message:'Done'};
 }; }`;
-const uiShim = `import {createElement} from 'react'; export {ScrollView} from 'react-native'; export function ContextMenu({children}) {return children;} export function useEditorSyntaxOptions() { return {bracketPairColorization:true}; } export function Icon({name,icon,color,size}) { window.fixtureIconRenders=(window.fixtureIconRenders ?? 0)+1; return createElement('span', {'data-icon':name ?? 'file',style:{color,fontSize:size,lineHeight:1}}, '◇'); }
+const uiShim = `import {createElement} from 'react'; export {ScrollView} from 'react-native'; export async function confirmDialog(options) {return window.confirm(options.message);} export async function trashFiles() {throw new Error('Trash is unavailable in the sidebar fixture');} export function ContextMenu({children}) {return children;} export function useEditorSyntaxOptions() { return {bracketPairColorization:true}; } export function Icon({name,icon,color,size}) { window.fixtureIconRenders=(window.fixtureIconRenders ?? 0)+1; return createElement('span', {'data-icon':name ?? 'file',style:{color,fontSize:size,lineHeight:1}}, '◇'); }
 export function PaneHeader({title,children,testID,titleTestID}) { return createElement('div', {'data-testid':testID,style:{height:36,flexShrink:0,display:'flex',alignItems:'center',paddingRight:4}}, createElement('div',{'data-testid':titleTestID,style:{flex:1,minWidth:0,marginLeft:12,marginRight:8,fontSize:14,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},title),createElement('div',{style:{display:'flex',gap:1,flexShrink:0}},children)); }
 export function PaneHeaderAction({icon,label,onPress,disabled,testID}) {return createElement('button',{'aria-label':label,'data-testid':testID,disabled,onClick:onPress,style:{width:20,height:20,border:0,padding:0,background:'transparent'}},createElement(Icon,{name:icon,size:14,color:'#9da5ae'}));}`;
+const recoveryUiShim = `
+import {createPortal} from 'react-dom';
+export function Button({children,onPress,disabled,loading,accessibilityLabel,icon}) {return createElement('button', {onClick:onPress,disabled,'aria-label':accessibilityLabel,'aria-busy':loading || undefined},children ?? icon);}
+export function FormTextInput({onChangeText,accessibilityLabel,editable,autoCapitalize}) {return createElement('input', {'aria-label':accessibilityLabel,disabled:editable===false,onChange:event=>onChangeText(event.target.value)});}
+export function Modal({title,open,onOpenChange,children}) {if(!open)return null;return createPortal(createElement('div',{role:'dialog','aria-label':title,style:{position:'fixed',inset:'10% 20%',zIndex:100,background:'#24292f',color:'#eff1f4',padding:24,display:'flex',flexDirection:'column',gap:12}},createElement('h2',{},title),createElement('button',{'aria-label':'Close '+title,onClick:()=>onOpenChange(false)},'Close'),children),document.body);}
+Modal.Content=({children})=>createElement('div',{},children);
+export async function copyText(text) {if(window.failCopy)throw new Error('Clipboard denied');window.copiedGitDetails=text;}
+`;
 const output = await bundle({
   absWorkingDir: process.cwd(),
   entryPoints: ["scripts/sidebar-fixture.jsx"],
@@ -61,7 +70,7 @@ const output = await bundle({
           namespace: "fixture",
         }));
         build.onLoad({ filter: /.*/, namespace: "fixture" }, (args) => ({
-          contents: args.path.endsWith("/ui") ? uiShim : clientShim,
+          contents: args.path.endsWith("/ui") ? uiShim + recoveryUiShim : clientShim,
           loader: "js",
           resolveDir: process.cwd(),
         }));

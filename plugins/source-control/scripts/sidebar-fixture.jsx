@@ -43,7 +43,12 @@ function SidebarFixture() {
         revision={0}
         tab={{ state: {}, setState() {}, setModified() {}, keepOpen() {} }}
         theme={{ colors }}
-        onOpenDiff={() => {}}
+        onOpenDiff={(selection) => {
+          window.openedSourceControlDiff = selection;
+        }}
+        onOpenFile={(path) => {
+          window.openedSourceControlFile = path;
+        }}
       />
     </>
   );

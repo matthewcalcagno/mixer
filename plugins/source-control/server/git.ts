@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { readOperation } from "./operation.js";
 import { resolve, relative, isAbsolute } from "node:path";
+import { GitCommandError } from "./errors.js";
 
 export function git(
   cwd: string,
@@ -18,6 +19,7 @@ export function git(
         ...globalThis.process.env,
         GIT_TERMINAL_PROMPT: "0",
         GIT_LITERAL_PATHSPECS: "1",
+        LC_ALL: "C",
         ...env,
       },
       stdio: "pipe",
@@ -43,8 +45,10 @@ export function git(
       else if (code === 0) accept(stdout);
       else
         reject(
-          new Error(
-            [stderr.trim(), stdout.trim()].filter(Boolean).join("\n") || `Git exited with ${code}`,
+          new GitCommandError(
+            args,
+            code,
+            [stderr.trim(), stdout.trim()].filter(Boolean).join("\n"),
           ),
         );
     });

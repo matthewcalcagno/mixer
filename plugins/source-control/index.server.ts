@@ -14,6 +14,7 @@ import { resourceGroups } from "./shared/resources.js";
 import { diff, git, status, decorations } from "./server/git.js";
 import { document, saveDocument } from "./server/document.js";
 import { executeGitAction, prepareTrash } from "./server/action.js";
+import { describeGitFailure } from "./server/errors.js";
 
 async function directory(scope: GitScope, mixer: PluginHandlerContext["mixer"]): Promise<string> {
   const root =
@@ -86,11 +87,10 @@ export default function contribute(server: PluginServerContext) {
       const integration = ["sync", "pull", "continue"].includes(action.kind);
       return {
         message: "",
-        error: {
-          message: error instanceof Error ? error.message : "Git operation failed.",
-          conflict:
-            integration && current !== null && resourceGroups(current.files).merge.length > 0,
-        },
+        error: describeGitFailure(
+          error,
+          integration && current !== null && resourceGroups(current.files).merge.length > 0,
+        ),
       };
     } finally {
       busy.delete(cwd);
