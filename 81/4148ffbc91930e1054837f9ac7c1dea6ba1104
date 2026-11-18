@@ -1,0 +1,27 @@
+packages/app/e2e/browser/file-explorer-collapse.spec.ts
+  s_86fc1e7ede0dee::t_128463b6d56e0d 19-51,69-156,201,217,229
+packages/app/src/components/file-explorer-pane.tsx
+  s_86fc1e7ede0dee::t_292daf49c13f45 23,40,73-74,495,505-507,511,521,1001-1002,1006,1035,1209-1212,1240-1291,1300-1304,1306,1454-1455,1464-1488,1573,1599,1652,1761-1774
+packages/app/src/file-explorer/geometry.test.ts
+  s_86fc1e7ede0dee::t_1090214b2d2721 3-75
+packages/app/src/file-explorer/sticky-scroll.ts
+  s_86fc1e7ede0dee::t_6fa737d0c69d68 1-74
+packages/app/src/file-explorer/use-sticky-scroll.ts
+  s_86fc1e7ede0dee::t_23007b9a7f6794 1-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "814148ffbc91930e1054837f9ac7c1dea6ba1104",
+  "prompts": {},
+  "sessions": {
+    "s_86fc1e7ede0dee": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1205ac1fffeRWL2hPPovp32Zs",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
