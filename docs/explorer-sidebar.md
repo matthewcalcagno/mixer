@@ -168,6 +168,16 @@ These rules follow VS Code's separation of the
 from directory refreshes. Do not replace the tree with a loading or error screen
 once its root has loaded.
 
+Files uses sticky scroll to keep expanded ancestors above their visible descendants. The pinned
+chain is limited to seven rows and 40% of the tree viewport, following
+[VS Code's tree sticky scroll](https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/ui/tree/abstractTree.ts).
+Keep it separate from expansion state and reuse the ordinary folder rows and actions. The tree
+is a virtualized flat list, so nested CSS sticky headers cannot represent its subtree boundaries.
+File reveal must reserve room for the pinned ancestors, and scrolling over those rows must still
+scroll the tree. Folder handoffs must follow the actual scroll offset in the same frame, without
+a delayed catch-up after scrolling stops. Hidden retained panes must not replace their last valid
+viewport measurements with zero-sized geometry.
+
 ## Before workspace creation
 
 New workspace shows only the [setup form](forms.md#workspace-setup), on every layout.

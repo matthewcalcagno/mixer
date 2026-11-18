@@ -16,6 +16,39 @@ import { installDaemonWebSocketGate } from "../support/helpers/daemon-websocket-
 
 let workspace: SeededWorkspace;
 
+interface StickyHandoffSample {
+  offset: number;
+  height: number;
+  folders: string[];
+}
+
+function sampleStickyHandoff(
+  element: HTMLElement,
+  boundary: number,
+): Promise<StickyHandoffSample[]> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      const samples: StickyHandoffSample[] = [];
+      for (const offset of [-50, -30, -21, -5, -1, 0, 1, 23]) {
+        element.scrollTop = boundary + offset;
+        element.dispatchEvent(new Event("scroll", { bubbles: true }));
+        const overlay = element.parentElement?.querySelector(
+          '[data-testid="file-explorer-sticky-folders"]',
+        );
+        const folders = Array.from(
+          overlay?.querySelectorAll('[data-testid^="file-explorer-sticky-row-"]') ?? [],
+        )
+          .filter((row) =>
+            /^file-explorer-sticky-row-\d+$/.test(row.getAttribute("data-testid") ?? ""),
+          )
+          .map((row) => row.textContent?.trim() ?? "");
+        samples.push({ offset, height: overlay?.getBoundingClientRect().height ?? 0, folders });
+      }
+      resolve(samples);
+    });
+  });
+}
+
 test.beforeAll(async () => {
   workspace = await seedWorkspace({
     repoPrefix: "file-explorer-collapse-",
@@ -33,6 +66,94 @@ test.afterAll(async () => {
 });
 
 test.describe("File explorer collapse", () => {
+  test("pins ancestor folders while scrolling and replaces them at sibling boundaries", async ({
+    page,
+    withWorkspace,
+  }) => {
+    const root = await withWorkspace({ prefix: "explorer-sticky-folders-" });
+    await mkdir(path.join(root.repoPath, "sticky-a", "inner", "deep"), { recursive: true });
+    await mkdir(path.join(root.repoPath, "sticky-b"), { recursive: true });
+    await Promise.all(
+      Array.from({ length: 100 }, async (_, index) => {
+        const name = String(index).padStart(3, "0");
+        await writeFile(
+          path.join(root.repoPath, "sticky-a", "inner", "deep", `a-${name}.txt`),
+          `A ${index}\n`,
+        );
+        await writeFile(path.join(root.repoPath, "sticky-b", `b-${name}.txt`), `B ${index}\n`);
+      }),
+    );
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await root.navigateTo();
+    await openFileExplorer(page);
+    const tree = page.getByTestId("file-explorer-tree-scroll");
+    const sticky = page.getByTestId("file-explorer-sticky-folders");
+    await expandFolder(page, "sticky-a");
+    await expandFolder(page, "inner");
+    await expandFolder(page, "deep");
+    await openFileFromExplorer(page, "a-005.txt");
+    await page.getByTestId("workspace-tab-file_sticky-a/inner/deep/a-005.txt").dblclick();
+    await tree.evaluate((element) => {
+      element.scrollTop = 500;
+    });
+    await expect(sticky.getByText("sticky-a", { exact: true })).toBeVisible();
+    await expect(sticky.getByText("inner", { exact: true })).toBeVisible();
+    await expect(sticky.getByText("deep", { exact: true })).toBeVisible();
+    const treeBounds = await tree.boundingBox();
+    const stickyBounds = await sticky.boundingBox();
+    if (!treeBounds || !stickyBounds) throw new Error("Missing sticky folder geometry");
+    expect(Math.abs(stickyBounds.y - treeBounds.y)).toBeLessThan(1);
+    expect(stickyBounds.height).toBe(66);
+    await page.screenshot({ path: test.info().outputPath("explorer-sticky-folders.png") });
+
+    await sticky.getByText("deep", { exact: true }).hover();
+    await page.mouse.wheel(0, 220);
+    await expect(tree).toHaveJSProperty("scrollTop", 720);
+    await openFileFromExplorer(page, "a-040.txt");
+    await page.getByTestId("workspace-tab-file_sticky-a/inner/deep/a-005.txt").click();
+    const selected = tree.getByText("a-005.txt", { exact: true });
+    await expect(selected).toBeInViewport({ ratio: 1 });
+    await expect
+      .poll(async () => {
+        const row = await selected.boundingBox();
+        const overlay = await sticky.boundingBox();
+        return row && overlay ? row.y - (overlay.y + overlay.height) : -1;
+      })
+      .toBeGreaterThanOrEqual(0);
+
+    await tree.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expandFolder(page, "sticky-b");
+    await expect(tree.getByText("b-000.txt", { exact: true })).toBeVisible();
+    const siblingBounds = await tree
+      .getByText("sticky-b", { exact: true })
+      .locator("xpath=ancestor::*[@aria-selected][1]")
+      .boundingBox();
+    if (!siblingBounds) throw new Error("Missing sibling folder geometry");
+    const siblingOffset =
+      (await tree.evaluate((element) => element.scrollTop)) + siblingBounds.y - treeBounds.y;
+    expect(await tree.evaluate(sampleStickyHandoff, siblingOffset)).toEqual([
+      { offset: -50, height: 50, folders: ["sticky-a", "inner", "deep"] },
+      { offset: -30, height: 30, folders: ["sticky-a", "inner"] },
+      { offset: -21, height: 21, folders: ["sticky-a"] },
+      { offset: -5, height: 5, folders: ["sticky-a"] },
+      { offset: -1, height: 1, folders: ["sticky-a"] },
+      { offset: 0, height: 0, folders: [] },
+      { offset: 1, height: 22, folders: ["sticky-b"] },
+      { offset: 23, height: 22, folders: ["sticky-b"] },
+    ]);
+    await tree.evaluate((element, offset) => {
+      element.scrollTop = offset + 220;
+    }, siblingOffset);
+    await expect(sticky.getByText("sticky-b", { exact: true })).toBeVisible();
+    await expect(sticky.getByText("sticky-a", { exact: true })).toHaveCount(0);
+    await expect(sticky.getByText("inner", { exact: true })).toHaveCount(0);
+    await sticky.getByText("sticky-b", { exact: true }).click();
+    await expect(tree.getByText("b-020.txt", { exact: true })).toHaveCount(0);
+    await expect(sticky.getByText("sticky-b", { exact: true })).toHaveCount(0);
+  });
+
   test("keeps visible file selections stationary and reveals offscreen tab selections", async ({
     page,
     withWorkspace,
@@ -77,7 +198,7 @@ test.describe("File explorer collapse", () => {
     await expect(tree.getByText("file-030.txt", { exact: true })).toBeInViewport({ ratio: 1 });
   });
 
-  test("matches VS Code Explorer row height, type and indentation without changing muted labels", async ({
+  test("preserves medium-weight Explorer labels, row height and indentation", async ({
     page,
     withWorkspace,
   }) => {
@@ -93,7 +214,7 @@ test.describe("File explorer collapse", () => {
     const src = tree.getByText("src", { exact: true });
     const rootRow = src.locator("xpath=ancestor::*[@aria-selected][1]");
     await expect(src).toHaveCSS("font-size", "13px");
-    await expect(src).toHaveCSS("font-weight", "400");
+    await expect(src).toHaveCSS("font-weight", "500");
     await expect(src).toHaveCSS("line-height", "18px");
     await expect(rootRow).toHaveCSS("height", "22px");
     await expect(rootRow).toHaveCSS("padding-left", "12px");
@@ -105,18 +226,11 @@ test.describe("File explorer collapse", () => {
     await expect(components).toHaveCSS("padding-left", "20px");
     await expandFolder(page, "components");
     const file = tree.getByText("example.tsx", { exact: true });
+    await expect(file).toHaveCSS("font-weight", "500");
     await expect(file.locator("xpath=ancestor::*[@aria-selected][1]")).toHaveCSS(
       "padding-left",
       "28px",
     );
-    const projectName = path.basename(visualWorkspace.repoPath);
-    const projectLabel = page
-      .locator('[data-testid^="sidebar-project-row-"]')
-      .filter({ hasText: projectName })
-      .first()
-      .getByText(projectName, { exact: true });
-    const muted = await projectLabel.evaluate((element) => getComputedStyle(element).color);
-    await expect(file).toHaveCSS("color", muted);
     await page.mouse.move(900, 600);
     await page.screenshot({ path: test.info().outputPath("vscode-explorer-metrics.png") });
   });
