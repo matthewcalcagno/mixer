@@ -1,0 +1,33 @@
+plugins/source-control/client/git-error.tsx
+  s_389e707e892360::t_1b6cff7914adcc 1-320
+plugins/source-control/index.server.ts
+  s_389e707e892360::t_e705c73031c148 17,90-93
+plugins/source-control/scripts/sidebar-fixture.jsx
+  s_389e707e892360::t_92ee7c6aab516b 46-51
+plugins/source-control/scripts/test-sidebar.mjs
+  s_389e707e892360::t_cd108f100605e1 27-121,213,219-220,231,291-292,294,372-375,444,453-502
+plugins/source-control/server/errors.ts
+  s_389e707e892360::t_5797fdb648ed47 1-71
+plugins/source-control/server/git.ts
+  s_389e707e892360::t_8d072658be7bfb 7,22,48-51
+plugins/source-control/shared/git.ts
+  s_389e707e892360::t_fd0e0178f6a293 79-106,121,135,140-141
+plugins/source-control/tests/git.test.ts
+  s_389e707e892360::t_12141224f2b82a 11-12,31-164,539-543
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "99fea07c0cd948473319415a87fe24d337962103",
+  "prompts": {},
+  "sessions": {
+    "s_389e707e892360": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e11812b25ffeC9sKYFf1G5a7Pz",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
