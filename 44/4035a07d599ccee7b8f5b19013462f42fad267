@@ -1,0 +1,27 @@
+packages/app/src/components/file-explorer-pane.tsx
+  s_fe4587bf06793b::t_ee0c4728bd163d 63,563,621-625,1125-1175
+packages/app/src/hooks/use-file-explorer-actions.ts
+  s_fe4587bf06793b::t_e3d876e838214f 277-294,343
+packages/app/src/notification-open/model.ts
+  s_fe4587bf06793b::t_c56459952a7921 2,8,26-27,50-58
+plugins/automations/client/library.tsx
+  s_fe4587bf06793b::t_e6d51494a8bf9d 114,135-137,162-163,216,225-231,341-359,361-395,442
+plugins/automations/client/screen.tsx
+  s_fe4587bf06793b::t_43469d7d95f1b2 1,252,326-339,478,537
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "444035a07d599ccee7b8f5b19013462f42fad267",
+  "prompts": {},
+  "sessions": {
+    "s_fe4587bf06793b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df8bd9068ffegkUXLBs9h8TMhc",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
