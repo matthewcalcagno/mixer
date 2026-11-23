@@ -1,0 +1,14 @@
+plugins/automations/server/engine-runtime.ts
+  h_7d2b44d56feab6 239-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "57a3e36cbc9aa9f0cfbe25a15e95a6548744b54a",
+  "prompts": {},
+  "humans": {
+    "h_7d2b44d56feab6": {
+      "author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
