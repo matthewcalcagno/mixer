@@ -1,0 +1,19 @@
+plugins/automations/client/library.tsx
+  s_fe4587bf06793b::t_c5e19be5502ae0 115,124-128,145-146,354-356,473,510-520,536,550,559,587-593
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "6fd03e6d00da7194c38eb3c2a6af758bef67f237",
+  "prompts": {},
+  "sessions": {
+    "s_fe4587bf06793b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df8bd9068ffegkUXLBs9h8TMhc",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
