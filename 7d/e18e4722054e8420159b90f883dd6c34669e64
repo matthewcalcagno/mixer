@@ -1,0 +1,14 @@
+packages/app/src/hooks/use-file-explorer-actions.ts
+  h_7d2b44d56feab6 126-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "7de18e4722054e8420159b90f883dd6c34669e64",
+  "prompts": {},
+  "humans": {
+    "h_7d2b44d56feab6": {
+      "author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
