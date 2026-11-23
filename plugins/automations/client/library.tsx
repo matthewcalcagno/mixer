@@ -111,6 +111,7 @@ export function WorkflowLibrary({
   const listCall = useRpc(listRpc);
   const readFile = useRpc(readWorkflowRpc);
   const moveFile = useRpc(moveWorkflowRpc);
+  const duplicateFile = useRpc(duplicateWorkflowRpc);
   const readDirectory = useRpc(readDirectoryRpc);
   const moveDirectory = useRpc(moveDirectoryRpc);
   const deleteFile = useRpc(deleteWorkflowRpc);
@@ -131,6 +132,9 @@ export function WorkflowLibrary({
     },
     onSuccess: async (result, input) => {
       moved(input.path, result.path);
+      setClipboard((current) =>
+        current?.operation === "cut" && current.path === input.path ? undefined : current,
+      );
       setScope(parentOf(result.path));
       setClosed(
         (previous) =>
@@ -155,6 +159,8 @@ export function WorkflowLibrary({
   });
   const [filter, setFilter] = useState("");
   const [scope, setScope] = useState("");
+  const [clipboard, setClipboard] = useState<{ path: string; operation: "copy" | "cut" }>();
+  const [focusedEntry, setFocusedEntry] = useState("");
   const [creation, setCreation] = useState<Creation | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set());
@@ -207,6 +213,7 @@ export function WorkflowLibrary({
     [select],
   );
   const toggle = useCallback((path: string) => {
+    setFocusedEntry(path);
     setScope(path);
     setClosed((previous) => {
       const next = new Set(previous);
@@ -215,6 +222,13 @@ export function WorkflowLibrary({
       return next;
     });
   }, []);
+  const selectTreeFile = useCallback(
+    (path: string) => {
+      setFocusedEntry(path);
+      open(path);
+    },
+    [open],
+  );
   const deletion = useMutation({
     mutationFn: async (entry: Entry) => {
       const source =
@@ -324,8 +338,61 @@ export function WorkflowLibrary({
       ),
     [list.data?.directories, files, filter],
   );
+  const paste = useMutation({
+    mutationFn: async ({ path, directory }: { path: string; directory: string }) => {
+      const source = await readFile({ path });
+      const basename = path.split("/").at(-1) ?? path;
+      const prefix = directory ? `${directory}/` : "";
+      const occupied = new Set([
+        ...(list.data?.workflows ?? []).map((item) => item.path),
+        ...directories,
+      ]);
+      let destination = `${prefix}${basename}`;
+      for (let index = 1; occupied.has(destination); index++) {
+        destination =
+          prefix + basename.replace(/(\.[^.]+)$/, ` copy${index === 1 ? "" : ` ${index}`}$1`);
+      }
+      return duplicateFile({ path, destination, version: source.version });
+    },
+    onSuccess: () => query.invalidateQueries({ queryKey: ["automations", host.id] }),
+    onError: (error) => toast.error(error.message),
+  });
   return (
-    <View style={styles.fill} testID="automations-workflow-tree-pane">
+    <View
+      style={styles.fill}
+      testID="automations-workflow-tree-pane"
+      {...{
+        onKeyDown: (event: React.KeyboardEvent) => {
+          if (
+            (!event.metaKey && !event.ctrlKey) ||
+            event.altKey ||
+            event.shiftKey ||
+            editing ||
+            (event.target instanceof Element &&
+              event.target.closest('input, textarea, [contenteditable="true"]'))
+          )
+            return;
+          const key = event.key.toLowerCase();
+          if (
+            (key === "c" || key === "x") &&
+            focusedEntry &&
+            (key === "x" || !directories.includes(focusedEntry))
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            setClipboard({ path: focusedEntry, operation: key === "x" ? "cut" : "copy" });
+          } else if (key === "v" && clipboard && !paste.isPending && !movement.isPending) {
+            event.preventDefault();
+            event.stopPropagation();
+            const directory = directories.includes(focusedEntry)
+              ? focusedEntry
+              : parentOf(focusedEntry);
+            if (clipboard.operation === "cut") move(clipboard.path, directory);
+            else paste.mutate({ path: clipboard.path, directory });
+          }
+        },
+      }}
+    >
       <PaneHeader title="Workflows">
         <PaneHeaderAction icon="FilePlus2" label="New file" onPress={newFile} />
         <PaneHeaderAction icon="FolderPlus" label="New folder" onPress={newFolder} />
@@ -372,7 +439,7 @@ export function WorkflowLibrary({
               filter={filter}
               closed={closed}
               toggle={toggle}
-              select={open}
+              select={selectTreeFile}
               create={create}
               styles={styles}
               creation={creation}

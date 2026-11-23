@@ -274,6 +274,24 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
     [client, normalizedWorkspaceRoot, requestDirectoryListing, serverId, workspaceId],
   );
 
+  const pasteEntry = useCallback(
+    async (path: string, directory: string, cut: boolean) => {
+      if (!client || !normalizedWorkspaceRoot) return null;
+      const input = { cwd: normalizedWorkspaceRoot, path, destinationDirectory: directory };
+      const result = cut
+        ? await client.renameFileEntry({ ...input, name: path.split("/").at(-1) ?? path })
+        : await client.duplicateFileEntry(input);
+      if (result.success)
+        await Promise.all(
+          [...new Set([directory, parentExplorerPath(path)])].map((entry) =>
+            requestDirectoryListing(entry),
+          ),
+        );
+      return result;
+    },
+    [client, normalizedWorkspaceRoot, requestDirectoryListing],
+  );
+
   const duplicateEntry = useCallback(
     async (path: string) => {
       if (!client || !normalizedWorkspaceRoot) {
@@ -322,6 +340,7 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
     createEntry,
     renameEntry,
     duplicateEntry,
+    pasteEntry,
     deleteEntry,
     selectExplorerEntry,
   };

@@ -111,6 +111,7 @@ import type { DaemonRuntimeConfig } from "./session/daemon/daemon-session.js";
 import { DirectorySyncService } from "./directory-sync/index.js";
 import { OWNER_PERMISSIONS, type DaemonPermission } from "./authorization/index.js";
 import type { WorkspaceLabelService } from "./workspace-labels/index.js";
+import { isUserProjectRoot } from "./project-visibility.js";
 import {
   APPLICATION_SOCKET_LEASE_CHECK_INTERVAL_MS,
   ApplicationSocketLease,
@@ -2012,6 +2013,7 @@ export class VoiceAssistantWebSocketServer {
         fsEntryOps: true,
         // COMPAT(fsEntryDuplicate): added in v0.3.0, remove gate after 2027-02-09.
         fsEntryDuplicate: true,
+        fsEntryClipboard: true,
         // COMPAT(checkoutDiscardChanges): added in v0.3.0, remove gate after 2027-02-08.
         checkoutCreateBranch: true,
         checkoutDiscardChanges: true,
@@ -2683,6 +2685,8 @@ export class VoiceAssistantWebSocketServer {
       assistantMessage,
       permissionRequest: findLatestPermissionRequest(agent.pendingPermissions),
     });
+    if (agent.cwd && !isUserProjectRoot(agent.cwd, this.mixerHome))
+      notification.data.surface = "automations";
     const plan = computeNotificationPlan({
       allStates,
       focusTarget: { kind: "agent", id: params.agentId },

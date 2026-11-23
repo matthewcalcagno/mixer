@@ -1,9 +1,11 @@
 import { buildHostRootRoute } from "@/utils/host-routes";
+import { buildPluginSurfaceRoute } from "@/plugins/routes";
 import type { NotificationOpenSource, NotificationTap } from "./source";
 
 export const WEB_NOTIFICATION_CLICK_EVENT = "mixer:web-notification-click";
 
 export type NotificationOpenTarget =
+  | { kind: "automations"; serverId: string; agentId: string }
   | { kind: "agent"; serverId: string; agentId: string }
   | { kind: "terminal"; serverId: string; workspaceId: string; terminalId: string }
   | { kind: "host"; serverId: string };
@@ -21,6 +23,8 @@ export function parseNotificationOpenTarget(data: unknown): NotificationOpenTarg
   const terminalId = readId(data, "terminalId");
   if (workspaceId && terminalId) return { kind: "terminal", serverId, workspaceId, terminalId };
   const agentId = readId(data, "agentId");
+  if (agentId && readId(data, "surface") === "automations")
+    return { kind: "automations", serverId, agentId };
   if (agentId) return { kind: "agent", serverId, agentId };
   return { kind: "host", serverId };
 }
@@ -43,6 +47,15 @@ export function createNotificationOpenRouter(deps: NotificationOpenRouterDeps) {
     const target = parseNotificationOpenTarget(tap.data);
     if (target?.kind === "agent") {
       deps.openAgent({ serverId: target.serverId, agentId: target.agentId });
+    } else if (target?.kind === "automations") {
+      deps.openRoute(
+        buildPluginSurfaceRoute(
+          target.serverId,
+          "automations",
+          { kind: "surface", id: "workflows" },
+          { agentId: target.agentId, notificationId: tap.id },
+        ),
+      );
     } else if (target?.kind === "terminal") {
       deps.openTerminal(target);
     } else if (target?.kind === "host") {

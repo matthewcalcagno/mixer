@@ -830,6 +830,7 @@ export const AgentStreamEventPayloadSchema = z.discriminatedUnion("type", [
           serverId: z.string(),
           workspaceId: z.string().optional(),
           agentId: z.string(),
+          surface: z.literal("automations").optional(),
           reason: z.enum(["finished", "error", "permission"]),
         }),
       })
@@ -3006,6 +3007,7 @@ export const FileEntryRenameRequestSchema = z.object({
   cwd: z.string(),
   path: z.string(),
   name: z.string(),
+  destinationDirectory: z.string().optional(),
   requestId: z.string(),
 });
 
@@ -3013,6 +3015,7 @@ export const FileEntryDuplicateRequestSchema = z.object({
   type: z.literal("fs.entry.duplicate.request"),
   cwd: z.string(),
   path: z.string(),
+  destinationDirectory: z.string().optional(),
   requestId: z.string(),
 });
 
@@ -3967,6 +3970,7 @@ export const ServerInfoStatusPayloadSchema = z
         fsEntryOps: z.boolean().optional(),
         // COMPAT(fsEntryDuplicate): added in v0.3.0, remove gate after 2027-02-09.
         fsEntryDuplicate: z.boolean().optional(),
+        fsEntryClipboard: z.boolean().optional(),
         // COMPAT(checkoutDiscardChanges): added in v0.3.0, remove gate after 2027-02-08.
         checkoutCreateBranch: z.boolean().optional(),
         checkoutDiscardChanges: z.boolean().optional(),
@@ -5068,6 +5072,7 @@ export const AgentAttentionRequiredMessageSchema = z.object({
           serverId: z.string(),
           workspaceId: z.string().optional(),
           agentId: z.string(),
+          surface: z.literal("automations").optional(),
           reason: z.enum(["finished", "error", "permission"]),
         }),
       })

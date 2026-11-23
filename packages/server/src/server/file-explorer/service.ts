@@ -611,6 +611,7 @@ export interface ExplorerCreateEntryParams {
 }
 
 export interface ExplorerRenameEntryParams {
+  destinationDirectory?: string;
   root: string;
   relativePath: string;
   name: string;
@@ -665,7 +666,8 @@ export async function createExplorerEntry({
 export async function duplicateExplorerEntry({
   root,
   relativePath,
-}: ReadFileParams): Promise<ExplorerEntryMutationResult> {
+  destinationDirectory,
+}: ReadFileParams & { destinationDirectory?: string }): Promise<ExplorerEntryMutationResult> {
   try {
     const source = await resolveScopedPath({ root, relativePath });
     const realRoot = await fs.realpath(expandUserPath(root));
@@ -675,15 +677,17 @@ export async function duplicateExplorerEntry({
 
     const stats = await fs.lstat(source.requestedPath);
     const sourceName = path.basename(source.requestedPath);
+    const parent =
+      destinationDirectory === undefined
+        ? path.dirname(source.requestedPath)
+        : (await resolveScopedPath({ root, relativePath: destinationDirectory })).requestedPath;
     const extension = stats.isDirectory() ? "" : path.extname(sourceName);
     const baseName = extension ? sourceName.slice(0, -extension.length) : sourceName;
     let targetPath = "";
-    for (let copyNumber = 1; ; copyNumber += 1) {
-      const suffix = copyNumber === 1 ? " copy" : ` copy ${copyNumber}`;
-      targetPath = path.join(
-        path.dirname(source.requestedPath),
-        `${baseName}${suffix}${extension}`,
-      );
+    for (let copyNumber = destinationDirectory === undefined ? 1 : 0; ; copyNumber += 1) {
+      let suffix = "";
+      if (copyNumber > 0) suffix = copyNumber === 1 ? " copy" : ` copy ${copyNumber}`;
+      targetPath = path.join(parent, `${baseName}${suffix}${extension}`);
       try {
         await fs.lstat(targetPath);
       } catch (error) {
@@ -714,6 +718,7 @@ export async function renameExplorerEntry({
   root,
   relativePath,
   name,
+  destinationDirectory,
 }: ExplorerRenameEntryParams): Promise<ExplorerEntryMutationResult> {
   const trimmedName = name.trim();
   if (!trimmedName || trimmedName === "." || trimmedName === "..") {
@@ -730,7 +735,11 @@ export async function renameExplorerEntry({
       return { status: "error", error: "Cannot rename the workspace root" };
     }
 
-    const targetPath = path.join(path.dirname(source.requestedPath), trimmedName);
+    const parent =
+      destinationDirectory === undefined
+        ? path.dirname(source.requestedPath)
+        : (await resolveScopedPath({ root, relativePath: destinationDirectory })).requestedPath;
+    const targetPath = path.join(parent, trimmedName);
     const sourceStats = await fs.lstat(source.requestedPath);
     const targetStats = await fs.lstat(targetPath).catch((error: unknown) => {
       if (isMissingEntryError(error)) {
