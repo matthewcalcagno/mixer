@@ -1,0 +1,35 @@
+plugins/automations/server/engine/provenance.json
+  s_fe4587bf06793b::t_e676d26ac8118d 63,99,539,615,667,671
+plugins/automations/server/engine/upstream/docs/jira.md
+  s_fe4587bf06793b::t_32c681a48abc96 76
+plugins/automations/server/engine/upstream/docs/workflow-authoring.md
+  s_fe4587bf06793b::t_7cb0acff734261 202
+plugins/automations/server/engine/upstream/packages/extension-github/src/index.ts
+  s_fe4587bf06793b::t_450d551e5f250f 1889,1897-1900,1969
+plugins/automations/server/engine/upstream/packages/extension-jira/src/index.ts
+  s_fe4587bf06793b::t_6a91fb2a526e18 65,73-77,150
+plugins/automations/server/engine/upstream/packages/extension-scheduler/src/index.test.ts
+  s_fe4587bf06793b::t_c0164e7430973c 8,35,38-39,41-42
+plugins/automations/server/engine/upstream/packages/extension-scheduler/src/index.ts
+  s_fe4587bf06793b::t_b672606974056a 37,45-47,68,107
+scripts/automations-engine-schedules.mjs
+  s_fe4587bf06793b::t_111175ad0cbeb6 1-61
+scripts/import-automations-engine.mjs
+  s_fe4587bf06793b::t_40aadbfd0d5938 10,120-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "3c1d426b1f2654996d404d2f4d03dcc17af171ee",
+  "prompts": {},
+  "sessions": {
+    "s_fe4587bf06793b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df8bd9068ffegkUXLBs9h8TMhc",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
