@@ -236,7 +236,15 @@ export function createEngineRuntime(hostHome: string) {
     const rows = engine?.database.listRuns(1000) ?? [];
     const health = engine?.database.listSourceHealth() ?? [];
     const errors = health
-      .filter((source) => source.error)
+      .filter(({ error, consecutiveFailures }) => {
+        if (!error) return false;
+        // Historical gaps remain inspectable in the GitHub CLI. A successful poll
+        // with a gap should not produce an error banner for every GitHub trigger.
+        return !(
+          consecutiveFailures === 0 &&
+          (error === "github_event_history_gap" || error.startsWith("github_event_history_gap: "))
+        );
+      })
       .map((source) => ({
         source: source.source,
         message: source.error ?? "Source health failure.",
