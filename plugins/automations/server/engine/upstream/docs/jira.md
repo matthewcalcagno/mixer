@@ -73,7 +73,7 @@ on:
 
 `cadence.startDate` is an inclusive local calendar date. `cadence.everyWeeks` is an integer from 1 to 52. Weeks are seven-day windows starting on that date, not ISO week numbers. Cron matches are eligible in the first window and every Nth window thereafter. The extension skips excluded windows before querying Jira. A Thursday cron paired with this Thursday anchor runs on November 5, November 19, December 3, and December 17. Local time remains 09:00 across daylight saving changes. Do not use a day-of-month step such as `*/14` for a two-week interval; it resets each month.
 
-Polling starts at the next cron occurrence. After downtime, a persisted overdue schedule performs one catch-up scan, then resumes from the next future occurrence. A scan queries only summary and update time. Immediately before execution, the extension rechecks the issue against the JQL and retrieves the configured fields and field-name metadata. A removed, ineligible, or changed issue is skipped. Changed versions can be discovered on a later scan.
+Polling starts at the next cron occurrence. When Automations starts, it skips overdue scans and waits for the next cron occurrence. A scan queries only summary and update time. Immediately before execution, the extension rechecks the issue against the JQL and retrieves the configured fields and field-name metadata. A removed, ineligible, or changed issue is skipped. Changed versions can be discovered on a later scan.
 
 Omitting `repository` gives each run a fresh scratch directory. A configured repository gives each ticket its own normal checkout. Repository lists produce independent subscriptions. Runs share the daemon's concurrency limits, and runs for the same Jira issue share an exclusive resource key across Jira workflows.
 

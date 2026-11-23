@@ -199,7 +199,7 @@ Examples:
 | `0 0 1 * *` | First day of every month at midnight. |
 | `*/30 * * * * *` | Every thirty seconds; use cautiously. |
 
-After downtime, the scheduler emits at most one catch-up run per workflow and calculates the next occurrence from the current time. It does not replay every missed interval.
+When Automations starts, it skips missed occurrences and waits for the next scheduled time.
 
 Only `cron` is allowed under `schedule`. Keys such as `timezone`, `prompt`, `enabled`, or `maxRuns` are invalid.
 

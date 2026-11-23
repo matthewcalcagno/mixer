@@ -60,7 +60,7 @@
     },
     "docs/jira.md": {
       "upstreamSha256": "ec8efe6c43d3931b69b2761fe050fc63f2fb8dc34309708b52ae70a8373271ef",
-      "importedSha256": "25c816a1bcce434868390d98156adb994b81fadc43103f53aa99c8cf6b2c253a"
+      "importedSha256": "b54c8e62045f526470eaad5da1c2a0d8600d4bfe835b2b90ae7a3eb6dd51bc1a"
     },
     "docs/maintainer.md": {
       "upstreamSha256": "963ede2ea22b6b80f7bd46fa9e189213bd787500703deb49ed2c6ecd5860b8c6",
@@ -96,7 +96,7 @@
     },
     "docs/workflow-authoring.md": {
       "upstreamSha256": "0a3a0e11b921aba0d7d6a441bc6a85b0f66fda316451eaf5da7c4ab6f3104967",
-      "importedSha256": "003a2d227d965b59e7d0bf0d6b879dc5980841d02a42a9634fe4bf8e90612dd3"
+      "importedSha256": "645a9369a65544d63677529b7f2b853e359e8b35e7454cd1b3e39428544eb6f7"
     },
     "docs/workflow-handoffs.md": {
       "upstreamSha256": "6e2b3616da63cf6efdbc5b55c36635c3251d16bdb24cae57110ce5205b1fa4ff",
@@ -536,7 +536,7 @@
     },
     "packages/extension-github/src/index.ts": {
       "upstreamSha256": "a7e9795f5cb56e4d011a572dce460591eb680287a590406b61aa9e6df48be136",
-      "importedSha256": "4fa3587e326b0704e822e37593c82fb2fe4390f5e17111a0d3c4cdb7972a77f9"
+      "importedSha256": "16e9ee2812944e795e0eb63ea67fc1d6c5bc3b85758efa2ee27bab3933c203ca"
     },
     "packages/extension-github/src/matcher.test.ts": {
       "upstreamSha256": "d7c64cc467c53b80cd76d0b7c147525989af12e613d4d546226f549751d2b503",
@@ -612,7 +612,7 @@
     },
     "packages/extension-jira/src/index.ts": {
       "upstreamSha256": "171f0e7d04f7cd29cea54e5dbe43d43749c1c64a453a3b17914dd9a906d381dc",
-      "importedSha256": "9c882f8faf8a82bd84036a04895dc1c9099f1e43816845552b606313a48ce133"
+      "importedSha256": "b2d695932ce1ad0f3bca32ced103b6490d868ab8e45aba17fab21cabde50d3d7"
     },
     "packages/extension-jira/src/schedule.test.ts": {
       "upstreamSha256": "b78aabc79db1fb661175afa2784f0b7e30f774eb955236c7f2e71c14946d5d49",
@@ -664,11 +664,11 @@
     },
     "packages/extension-scheduler/src/index.test.ts": {
       "upstreamSha256": "7cbfe4572230d00adaefd07cdec22d99c08fe6b79ebbefdc956b67af3ca3c24b",
-      "importedSha256": "4aabd19692163c33c91a0493bbfde518b5abdbd6a809aa3c66af5aeb579a8b56"
+      "importedSha256": "9f4f8b3f36ef0799ca45ac2deea44de0c71090cc8e27bfcc8d9046619a03589d"
     },
     "packages/extension-scheduler/src/index.ts": {
       "upstreamSha256": "9df3ca99fa793795f78976c5d01e9e3fa5c7201830221c91efb0157282cc9bda",
-      "importedSha256": "b81af74a34e0c0cd6d6b097f1a749cc90cb379f865186d5443cd83671778bee3"
+      "importedSha256": "a8ed773be2488b136b95ce742dc067f6cc13557bea5bce9e2f02eb86b4747e18"
     },
     "packages/extension-scheduler/tsconfig.json": {
       "upstreamSha256": "639cd9738fe64eb0f069f295a3ca5d6a9ec123aff8d8e1c63d288d128865c87b",

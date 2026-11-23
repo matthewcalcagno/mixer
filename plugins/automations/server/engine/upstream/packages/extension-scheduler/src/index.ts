@@ -34,7 +34,7 @@ export default defineExtension({
     let timer: NodeJS.Timeout | undefined;
     let ticking = false;
 
-    const arm = (): void => {
+    const arm = (skipBefore?: number): void => {
       if (!context || context.signal.aborted) return;
       if (timer) clearTimeout(timer);
       const now = Date.now();
@@ -42,8 +42,9 @@ export default defineExtension({
         const { cron } = scheduleSchema.parse(subscription.config);
         const stateKey = key(subscription, cron, isRepositoryFanout(subscription, cron, subscriptions));
         const stored = state.get<string>(stateKey);
-        const next = stored ? new Date(stored) : nextAfter(cron, new Date(now));
-        if (!stored) state.set(stateKey, next.toISOString());
+        const next = stored && (skipBefore === undefined || Date.parse(stored) >= skipBefore)
+          ? new Date(stored) : nextAfter(cron, new Date(now));
+        if (stored !== next.toISOString()) state.set(stateKey, next.toISOString());
         return Math.max(0, next.getTime() - now);
       });
       if (!waits.length) return;
@@ -64,8 +65,7 @@ export default defineExtension({
           if (!stored) state.set(stateKey, scheduled.toISOString());
           if (scheduled.getTime() > now.getTime()) continue;
 
-          // One catch-up run is emitted after downtime. The next occurrence is
-          // calculated from "now" so a long outage cannot create a run storm.
+          // Advance from the current time after delivering the active occurrence.
           const next = nextAfter(cron, now);
           const result = await context.emit({
             id: `schedule:${subscription.workflowId}:${fanout ? `${subscription.repository ?? "none"}:` : ""}${scheduled.toISOString()}`,
@@ -77,7 +77,6 @@ export default defineExtension({
               cron,
               workflowId: subscription.workflowId,
               scheduledFor: scheduled.toISOString(),
-              caughtUp: now.getTime() - scheduled.getTime() >= MAX_TIMER_MS,
             },
           });
           const rejected = typeof result === "object" && result.status === "rejected";
@@ -105,7 +104,7 @@ export default defineExtension({
           if (timer) clearTimeout(timer);
           timer = undefined;
         }, { once: true });
-        arm();
+        arm(Date.now());
       },
       updateSubscriptions(_type, nextSubscriptions) {
         subscriptions = nextSubscriptions;

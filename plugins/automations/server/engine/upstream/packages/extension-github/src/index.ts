@@ -1886,7 +1886,7 @@ export default defineExtension({
     const prScheduleKey = (workflowId: string, repository: string, cron: string | undefined) =>
       `pr-schedule:${workflowId}:${repository}:${createHash("sha256").update(cron ?? `poll:${config.pollInterval}`).digest("hex").slice(0, 12)}`;
 
-    const armPrSchedule = () => {
+    const armPrSchedule = (skipBefore?: number) => {
       if (!prScheduleContext || prScheduleContext.signal.aborted || prScheduleRunning) return;
       if (prScheduleTimer) clearTimeout(prScheduleTimer);
       const now = new Date();
@@ -1894,8 +1894,10 @@ export default defineExtension({
         if (!subscription.repository) return 60_000;
         const { cron } = prScheduleSchema.parse(subscription.config);
         const key = prScheduleKey(subscription.workflowId, subscription.repository, cron);
-        const next = state.get<string>(key) ?? nextPrSchedule(cron, now).toISOString();
-        if (!state.get<string>(key)) state.set(key, next);
+        const stored = state.get<string>(key);
+        const next = stored && (skipBefore === undefined || Date.parse(stored) >= skipBefore)
+          ? stored : nextPrSchedule(cron, now).toISOString();
+        if (stored !== next) state.set(key, next);
         return Math.max(0, new Date(next).getTime() - now.getTime());
       });
       if (waits.length) prScheduleTimer = setTimeout(() => void tickPrSchedule(), Math.min(60_000, ...waits));
@@ -1964,7 +1966,7 @@ export default defineExtension({
         prScheduleContext = context;
         prScheduleSubscriptions = context.subscriptions;
         context.signal.addEventListener("abort", () => { if (prScheduleTimer) clearTimeout(prScheduleTimer); prScheduleTimer = undefined; }, { once: true });
-        armPrSchedule();
+        armPrSchedule(Date.now());
       },
       updateSubscriptions(_type, subscriptions) {
         prScheduleSubscriptions = subscriptions;

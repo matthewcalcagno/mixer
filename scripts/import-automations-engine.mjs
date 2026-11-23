@@ -7,6 +7,7 @@ import { namespaceAutomationEngine } from "./automations-engine-namespace.mjs";
 import { adaptGitHubEventPolling } from "./automations-engine-github.mjs";
 import { adaptGitHubReviewTriggers } from "./automations-engine-review-triggers.mjs";
 import { adaptGitHubReviewPublication } from "./automations-engine-review-publication.mjs";
+import { skipMissedSchedules } from "./automations-engine-schedules.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const destination = join(root, "plugins/automations/server/engine/upstream");
@@ -116,10 +117,13 @@ if (process.argv.includes("--verify")) {
       throw new Error(`Refusing to overwrite an unrecorded engine change: ${file}`);
     mkdirSync(dirname(target), { recursive: true });
     content = Buffer.from(
-      namespaceAutomationEngine(
-        adaptGitHubReviewPublication(
-          file,
-          adaptGitHubReviewTriggers(file, adaptGitHubEventPolling(file, content.toString())),
+      skipMissedSchedules(
+        file,
+        namespaceAutomationEngine(
+          adaptGitHubReviewPublication(
+            file,
+            adaptGitHubReviewTriggers(file, adaptGitHubEventPolling(file, content.toString())),
+          ),
         ),
       ),
     );

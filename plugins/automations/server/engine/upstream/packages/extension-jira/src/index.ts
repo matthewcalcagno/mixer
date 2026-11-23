@@ -62,7 +62,7 @@ export default defineExtension({
     let controller = new AbortController();
     const retryAt = new Map<string, number>();
 
-    const arm = (): void => {
+    const arm = (skipBefore?: number): void => {
       if (timer) clearTimeout(timer);
       timer = undefined;
       if (!context || context.signal.aborted || polling) return;
@@ -70,9 +70,11 @@ export default defineExtension({
       const waits = subscriptions.map((subscription) => {
         const trigger = triggerSchema.parse(subscription.config);
         const id = subscriptionId(subscription, trigger);
-        const stored = state.get<string>(`next:${id}`) ?? nextOccurrence(trigger, new Date(now));
-        state.set(`next:${id}`, stored);
-        return Math.max(0, Date.parse(stored) - now, (retryAt.get(id) ?? 0) - now);
+        const stored = state.get<string>(`next:${id}`);
+        const next = stored && (skipBefore === undefined || Date.parse(stored) >= skipBefore)
+          ? stored : nextOccurrence(trigger, new Date(now));
+        if (stored !== next) state.set(`next:${id}`, next);
+        return Math.max(0, Date.parse(next) - now, (retryAt.get(id) ?? 0) - now);
       });
       if (waits.length) timer = setTimeout(() => {
         polling = poll();
@@ -145,7 +147,7 @@ export default defineExtension({
         context = nextContext;
         subscriptions = nextContext.subscriptions;
         nextContext.signal.addEventListener("abort", () => { if (timer) clearTimeout(timer); timer = undefined; }, { once: true });
-        arm();
+        arm(Date.now());
       },
       updateSubscriptions(_type, nextSubscriptions) {
         if (nextSubscriptions.length && !client) throw new Error("Jira subscriptions require extensions.jira.baseUrl and extensions.jira.token");
