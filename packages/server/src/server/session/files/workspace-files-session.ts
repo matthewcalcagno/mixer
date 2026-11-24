@@ -195,6 +195,7 @@ export class WorkspaceFilesSession {
       root: request.cwd,
       relativePath: request.path,
       name: request.name,
+      destinationDirectory: request.destinationDirectory,
     });
     this.host.emit({
       type: "fs.entry.rename.response",
@@ -213,6 +214,7 @@ export class WorkspaceFilesSession {
     const result = await duplicateExplorerEntry({
       root: request.cwd,
       relativePath: request.path,
+      destinationDirectory: request.destinationDirectory,
     });
     this.host.emit({
       type: "fs.entry.duplicate.response",

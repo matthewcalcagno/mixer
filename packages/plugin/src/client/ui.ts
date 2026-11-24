@@ -125,6 +125,7 @@ export declare const FormTextInput: ComponentType<
   }
 >;
 export type AgentChatProps = {
+  onNewDraft?(draftId: string): void;
   serverId: string;
   workspaceId: string;
   active: boolean;
@@ -144,6 +145,7 @@ export interface AgentChatDraft {
 /** The app's agent conversation panel, including its composer, tools, streaming, and permissions. */
 export declare const AgentChat: ComponentType<AgentChatProps>;
 export declare const FloatingAgentChat: ComponentType<{
+  onNewDraft?(draftId: string): void;
   notice?: string;
   testID?: string;
   accessibilityLabel?: string;

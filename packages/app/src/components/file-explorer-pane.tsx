@@ -60,6 +60,7 @@ import { FileActionsContextMenuContent } from "@/components/file-actions-menu";
 import { ContextMenu, ContextMenuTrigger, useContextMenu } from "@/components/ui/context-menu";
 import { useFileDownload } from "@/hooks/use-file-download";
 import { useFileExplorerActions } from "@/hooks/use-file-explorer-actions";
+import { parentExplorerPath } from "@/utils/explorer-paths";
 import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
 import { buildWorkspaceExplorerStateKey } from "@/hooks/use-file-explorer-actions";
 import { usePanelStore, type ExpandedPathsUpdate } from "@/stores/panel-store";
@@ -559,6 +560,7 @@ export function FileExplorerPane({
     createEntry,
     renameEntry,
     duplicateEntry,
+    pasteEntry,
     deleteEntry,
     selectExplorerEntry,
   } = useFileExplorerActions({
@@ -616,6 +618,11 @@ export function FileExplorerPane({
   );
   const explorerDerived = useMemo(() => deriveExplorerFields(explorerState), [explorerState]);
   const { directories, requests, error, selectedEntryPath, errorPath } = explorerDerived;
+  const [entryClipboard, setEntryClipboard] = useState<{
+    path: string;
+    cut: boolean;
+    root: string;
+  }>();
   const isDirectoryLoading = useCallback(
     (path: string) => requests.get(path)?.status === "loading" && !directories.has(path),
     [requests, directories],
@@ -1115,6 +1122,57 @@ export function FileExplorerPane({
     <View
       {...{
         onContextMenu: (event: { preventDefault?: () => void }) => event.preventDefault?.(),
+        onKeyDown: (event: React.KeyboardEvent) => {
+          if (
+            !normalizedWorkspaceRoot ||
+            (!event.metaKey && !event.ctrlKey) ||
+            event.altKey ||
+            pendingEdit ||
+            (event.target instanceof Element &&
+              event.target.closest('input, textarea, [contenteditable="true"]'))
+          )
+            return;
+          if (
+            !useSessionStore.getState().sessions[serverId]?.serverInfo?.features?.fsEntryClipboard
+          )
+            return;
+          const key = event.key.toLowerCase();
+          if ((key === "c" || key === "x") && selectedEntryPath && selectedEntryPath !== ".") {
+            event.preventDefault();
+            event.stopPropagation();
+            setEntryClipboard({
+              path: selectedEntryPath,
+              cut: key === "x",
+              root: normalizedWorkspaceRoot,
+            });
+          } else if (key === "v" && entryClipboard?.root === normalizedWorkspaceRoot) {
+            event.preventDefault();
+            event.stopPropagation();
+            const paste = async () => {
+              const parent = parentExplorerPath(selectedEntryPath ?? ".");
+              const selected = directories
+                .get(parent)
+                ?.entries.find((entry) => entry.path === selectedEntryPath);
+              const directory = selected?.kind === "directory" ? selected.path : parent;
+              try {
+                const result = await pasteEntry(entryClipboard.path, directory, entryClipboard.cut);
+                if (!result) return undefined;
+                if (!result.success) toast.error(result.error ?? "Could not paste this item.");
+                else {
+                  if (entryClipboard.cut)
+                    setEntryClipboard((current) =>
+                      current === entryClipboard ? undefined : current,
+                    );
+                  const path = "renamedPath" in result ? result.renamedPath : result.duplicatedPath;
+                  if (path) selectExplorerEntry(path);
+                }
+              } catch (cause) {
+                toast.error(cause instanceof Error ? cause.message : "Could not paste this item.");
+              }
+            };
+            void paste();
+          }
+        },
       }}
       style={styles.container}
     >

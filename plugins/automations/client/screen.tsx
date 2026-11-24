@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View, type PressableStateCallbackType } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PluginTheme } from "@mixer/plugin";
@@ -249,7 +249,7 @@ export function AutomationsScreen(props: PluginScreenProps) {
   return <AutomationsWorkspace key={props.host.id} {...props} />;
 }
 
-function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenProps) {
+function AutomationsWorkspace({ theme, navigation, host, layout, params }: PluginScreenProps) {
   const mixer = useMixer();
   const toast = useToast();
   const [agentTabs, setAgentTabs] = useAutomationWorkspaceField(host.id, "agentTabs");
@@ -322,6 +322,20 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
         };
       }),
     [setDocuments, dirtyPaths],
+  );
+  const notificationAgent = params.agentId;
+  const notificationId = params.notificationId;
+  useEffect(() => {
+    if (notificationId && notificationAgent) void openConversation(notificationAgent);
+  }, [notificationAgent, notificationId, openConversation]);
+  const [, setAssistant] = useAutomationWorkspaceField(host.id, "assistant");
+  const startAssistantDraft = useCallback(
+    (draftId: string) => {
+      setAssistant({ draftId });
+      setPage("Runs");
+      setAiOpen(true);
+    },
+    [setAssistant, setPage, setAiOpen],
   );
   const movedWorkflow = useCallback(
     (from: string, to: string) => {
@@ -461,6 +475,7 @@ function AutomationsWorkspace({ theme, navigation, host, layout }: PluginScreenP
               active={typeof page === "object" && page.agentId === tab.agentId}
               onOpenFile={openAgentFile}
               onOpenAgent={openConversation}
+              onNewDraft={startAssistantDraft}
             />
           ))}
           {!workflowsActive && typeof page === "string" && (
@@ -519,7 +534,7 @@ function AutomationConversation({
   conversation,
   active,
   ...props
-}: Pick<AgentChatProps, "serverId" | "onOpenFile" | "onOpenAgent"> & {
+}: Pick<AgentChatProps, "serverId" | "onOpenFile" | "onOpenAgent" | "onNewDraft"> & {
   conversation: { agentId: string; workspaceId: string };
   active: boolean;
 }) {

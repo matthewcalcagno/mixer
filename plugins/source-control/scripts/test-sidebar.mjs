@@ -24,6 +24,101 @@ try {
   assert.ok(url);
   browser("open", url);
   browser("wait", "--text", "Staged Changes");
+  evaluate(
+    "window.resetCommitFixture();window.actionFailure={kind:'commit',error:{code:'identity',conflict:false,command:'git commit',message:'Author identity unknown'}}",
+  );
+  browser("find", "label", "Commit message", "fill", "preserve my identity draft");
+  browser("find", "role", "button", "click", "--name", "Commit staged changes", "--exact");
+  browser("wait", "--text", "Configure your Git identity");
+  assert.equal(
+    evaluate("document.querySelector('[aria-label=\"Commit message\"]').value"),
+    "preserve my identity draft",
+  );
+  browser("find", "role", "button", "click", "--name", "Configure Git identity", "--exact");
+  browser("find", "label", "Git author name", "fill", "Mixer Author");
+  browser("find", "label", "Git author email", "fill", "invalid");
+  assert.equal(
+    evaluate(
+      "Array.from(document.querySelectorAll('button')).find(el=>el.textContent==='Save for this repository').disabled",
+    ),
+    true,
+  );
+  browser("find", "label", "Git author email", "fill", "author@example.test");
+  evaluate(
+    "window.actionFailure={kind:'configure-identity',error:{code:'unknown',conflict:false,message:'could not lock config file'}}",
+  );
+  browser("find", "role", "button", "click", "--name", "Save for this repository", "--exact");
+  browser("wait", "--text", "could not lock config file");
+  evaluate("window.actionFailure=null");
+  browser("find", "role", "button", "click", "--name", "Save for this repository", "--exact");
+  browser("wait", "--text", "Git identity saved");
+  assert.deepEqual(evaluate("window.fixtureActions.at(-1)"), {
+    kind: "configure-identity",
+    name: "Mixer Author",
+    email: "author@example.test",
+  });
+  browser("find", "role", "button", "click", "--name", "Close Configure Git identity", "--exact");
+  assert.equal(
+    evaluate("document.querySelector('[aria-label=\"Commit message\"]').value"),
+    "preserve my identity draft",
+  );
+  browser("find", "role", "button", "click", "--name", "Dismiss Git error", "--exact");
+  for (const [code, title] of [
+    ["hook", "Git hook blocked the operation"],
+    ["empty-cherry-pick", "No changes left to cherry-pick"],
+    ["unknown", "Git operation failed"],
+  ]) {
+    evaluate(
+      `window.actionFailure={kind:'commit',error:{code:${JSON.stringify(code)},conflict:false,command:'git commit',message:'diagnostic output'}}`,
+    );
+    browser("find", "role", "button", "click", "--name", "Commit staged changes", "--exact");
+    browser("wait", "--text", title);
+    assert.equal(evaluate("document.body.textContent.includes('diagnostic output')"), false);
+    browser("find", "role", "button", "click", "--name", "Dismiss Git error", "--exact");
+  }
+  evaluate("window.resetCommitFixture()");
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("find", "label", "Commit message", "fill", "review blocked changes");
+  evaluate(
+    "window.actionFailure={kind:'commit',error:{code:'local-changes',conflict:false,message:'commit or stash changes'}}",
+  );
+  browser("find", "role", "button", "click", "--name", "Commit staged changes", "--exact");
+  browser("wait", "--text", "Local changes block this operation");
+  browser("find", "role", "button", "click", "--name", "Review changes", "--exact");
+  assert.deepEqual(evaluate("window.openedSourceControlDiff"), {
+    path: "src/price.tsx",
+    staged: true,
+  });
+  browser("find", "role", "button", "click", "--name", "Dismiss Git error", "--exact");
+  evaluate(
+    "window.actionFailure={kind:'commit',error:{code:'conflict',conflict:true,message:'conflicts'}}",
+  );
+  browser("find", "role", "button", "click", "--name", "Commit staged changes", "--exact");
+  browser("wait", "--text", "Resolve conflicts to continue");
+  evaluate("window.setSourceControlFiles([{path:'conflict.ts',index:'U',worktree:'U',head:'U'}])");
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", "--text", "Merge Changes");
+  browser("find", "role", "button", "click", "--name", "Show conflicts", "--exact");
+  assert.equal(evaluate("window.openedSourceControlFile"), "conflict.ts");
+  browser("find", "role", "button", "click", "--name", "Dismiss Git error", "--exact");
+  evaluate(
+    "window.resetCommitFixture();window.failRemote={code:'authentication',conflict:false,command:'git push',message:'Authentication failed'}",
+  );
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", "--text", "Staged Changes");
+  browser("select", '[aria-label="Commit options"]', "commit-push");
+  browser("wait", "--text", "Could not authenticate with the remote");
+  evaluate("window.failRemote=false");
+  browser("find", "role", "button", "click", "--name", "Retry", "--exact");
+  browser("wait", "--fn", "!document.querySelector('[role=alert]')");
+  assert.deepEqual(evaluate("window.fixtureActions.map(action=>action.kind)"), [
+    "commit",
+    "push",
+    "push",
+  ]);
+  evaluate("window.resetCommitFixture()");
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", "--text", "Staged Changes");
   browser(
     "wait",
     "--fn",
@@ -115,13 +210,14 @@ try {
   browser("wait", '[aria-label="Open staged diff for src/file-499.ts"]');
   browser("find", "label", "Commit message", "fill", "fix:");
   const rendersBeforeTyping = evaluate("window.fixtureIconRenders");
-  browser("find", "label", "Commit message", "type", " keep typing with 500 staged files");
+  browser("type", '[aria-label="Commit message"]', " keep typing with 500 staged files");
   const typingIconRenders = evaluate("window.fixtureIconRenders") - rendersBeforeTyping;
   assert.ok(
     typingIconRenders < 100,
     `Typing rerendered the resource list: ${typingIconRenders} icons`,
   );
-  browser("find", "label", "Commit message", "fill", "");
+  evaluate("document.querySelector('[aria-label=\"Commit message\"]').select()");
+  browser("press", "Backspace");
   evaluate("window.resetCommitFixture()");
   browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
   browser(
@@ -132,7 +228,7 @@ try {
   const inspect = `(() => {const input=document.querySelector('[aria-label="Commit message"]');const button=document.querySelector('[aria-label="Commit staged changes"]');return {height:input.getBoundingClientRect().height,disabled:button.getAttribute('aria-disabled'),background:getComputedStyle(button).backgroundColor,text:document.body.innerText,icon:getComputedStyle(document.querySelector('[data-icon="RotateCw"]')).color};})()`;
   let state = evaluate(inspect);
   assert.equal(state.height, 28);
-  assert.equal(state.disabled, "true");
+  assert.equal(state.disabled, "true", JSON.stringify(state));
   assert.ok(state.text.includes('Commit message for "develop"'));
   assert.ok(!state.text.includes("Remote checked"));
   assert.ok(!state.text.includes("↓0"));
@@ -192,7 +288,10 @@ try {
     false,
   );
   evaluate("window.rejectDiscard()");
+  browser("wait", "--text", "Git operation failed");
+  browser("find", "role", "button", "click", "--name", "View command output", "--exact");
   browser("wait", "--text", "Discard failed");
+  browser("find", "role", "button", "click", "--name", "Close Git command output", "--exact");
   browser(
     "wait",
     "--fn",
@@ -270,7 +369,10 @@ try {
     ),
     true,
   );
-  evaluate("window.confirm=()=>{throw new Error('Sync must not ask for confirmation')}");
+  evaluate("window.confirm=()=>false");
+  browser("find", "role", "button", "click", "--name", "Sync changes", "--exact");
+  assert.equal(evaluate("window.fixtureActions.filter(action=>action.kind==='sync').length"), 0);
+  evaluate("window.confirm=()=>true");
   browser("find", "role", "button", "click", "--name", "Sync changes", "--exact");
   browser("wait", "--fn", "window.fixtureActions.some(action=>action.kind==='sync')");
   browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Commit staged changes\"]')");
@@ -339,7 +441,7 @@ try {
   );
   evaluate("window.confirm=()=>true;window.failRemote=true");
   browser("select", '[aria-label="Commit options"]', "commit-push");
-  browser("wait", "--text", "Remote unavailable");
+  browser("wait", "--text", "Could not reach the remote");
   browser("wait", "--fn", "!!document.querySelector('[aria-label=\"Sync changes\"]')");
   assert.deepEqual(evaluate("window.fixtureActions.map(action=>action.kind)"), ["commit", "push"]);
   assert.equal(
@@ -348,6 +450,56 @@ try {
     "Failed push must not restore a message for an already successful commit",
   );
   assert.deepEqual(evaluate("window.fixtureErrors"), []);
+  evaluate(
+    `window.resetCommitFixture();window.failRemote={code:'push-rejected',conflict:false,command:'git push',message:'To https://example.com/repo.git\\n ! [rejected] main -> main (non-fast-forward)\\nerror: failed to push some refs'};window.confirm=()=>true`,
+  );
+  browser("find", "role", "button", "click", "--name", "Refresh", "--exact");
+  browser("wait", "--text", "Staged Changes");
+  browser("find", "label", "Commit message", "fill", "preserve rejected commit");
+  browser("select", '[aria-label="Commit options"]', "commit-push");
+  browser("wait", "--text", "Push rejected");
+  assert.equal(evaluate("document.querySelector('[role=alert]').textContent"), "Push rejected");
+  assert.equal(evaluate("document.body.textContent.includes('non-fast-forward')"), false);
+  browser("find", "role", "button", "click", "--name", "View command output", "--exact");
+  browser("wait", "--text", "non-fast-forward");
+  evaluate("window.failCopy=true");
+  browser("find", "role", "button", "click", "--name", "Copy details", "--exact");
+  browser("wait", "--text", "Could not copy the command output");
+  evaluate("window.failCopy=false");
+  browser("find", "role", "button", "click", "--name", "Copy details", "--exact");
+  browser("wait", "--text", "Copied");
+  assert.equal(
+    evaluate("window.copiedGitDetails.startsWith('git push\\n\\nTo https://example.com/repo.git')"),
+    true,
+  );
+  browser("find", "role", "button", "click", "--name", "Close Git command output", "--exact");
+  evaluate("window.confirm=()=>false");
+  browser(
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sync changes to resolve rejected push",
+    "--exact",
+  );
+  assert.deepEqual(evaluate("window.fixtureActions.map(action=>action.kind)"), ["commit", "push"]);
+  evaluate("window.failRemote=false;window.confirm=()=>true");
+  browser(
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Sync changes to resolve rejected push",
+    "--exact",
+  );
+  browser("wait", "--fn", "!document.querySelector('[role=alert]')");
+  assert.deepEqual(evaluate("window.fixtureActions.map(action=>action.kind)"), [
+    "commit",
+    "push",
+    "sync",
+  ]);
   evaluate(
     "window.resetCommitFixture();window.setSourceControlFiles([{path:'conflict.ts',index:'U',worktree:'U',head:'U'},{path:'src/price.tsx',index:'M',worktree:' ',head:'M'}])",
   );

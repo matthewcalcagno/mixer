@@ -43,6 +43,11 @@ export async function executeGitAction({ cwd, revision, action }: ActionInput): 
     case "amend":
       output = await git(cwd, ["commit", "--amend", "-m", action.message]);
       break;
+    case "configure-identity":
+      await git(cwd, ["config", "--local", "user.name", action.name]);
+      await git(cwd, ["config", "--local", "user.email", action.email]);
+      output = "Git identity saved for this repository. Retry your commit when ready.";
+      break;
     case "continue":
       output = await continueOperation(cwd, requireOperation(current), action.message);
       break;

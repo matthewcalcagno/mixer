@@ -76,6 +76,34 @@ export const diffRpc = defineRpc({
   input: workspace.and(z.object({ path: z.string().min(1), staged: z.boolean() })),
   output: z.object({ patch: z.string() }),
 });
+export const gitFailureCode = z.enum([
+  "push-rejected",
+  "authentication",
+  "identity",
+  "local-changes",
+  "hook",
+  "conflict",
+  "empty-cherry-pick",
+  "network",
+  "unknown",
+]);
+export const gitFailure = z.object({
+  message: z.string(),
+  conflict: z.boolean(),
+  code: gitFailureCode.optional(),
+  command: z.string().optional(),
+});
+export type GitFailure = z.infer<typeof gitFailure>;
+export const gitIdentityAction = z.object({
+  kind: z.literal("configure-identity"),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .refine((value) => !["\r", "\n", "\0"].some((character) => value.includes(character))),
+  email: z.string().trim().email().max(254),
+});
 export const actionRpc = defineRpc({
   name: "git.action",
   input: workspace.and(
@@ -90,6 +118,7 @@ export const actionRpc = defineRpc({
         z.object({ kind: z.literal("amend"), message: z.string().trim().min(1) }),
         z.object({ kind: z.enum(["fetch", "pull", "push", "sync", "publish", "abort"]) }),
         z.object({ kind: z.literal("continue"), message: z.string().trim().min(1) }),
+        gitIdentityAction,
         z.object({
           kind: z.literal("patch"),
           path: z.string().min(1),
@@ -103,16 +132,13 @@ export const actionRpc = defineRpc({
   ),
   output: z.object({
     message: z.string(),
-    error: z.object({ message: z.string(), conflict: z.boolean() }).optional(),
+    error: gitFailure.optional(),
   }),
 });
 
 export class GitActionError extends Error {
-  constructor(
-    message: string,
-    readonly conflict: boolean,
-  ) {
-    super(message);
+  constructor(readonly failure: GitFailure) {
+    super(failure.message);
     this.name = "GitActionError";
   }
 }

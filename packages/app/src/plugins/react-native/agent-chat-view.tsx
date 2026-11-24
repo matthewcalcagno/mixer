@@ -33,6 +33,7 @@ export default function AgentChatView({
   contextFile,
   onOpenFile,
   onOpenAgent,
+  onNewDraft,
 }: AgentChatProps) {
   ensurePanelsRegistered();
   const toast = useToast();
@@ -95,9 +96,10 @@ export default function AgentChatView({
   const retarget = useCallback(
     (target: WorkspaceTabTarget) => {
       if (draft && target.kind === "agent") draft.onCreated(target.agentId);
+      else if (target.kind === "draft" && onNewDraft) onNewDraft(target.draftId);
       else open(target);
     },
-    [draft, open],
+    [draft, onNewDraft, open],
   );
   const openConversation = useCallback(() => {
     if (agentId) onOpenAgent(agentId);

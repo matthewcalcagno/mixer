@@ -52,6 +52,10 @@ describe("notification open", () => {
       { serverId: "h", workspaceId: "w", terminalId: "t", agentId: "a" },
       { kind: "terminal", serverId: "h", workspaceId: "w", terminalId: "t" },
     ],
+    [
+      { serverId: "h", workspaceId: "hidden", agentId: "a", surface: "automations" },
+      { kind: "automations", serverId: "h", agentId: "a" },
+    ],
   ])("parses %j", (data, expected) => {
     expect(parseNotificationOpenTarget(data)).toEqual(expected);
   });

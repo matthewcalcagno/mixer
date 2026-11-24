@@ -1,4 +1,5 @@
 import { primaryRemoteAction } from "./primary-remote-action.js";
+import { GitErrorNotice } from "./git-error.js";
 import type { PluginTheme } from "@mixer/plugin";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
@@ -64,14 +65,17 @@ const preferences = z.object({
 });
 
 type Action = RpcInput<typeof actionRpc>["action"];
-
-function describeGitError(error: Error | null) {
-  if (!error || (error instanceof GitActionError && error.conflict)) return null;
-  const firstLine = error.message.split("\n")[0];
-  const summary = /^(?:Request failed|Git exited|fatal:|error:)/i.test(firstLine)
-    ? "Git operation failed."
-    : firstLine;
-  return { summary, details: error.message };
+function remoteRetryKind(action: Action | undefined) {
+  switch (action?.kind) {
+    case "fetch":
+    case "pull":
+    case "push":
+    case "sync":
+    case "publish":
+      return action.kind;
+    default:
+      return null;
+  }
 }
 
 export function SourceControlPanel({
@@ -124,7 +128,6 @@ export function SourceControlPanel({
   const [collapsedFolders, setCollapsedFolders] = useState<ReadonlySet<string>>(() => new Set());
   const [commitFlowOption, setCommitFlowOption] = useState<CommitOption | null>(null);
   const commitFlowPending = commitFlowOption !== null;
-  const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [commitFlowError, setCommitFlowError] = useState<Error | null>(null);
   const key = ["source-control", workspaceId];
   const mutating = useIsMutating({ mutationKey: key }) > 0 || commitFlowPending;
@@ -150,7 +153,6 @@ export function SourceControlPanel({
     mutationKey: key,
     onMutate: async (operation: Action & { expectedRevision?: string }) => {
       setCommitFlowError(null);
-      setShowErrorDetails(false);
       await queries.cancelQueries({ queryKey: key });
       const previous = queries.getQueryData<RpcOutput<typeof statusRpc>>(key);
       if (previous) queries.setQueryData(key, optimisticStatus(previous, operation));
@@ -163,7 +165,7 @@ export function SourceControlPanel({
         revision: operation.expectedRevision ?? state.data.revision,
         action: operation,
       }).then((result) => {
-        if (result.error) throw new GitActionError(result.error.message, result.error.conflict);
+        if (result.error) throw new GitActionError(result.error);
         return result;
       });
     },
@@ -367,7 +369,28 @@ export function SourceControlPanel({
   let primaryLabel = gitOperation ? "Continue" : (remoteAction?.label ?? "Commit");
   if (commitFlowOption)
     primaryLabel = commitOptions.find((option) => option.value === commitFlowOption)!.label;
-  const gitError = describeGitError(state.error || commitFlowError || action.error || trash.error);
+  const gitError = state.error || commitFlowError || action.error || trash.error;
+  const retryKind = remoteRetryKind(action.variables);
+  function retryRemote() {
+    if (!retryKind) return;
+    if (retryKind === "pull" || retryKind === "sync") void confirm({ kind: retryKind });
+    else action.mutate({ kind: retryKind });
+  }
+  function reviewChanges(group: "merge" | "changes") {
+    const stagedOnly = group === "changes" && groups.changes.length === 0;
+    const targetGroup = stagedOnly ? "staged" : group;
+    setFilter("");
+    setCollapsed((current) => ({ ...current, [targetGroup]: false }));
+    setCollapsedFolders(new Set());
+    const file = groups[targetGroup][0];
+    if (file) openResource(targetGroup, file);
+  }
+  async function configureIdentity(identity: Extract<Action, { kind: "configure-identity" }>) {
+    if (!state.data) throw new Error("Refresh the repository first");
+    const result = await runAction({ ...scope, revision: state.data.revision, action: identity });
+    if (result.error) throw new GitActionError(result.error);
+    return result;
+  }
   async function commit(message: string, option: CommitOption) {
     if (!message.trim() || !(option === "amend" ? canAmend : canCommit) || !state.data) return;
     const snapshot = state.data;
@@ -432,6 +455,11 @@ export function SourceControlPanel({
     let description = discard
       ? `Permanently discard ${operation.kind === "discard" ? operation.paths.length : 1} tracked file(s)? This cannot be undone. Untracked files are preserved.`
       : `Run ${operation.kind} on ${state.data.branch}?`;
+    if (operation.kind === "sync") {
+      title = "Sync changes?";
+      description =
+        "Pull remote changes using this repository's merge or rebase settings, then push your local commits. If there are conflicts, resolve them in Merge Changes before continuing. Nothing is force-pushed.";
+    }
     if (
       operation.kind === "stage" &&
       operation.paths.some((path) => groups.merge.some((file) => file.path === path))
@@ -638,44 +666,39 @@ export function SourceControlPanel({
           onMessage={saveMessage}
           onCommit={commit}
           onRemoteAction={() => {
-            if (remoteAction) action.mutate({ kind: remoteAction.kind });
+            if (!remoteAction) return;
+            if (remoteAction.kind === "sync") void confirm({ kind: "sync" });
+            else action.mutate({ kind: remoteAction.kind });
           }}
         />
         {gitError && (
-          <View style={{ marginHorizontal: 10, marginBottom: 8, gap: 4 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Icon name="AlertCircle" size={14} color={c.statusDanger} />
-              <Text
-                accessibilityRole="alert"
-                numberOfLines={2}
-                style={{ ...text, flex: 1, color: c.statusDanger }}
-              >
-                {gitError.summary}
-              </Text>
-              <IconButton
-                icon="Info"
-                label={showErrorDetails ? "Hide Git error details" : "Show Git error details"}
-                theme={theme}
-                onPress={() => setShowErrorDetails(!showErrorDetails)}
-              />
-              <IconButton
-                icon="X"
-                label="Dismiss Git error"
-                theme={theme}
-                onPress={() => {
-                  action.reset();
-                  trash.reset();
-                  setCommitFlowError(null);
-                  if (state.error) void state.refetch();
-                }}
-              />
-            </View>
-            {showErrorDetails && (
-              <Text selectable style={{ ...text, color: c.foregroundMuted }}>
-                {gitError.details}
-              </Text>
-            )}
-          </View>
+          <GitErrorNotice
+            error={gitError}
+            theme={theme}
+            operationLabel={operationLabel}
+            disabled={pending}
+            canSync={!remoteActionsDisabled}
+            canRetry={retryKind !== null}
+            onSync={() => void confirm({ kind: "sync" })}
+            onRetry={retryRemote}
+            onReview={() => reviewChanges("changes")}
+            onConflicts={() => reviewChanges("merge")}
+            onConfigure={configureIdentity}
+            onDismiss={() => {
+              action.reset();
+              trash.reset();
+              setCommitFlowError(null);
+              if (state.error) void state.refetch();
+            }}
+          />
+        )}
+        {hasConflicts && !gitError && (
+          <Text
+            style={{ ...text, marginHorizontal: 10, marginBottom: 8, color: c.foregroundMuted }}
+          >
+            Resolve the files in Merge Changes, then stage each resolved file.
+            {" You can continue once all conflicts are resolved."}
+          </Text>
         )}
         {sections.map((group) => (
           <View key={group.id} style={{ marginBottom: 4 }}>

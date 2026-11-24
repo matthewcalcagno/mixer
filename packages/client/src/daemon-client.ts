@@ -5213,6 +5213,7 @@ export class DaemonClient {
     cwd: string;
     path: string;
     name: string;
+    destinationDirectory?: string;
   }): Promise<CorrelatedResponsePayload<"fs.entry.rename.response">> {
     return this.sendNamespacedCorrelatedSessionRequest<"fs.entry.rename.response">({
       message: { type: "fs.entry.rename.request", ...input },
@@ -5222,6 +5223,7 @@ export class DaemonClient {
   async duplicateFileEntry(input: {
     cwd: string;
     path: string;
+    destinationDirectory?: string;
   }): Promise<CorrelatedResponsePayload<"fs.entry.duplicate.response">> {
     return this.sendNamespacedCorrelatedSessionRequest<"fs.entry.duplicate.response">({
       message: { type: "fs.entry.duplicate.request", ...input },

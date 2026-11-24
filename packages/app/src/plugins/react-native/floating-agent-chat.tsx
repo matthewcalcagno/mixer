@@ -20,6 +20,7 @@ export function FloatingAgentChat({
   title,
   onOpenFile,
   onOpenAgent,
+  onNewDraft,
   children,
   testID,
   notice,
@@ -74,6 +75,7 @@ export function FloatingAgentChat({
               contextFile={contextFile}
               onOpenFile={onOpenFile}
               onOpenAgent={onOpenAgent}
+              onNewDraft={onNewDraft}
             />
           )}
           {!conversation && draft && (

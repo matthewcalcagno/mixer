@@ -111,23 +111,30 @@ export function WorkflowLibrary({
   const listCall = useRpc(listRpc);
   const readFile = useRpc(readWorkflowRpc);
   const moveFile = useRpc(moveWorkflowRpc);
+  const duplicateFile = useRpc(duplicateWorkflowRpc);
   const readDirectory = useRpc(readDirectoryRpc);
+  const moveDirectory = useRpc(moveDirectoryRpc);
   const deleteFile = useRpc(deleteWorkflowRpc);
   const deleteDirectory = useRpc(deleteDirectoryRpc);
   const query = useQueryClient();
   const toast = useToast();
   const movement = useMutation({
     mutationFn: async ({ path, directory }: { path: string; directory: string }) => {
-      workflowId.parse(path);
       if (directory) automationDirectoryId.parse(directory);
-      if (dirtyPaths.has(path)) throw new Error("Save your draft before moving this workflow.");
       const destination = `${directory ? `${directory}/` : ""}${path.split("/").at(-1)}`;
+      if (directories.includes(path)) {
+        const source = await readDirectory({ path });
+        return moveDirectory({ path, destination, version: source.version });
+      }
+      workflowId.parse(path);
       const source = await readFile({ path });
       return moveFile({ path, destination, version: source.version });
     },
     onSuccess: async (result, input) => {
-      query.setQueryData(["automations", host.id, "source", result.path], result);
       moved(input.path, result.path);
+      setClipboard((current) =>
+        current?.operation === "cut" && current.path === input.path ? undefined : current,
+      );
       setScope(parentOf(result.path));
       setClosed(
         (previous) =>
@@ -139,7 +146,8 @@ export function WorkflowLibrary({
   });
   const move = useCallback(
     (path: string, directory: string) => {
-      if (!movement.isPending && parentOf(path) !== directory) movement.mutate({ path, directory });
+      if (!movement.isPending && parentOf(path) !== directory && !within(directory, path))
+        movement.mutate({ path, directory });
     },
     [movement],
   );
@@ -151,6 +159,8 @@ export function WorkflowLibrary({
   });
   const [filter, setFilter] = useState("");
   const [scope, setScope] = useState("");
+  const [clipboard, setClipboard] = useState<{ path: string; operation: "copy" | "cut" }>();
+  const [focusedEntry, setFocusedEntry] = useState("");
   const [creation, setCreation] = useState<Creation | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set());
@@ -203,6 +213,7 @@ export function WorkflowLibrary({
     [select],
   );
   const toggle = useCallback((path: string) => {
+    setFocusedEntry(path);
     setScope(path);
     setClosed((previous) => {
       const next = new Set(previous);
@@ -211,6 +222,13 @@ export function WorkflowLibrary({
       return next;
     });
   }, []);
+  const selectTreeFile = useCallback(
+    (path: string) => {
+      setFocusedEntry(path);
+      open(path);
+    },
+    [open],
+  );
   const deletion = useMutation({
     mutationFn: async (entry: Entry) => {
       const source =
@@ -320,8 +338,61 @@ export function WorkflowLibrary({
       ),
     [list.data?.directories, files, filter],
   );
+  const paste = useMutation({
+    mutationFn: async ({ path, directory }: { path: string; directory: string }) => {
+      const source = await readFile({ path });
+      const basename = path.split("/").at(-1) ?? path;
+      const prefix = directory ? `${directory}/` : "";
+      const occupied = new Set([
+        ...(list.data?.workflows ?? []).map((item) => item.path),
+        ...directories,
+      ]);
+      let destination = `${prefix}${basename}`;
+      for (let index = 1; occupied.has(destination); index++) {
+        destination =
+          prefix + basename.replace(/(\.[^.]+)$/, ` copy${index === 1 ? "" : ` ${index}`}$1`);
+      }
+      return duplicateFile({ path, destination, version: source.version });
+    },
+    onSuccess: () => query.invalidateQueries({ queryKey: ["automations", host.id] }),
+    onError: (error) => toast.error(error.message),
+  });
   return (
-    <View style={styles.fill} testID="automations-workflow-tree-pane">
+    <View
+      style={styles.fill}
+      testID="automations-workflow-tree-pane"
+      {...{
+        onKeyDown: (event: React.KeyboardEvent) => {
+          if (
+            (!event.metaKey && !event.ctrlKey) ||
+            event.altKey ||
+            event.shiftKey ||
+            editing ||
+            (event.target instanceof Element &&
+              event.target.closest('input, textarea, [contenteditable="true"]'))
+          )
+            return;
+          const key = event.key.toLowerCase();
+          if (
+            (key === "c" || key === "x") &&
+            focusedEntry &&
+            (key === "x" || !directories.includes(focusedEntry))
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            setClipboard({ path: focusedEntry, operation: key === "x" ? "cut" : "copy" });
+          } else if (key === "v" && clipboard && !paste.isPending && !movement.isPending) {
+            event.preventDefault();
+            event.stopPropagation();
+            const directory = directories.includes(focusedEntry)
+              ? focusedEntry
+              : parentOf(focusedEntry);
+            if (clipboard.operation === "cut") move(clipboard.path, directory);
+            else paste.mutate({ path: clipboard.path, directory });
+          }
+        },
+      }}
+    >
       <PaneHeader title="Workflows">
         <PaneHeaderAction icon="FilePlus2" label="New file" onPress={newFile} />
         <PaneHeaderAction icon="FolderPlus" label="New folder" onPress={newFolder} />
@@ -347,6 +418,9 @@ export function WorkflowLibrary({
         </Text>
       )}
       <ContextMenu fill actions={rootActions} onOpen={noop} onSelect={rootAction}>
+        <TreeDropTarget scope={dragScope} onDropPath={dropRoot} disabled={movement.isPending}>
+          <Text style={styles.muted}>Workflows</Text>
+        </TreeDropTarget>
         <TreeDropTarget fill scope={dragScope} onDropPath={dropRoot}>
           <ScrollView
             style={styles.fill}
@@ -365,7 +439,7 @@ export function WorkflowLibrary({
               filter={filter}
               closed={closed}
               toggle={toggle}
-              select={open}
+              select={selectTreeFile}
               create={create}
               styles={styles}
               creation={creation}
@@ -463,6 +537,7 @@ function Tree({ prefix, ...props }: TreeProps) {
           path={path}
           selected={props.selected === path}
           select={props.select}
+          move={props.move}
         />
       ))}
     </View>
@@ -499,15 +574,17 @@ function Folder({ path, ...props }: Omit<TreeProps, "prefix"> & { path: string }
     );
   return (
     <TreeDropTarget scope={props.dragScope} onDropPath={drop}>
-      <ContextMenu actions={actions} onOpen={noop} onSelect={menu}>
-        <FileTreeRow
-          path={path}
-          depth={props.depth}
-          expanded={expanded}
-          selected={false}
-          onPress={press}
-        />
-      </ContextMenu>
+      <TreeDragSource scope={props.dragScope} path={path} disabled={props.busy}>
+        <ContextMenu actions={actions} onOpen={noop} onSelect={menu}>
+          <FileTreeRow
+            path={path}
+            depth={props.depth}
+            expanded={expanded}
+            selected={false}
+            onPress={press}
+          />
+        </ContextMenu>
+      </TreeDragSource>
       {expanded && (
         <View>
           <Tree {...props} depth={props.depth + 1} prefix={`${path}/`} />
@@ -523,6 +600,7 @@ function File({
   path,
   selected,
   select,
+  move,
   editing,
   cancelEdit,
   edited,
@@ -536,6 +614,7 @@ function File({
   path: string;
   selected: boolean;
   select(path: string): void;
+  move(path: string, directory: string): void;
   editing: Editing | null;
   cancelEdit(): void;
   edited(edit: Editing, path: string): Promise<void>;
@@ -544,6 +623,7 @@ function File({
   busy: boolean;
 }) {
   const press = useCallback(() => select(path), [select, path]);
+  const drop = useCallback((source: string) => move(source, parentOf(path)), [move, path]);
   const menu = useCallback(
     (id: string) => {
       action({ path, kind: "file" }, id);
@@ -571,15 +651,13 @@ function File({
       />
     );
   return (
-    <TreeDragSource
-      scope={dragScope}
-      path={path}
-      disabled={busy || dirty || path === "config.json"}
-    >
-      <ContextMenu actions={actions} onOpen={noop} onSelect={menu}>
-        <FileTreeRow path={path} depth={depth} selected={selected} onPress={press} />
-      </ContextMenu>
-    </TreeDragSource>
+    <TreeDropTarget scope={dragScope} onDropPath={drop} disabled={busy}>
+      <TreeDragSource scope={dragScope} path={path} disabled={busy || path === "config.json"}>
+        <ContextMenu actions={actions} onOpen={noop} onSelect={menu}>
+          <FileTreeRow path={path} depth={depth} selected={selected} onPress={press} />
+        </ContextMenu>
+      </TreeDragSource>
+    </TreeDropTarget>
   );
 }
 

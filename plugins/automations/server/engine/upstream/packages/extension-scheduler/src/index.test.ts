@@ -5,7 +5,7 @@ import scheduler from "./index.js";
 describe("durable scheduler", () => {
   afterEach(() => vi.useRealTimers());
 
-  it("persists the next occurrence and emits one catch-up after downtime", async () => {
+  it("persists the next occurrence and skips missed runs after a week offline", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     let source: any;
@@ -32,11 +32,14 @@ describe("durable scheduler", () => {
     expect((events[0] as { data: { workflowId: string } }).data.workflowId).toBe("weekly.md");
     source.stop();
 
-    vi.setSystemTime(new Date("2026-01-01T00:05:00.000Z"));
+    vi.setSystemTime(new Date("2026-01-08T00:05:00.000Z"));
     source.start(context);
     await vi.advanceTimersByTimeAsync(0);
+    expect(events).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(events).toHaveLength(2);
-    expect((events[1] as { data: { caughtUp: boolean } }).data.caughtUp).toBe(true);
+    expect(events[1]).toMatchObject({ data: { scheduledFor: "2026-01-08T00:06:00.000Z" } });
+    source.stop();
   });
 
   it("matches only the workflow that emitted a shared cron schedule", () => {

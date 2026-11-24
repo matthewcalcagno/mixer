@@ -123,6 +123,35 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
         });
         return directory;
       } catch (error) {
+        // The daemon currently sends filesystem errors as strings, without errno.
+        const missing = error instanceof Error && /^(?:ENOENT|ENOTDIR):/.test(error.message);
+        if (normalizedPath !== "." && missing) {
+          const parent = parentExplorerPath(normalizedPath);
+          const removed = (entry: string) =>
+            entry === normalizedPath || entry.startsWith(`${normalizedPath}/`);
+          updateExplorerState((state) => {
+            const directories = new Map(state.directories);
+            const requests = new Map(state.requests);
+            for (const entry of directories.keys()) if (removed(entry)) directories.delete(entry);
+            for (const entry of requests.keys()) if (removed(entry)) requests.delete(entry);
+            const listing = directories.get(parent);
+            if (listing) {
+              directories.set(parent, {
+                ...listing,
+                entries: listing.entries.filter((entry) => !removed(entry.path)),
+              });
+            }
+            const selectedEntryPath = state.selectedEntryPath;
+            return {
+              directories,
+              requests,
+              selectedEntryPath:
+                selectedEntryPath && removed(selectedEntryPath) ? null : selectedEntryPath,
+            };
+          });
+          void readDirectory(parent);
+          return null;
+        }
         updateExplorerState((state) => {
           const message =
             error instanceof Error
@@ -245,6 +274,24 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
     [client, normalizedWorkspaceRoot, requestDirectoryListing, serverId, workspaceId],
   );
 
+  const pasteEntry = useCallback(
+    async (path: string, directory: string, cut: boolean) => {
+      if (!client || !normalizedWorkspaceRoot) return null;
+      const input = { cwd: normalizedWorkspaceRoot, path, destinationDirectory: directory };
+      const result = cut
+        ? await client.renameFileEntry({ ...input, name: path.split("/").at(-1) ?? path })
+        : await client.duplicateFileEntry(input);
+      if (result.success)
+        await Promise.all(
+          [...new Set([directory, parentExplorerPath(path)])].map((entry) =>
+            requestDirectoryListing(entry),
+          ),
+        );
+      return result;
+    },
+    [client, normalizedWorkspaceRoot, requestDirectoryListing],
+  );
+
   const duplicateEntry = useCallback(
     async (path: string) => {
       if (!client || !normalizedWorkspaceRoot) {
@@ -293,6 +340,7 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
     createEntry,
     renameEntry,
     duplicateEntry,
+    pasteEntry,
     deleteEntry,
     selectExplorerEntry,
   };

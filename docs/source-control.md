@@ -152,8 +152,32 @@ merge, rebase, cherry-pick, or revert, use Continue as the primary action and ke
 unresolved files in Merge Changes. Stage resolved files directly; reject remaining
 conflict markers. Open conflicted files in the editable source editor.
 
-Expected conflicts belong in the file list, without a second error banner. Show
-other failures as a short summary with expandable technical details. Keep Abort
+Conflicts belong in Merge Changes. Show one warning with the operation name and
+Show conflicts, without duplicating the resolve, stage, and continue guidance.
+Keep Abort
 available as an icon action with confirmation. This follows the upstream
 [VS Code Git action button](https://github.com/microsoft/vscode/blob/main/extensions/git/src/actionButton.ts)
 and its use of Git’s prepared message.
+
+## Git failures and recovery
+
+Classify command failures on the daemon using C-locale Git output. Keep the failed
+command separate from its output. RPC error categories are optional so older
+responses still open as generic failures. Do not infer recovery actions from raw
+output in the renderer.
+
+A rejected push offers Sync Changes with confirmation, never force-push. Authentication
+and network errors offer an explicit retry of the failed remote operation. Pull and
+sync retries still require confirmation. Do not retry commits or destructive actions
+automatically. Local-change refusals open the existing file list for review; they
+never stash or discard on the user's behalf.
+
+Missing identity opens a repository-local name and email form. It must not change
+global Git configuration or retry the commit automatically. Failed commits preserve
+the draft. Hook failures expose output without offering a hook bypass. Empty
+cherry-picks are informational and leave the skip decision to the user.
+
+Technical output lives in the host modal, not the sidebar. Copy failures stay visible
+there. Remove HTTP URL credentials from daemon diagnostics and omit commit message
+arguments from the displayed command. Output can still contain private repository
+content; do not send it to external services.

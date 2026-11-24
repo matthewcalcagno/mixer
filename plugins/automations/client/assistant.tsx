@@ -35,6 +35,7 @@ export function AutomationAssistant({
     (id: string) => setAssistant((previous) => ({ ...previous, agentId: id })),
     [setAssistant],
   );
+  const newDraft = useCallback((id: string) => setAssistant({ draftId: id }), [setAssistant]);
   const {
     data: workspace,
     error,
@@ -124,6 +125,7 @@ export function AutomationAssistant({
       accessibilityLabel="Ask Automations AI"
       notice={dirty ? "Save your draft before asking AI to change files." : undefined}
       onOpenAgent={openAgent}
+      onNewDraft={newDraft}
       onOpenFile={openFile}
     >
       <View style={styles.bootstrap}>
