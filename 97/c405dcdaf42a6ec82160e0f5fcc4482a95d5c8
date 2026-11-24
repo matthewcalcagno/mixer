@@ -1,0 +1,14 @@
+plugins/automations/server/engine/build.mjs
+  h_7d2b44d56feab6 9-11,66-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "97c405dcdaf42a6ec82160e0f5fcc4482a95d5c8",
+  "prompts": {},
+  "humans": {
+    "h_7d2b44d56feab6": {
+      "author": "Matthew Calcagno <matthewcal@ext.inditex.com>"
+    }
+  }
+}
