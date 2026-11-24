@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 const root = dirname(fileURLToPath(import.meta.url));
 // Reuse the CLI's actual control protocol for scripted handoffs, queries, and Safe Actions.
 const cliSource = await readFile(join(root, "upstream/packages/cli/src/index.ts"), "utf8");
+const argumentParser = "program.parseAsync()";
+if (cliSource.split(argumentParser).length !== 2)
+  throw new Error("Review the upstream CLI argument parsing before building.");
 const controlStart = cliSource.indexOf("function controlPath(): string");
 const controlEnd = cliSource.indexOf("async function daemon(): Promise<void>");
 if (controlStart < 0 || controlEnd < controlStart)
@@ -60,7 +63,17 @@ await build({
 });
 await build({
   ...common,
-  entryPoints: [join(root, "upstream/packages/cli/src/index.ts")],
+  stdin: {
+    // Electron still advertises process.versions.electron in Node mode.
+    // Both embedded launchers pass argv in Node's [executable, script, ...args] form.
+    contents: cliSource.replace(
+      argumentParser,
+      'program.parseAsync(process.argv, { from: "node" })',
+    ),
+    resolveDir: join(root, "upstream/packages/cli/src"),
+    sourcefile: "upstream/packages/cli/src/index.ts",
+    loader: "ts",
+  },
   outfile: join(root, "dist/cli.js"),
 });
 await build({
